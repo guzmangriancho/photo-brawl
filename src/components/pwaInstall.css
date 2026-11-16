@@ -1,0 +1,16 @@
+.pb-install-banner{position:fixed;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:75;display:flex;gap:10px;align-items:flex-start;width:min(390px,calc(100vw - 20px));padding:12px 31px 10px 12px;background:linear-gradient(155deg,#15345e 0%,#07172e 100%);border:2px solid #7bcaff;box-shadow:0 0 0 3px #08101f,0 8px 24px #000c;color:#ecf8ff;font-family:Oxanium,sans-serif;image-rendering:auto}
+.pb-install-banner:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#14c7ff,#d68bff,#ffcb51)}
+.pb-install-icon{width:44px;height:44px;object-fit:contain;border:2px solid #79aee0;background:#040a17;image-rendering:pixelated;flex:none}
+.pb-install-content{min-width:0;display:flex;flex-direction:column;gap:5px}
+.pb-install-content strong{font-size:13px;color:#ffe7a8;line-height:1.1;letter-spacing:.2px}
+.pb-install-content p{font-size:10px;line-height:1.3;color:#c2dcf8;margin:0;display:block}
+.pb-install-content p svg{display:inline;vertical-align:middle}
+.pb-install-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.pb-install-cta,.pb-install-later{display:inline-flex;gap:4px;align-items:center;justify-content:center;border:1px solid #fff6;border-bottom-width:3px;border-radius:3px;font:800 11px Oxanium,sans-serif;padding:5px 9px;cursor:pointer}
+.pb-install-cta{background:#e5ad3e;color:#291202}.pb-install-later{background:#274566;color:#e1efff}
+.pb-install-help{display:flex;gap:4px;align-items:center;color:#91cceb;font:700 9px Oxanium,sans-serif}
+.pb-install-close{position:absolute;right:5px;top:5px;display:grid;place-items:center;width:22px;height:22px;border:0;background:#163052;color:#c4dff5;cursor:pointer}
+.pb-install-decor{position:absolute;right:8px;bottom:8px;color:#3e7096;opacity:.3;pointer-events:none}
+.pb-pwa-settings-button{margin-top:6px;width:100%;min-height:30px;font-size:12px}
+@media (orientation:landscape) and (max-height:430px){.pb-install-banner{left:10px;bottom:8px;transform:none;width:min(345px,48vw);padding:7px 27px 6px 8px;gap:7px}.pb-install-icon{width:32px;height:32px}.pb-install-content strong{font-size:11px}.pb-install-content p{font-size:9px}.pb-install-cta,.pb-install-later{padding:3px 6px}}
+@media (max-width:355px){.pb-install-content strong{font-size:11px}.pb-install-icon{width:36px;height:36px}}

@@ -1,0 +1,34 @@
+{
+  "name": "photo-brawl-16bit",
+  "private": true,
+  "version": "1.3.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test:engine": "node tests/fightEngine.test.cjs",
+    "test:creator": "node tests/creatorDesign.test.cjs",
+    "test:pwa": "node tests/pwaDraft.test.cjs",
+    "test": "npm run test:engine && npm run test:creator && npm run test:pwa && npm run test:online",
+    "build:server-engine": "tsc -p server/tsconfig.json && node server/prepare.cjs",
+    "dev:server": "npm run build:server-engine && node server/index.cjs",
+    "dev:online": "node server/dev-online.cjs",
+    "test:online": "npm run build:server-engine && node --test tests/online.test.cjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1"
+  }
+}

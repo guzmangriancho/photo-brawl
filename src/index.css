@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    font-family: 'Press Start 2P', monospace;
+    background-color: #09090b;
+    color: #fafafa;
+  }
+}
+
+.pixel-canvas {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.arcade-border {
+  box-shadow:
+    0 -4px 0 0 #ffffff,
+    0 4px 0 0 #ffffff,
+    -4px 0 0 0 #ffffff,
+    4px 0 0 0 #ffffff,
+    0 0 0 4px #000000,
+    0 8px 0 4px rgba(0, 0, 0, 0.7);
+}
+
+.arcade-border-gold {
+  box-shadow:
+    0 -4px 0 0 #facc15,
+    0 4px 0 0 #ca8a04,
+    -4px 0 0 0 #eab308,
+    4px 0 0 0 #eab308,
+    0 0 0 4px #000000;
+}
+
+.scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  );
+  background-size: 100% 4px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+::-webkit-scrollbar-thumb {
+  background: #eab308;
+  border: 2px solid #09090b;
+}

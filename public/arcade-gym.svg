@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 810" shape-rendering="crispEdges">
+<defs>
+  <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#0b1737"/><stop offset="0.62" stop-color="#273365"/><stop offset="1" stop-color="#2c244e"/></linearGradient>
+  <linearGradient id="floor" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#1b2850"/><stop offset="1" stop-color="#101429"/></linearGradient>
+  <linearGradient id="screen" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#007ba9"/><stop offset="1" stop-color="#49e5e5"/></linearGradient>
+  <pattern id="scan" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="2" fill="#000000" opacity=".16"/></pattern>
+</defs>
+<rect width="1440" height="810" fill="url(#wall)"/>
+<!-- Ceiling crossbeams -->
+<g fill="#111735" stroke="#080e24" stroke-width="7">
+  <path d="M0 0H1440V58H0Z"/><path d="M0 90L1440 24V60L0 136Z"/><path d="M0 0H75L392 185H326Z"/><path d="M760 0H827L1010 168H942Z"/><path d="M1255 0H1315L1440 83V150Z"/>
+</g>
+<g fill="#314878" opacity=".85"><rect x="0" y="58" width="1440" height="9"/><path d="M0 98L1440 31V37L0 105Z"/><path d="M0 0H32L345 164H331Z"/></g>
+<!-- Wall tiles/panels -->
+<g stroke="#122144" stroke-width="3" opacity=".5"><path d="M0 240H1440M0 412H1440M0 535H1440"/><path d="M242 65V535M478 65V535M762 65V535M1060 65V535M1305 65V535"/></g>
+<!-- hanging cables -->
+<g stroke="#080f26" stroke-width="9" fill="none"><path d="M478 0Q460 210 521 245T584 65"/><path d="M1043 0Q1010 174 1083 233T1170 15"/><path d="M1305 0Q1261 213 1360 244"/></g>
+<g stroke="#3b5682" stroke-width="3" fill="none"><path d="M484 0Q469 185 526 235"/><path d="M1050 0Q1019 177 1090 222"/></g>
+<!-- lockboxes left -->
+<g stroke="#090f2a" stroke-width="8" fill="#1d315f"><rect x="0" y="245" width="154" height="310"/><rect x="12" y="257" width="63" height="287"/><rect x="82" y="257" width="63" height="287"/></g>
+<g stroke="#5c69a2" stroke-width="4"><path d="M25 292H61M25 304H61M98 292H133M98 304H133M25 335H61M98 335H133"/><path d="M25 480H61M98 480H133"/></g>
+<g fill="#d8b4fe" opacity=".6"><rect x="55" y="384" width="4" height="40"/><rect x="127" y="386" width="4" height="40"/></g>
+<!-- gym posters -->
+<g stroke="#0b1235" stroke-width="8"><rect x="150" y="115" width="135" height="185" fill="#54427a"/><rect x="1166" y="142" width="118" height="169" fill="#3c315c"/><rect x="1335" y="190" width="85" height="131" fill="#372c62"/></g>
+<g fill="#baa5dd" opacity=".75"><rect x="167" y="129" width="100" height="12"/><rect x="1181" y="160" width="87" height="10"/><rect x="1350" y="205" width="60" height="8"/></g>
+<g fill="#17163b"><circle cx="218" cy="176" r="22"/><rect x="196" y="200" width="45" height="68"/><rect x="1212" y="212" width="28" height="73"/><rect x="1370" y="232" width="24" height="57"/></g>
+<!-- monitor clusters -->
+<g stroke="#080f2d" stroke-width="9">
+ <rect x="582" y="195" width="123" height="98" fill="#405887"/><rect x="736" y="172" width="138" height="103" fill="#445f8e"/><rect x="901" y="225" width="136" height="101" fill="#2b477c"/>
+ <rect x="605" y="213" width="79" height="54" fill="#1375a6"/><rect x="760" y="190" width="91" height="58" fill="#0098b2"/><rect x="927" y="247" width="90" height="55" fill="#823fb5"/>
+</g>
+<g stroke="#8ef0ef" stroke-width="3" opacity=".7"><path d="M614 229H666M614 240H650M614 251H676M769 209H846M769 223H826M769 236H840"/></g>
+<g stroke="#dc8afe" stroke-width="3"><path d="M937 266H1002M937 278H989M937 290H996"/></g>
+<!-- arcade machines on right -->
+<g stroke="#080b26" stroke-width="11"><path d="M1270 314L1412 320L1418 601L1263 594Z" fill="#223c73"/><path d="M1311 350H1392V472H1311Z" fill="url(#screen)"/><path d="M1268 488H1412L1409 533H1272Z" fill="#593f85"/></g>
+<g fill="#a1f5ff"><rect x="1325" y="366" width="52" height="6"/><rect x="1325" y="385" width="61" height="5"/><rect x="1325" y="399" width="46" height="5"/></g>
+<g fill="#ff5b90"><rect x="1294" y="506" width="14" height="8"/><rect x="1320" y="506" width="14" height="8"/></g>
+<g fill="#a93da8" stroke="#080f26" stroke-width="6"><rect x="1126" y="216" width="88" height="58"/></g>
+<text x="1138" y="253" font-family="monospace" font-size="18" font-weight="900" fill="#ffc2ff">ARCADE</text>
+<!-- punching bag -->
+<g stroke="#0b1431" stroke-width="8"><path d="M357 0V210" fill="none"/><path d="M327 209H389L402 345L376 391H339L316 344Z" fill="#6b3853"/></g>
+<path d="M336 229L380 229L391 341L365 374L335 339Z" fill="#9d5870" opacity=".65"/>
+<!-- desk -->
+<g fill="#151c3b" stroke="#090f2a" stroke-width="8"><rect x="544" y="391" width="509" height="25"/><path d="M587 411H609V542H587Z"/><path d="M1012 411H1034V542H1012Z"/></g>
+<!-- floor and tiles -->
+<path d="M0 525H1440V810H0Z" fill="url(#floor)"/><path d="M0 535H1440" stroke="#5368a5" stroke-width="10"/>
+<g stroke="#3f4d7f" stroke-width="4" opacity=".7"><path d="M0 622H1440M0 704H1440M0 792H1440"/><path d="M705 525L622 810M705 525L340 810M705 525L1010 810M705 525L1300 810M705 525L44 810"/></g>
+<g fill="#9e8ad8" opacity=".17"><path d="M460 624L583 624L541 697L412 697Z"/><path d="M902 704L1052 704L1126 780L948 780Z"/></g>
+<!-- dumbbells -->
+<g fill="#0c1332" stroke="#46537c" stroke-width="7"><rect x="79" y="685" width="260" height="16"/><rect x="94" y="639" width="34" height="104"/><rect x="133" y="650" width="20" height="84"/><rect x="286" y="650" width="20" height="84"/><rect x="312" y="637" width="38" height="110"/></g>
+<g fill="#101735" stroke="#4d5981" stroke-width="7"><rect x="1205" y="664" width="195" height="15"/><rect x="1227" y="626" width="25" height="96"/><rect x="1259" y="638" width="16" height="70"/><rect x="1357" y="638" width="16" height="70"/><rect x="1380" y="626" width="28" height="96"/></g>
+<rect width="1440" height="810" fill="url(#scan)" opacity=".22"/>
+</svg>

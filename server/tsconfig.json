@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "CommonJS", "moduleResolution": "Node",
+    "rootDir": "../src", "outDir": "./runtime", "lib": ["ES2022", "DOM"],
+    "strict": true, "skipLibCheck": true, "esModuleInterop": true,
+    "types": [], "noEmitOnError": true
+  },
+  "include": ["../src/engine/FightEngine.ts", "../src/engine/SoundFX.ts", "../src/engine/SpriteProcessor.ts", "../src/network/protocol.ts", "../src/types/fighter.ts"]
+}

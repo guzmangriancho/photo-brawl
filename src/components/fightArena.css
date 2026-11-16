@@ -1,0 +1,704 @@
+/* PHOTO BRAWL — 16-bit arcade HUD v3.
+   Arena canvas, backdrop artwork and fighter sprite rendering are untouched. */
+.arena-screen {
+  --arena-ink: #0a1022;
+  --arena-gold: #ffda55;
+  --arena-cream: #fff1c5;
+  --arena-blue: #76dbff;
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  background: #090f1c;
+  color: #fff;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
+}
+.arena-screen *, .arena-screen *::before, .arena-screen *::after { box-sizing: border-box; }
+.arena-screen button { font-family: inherit; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+.arena-shell { position: relative; width: min(1340px, 100%, calc((100dvh - 18px) * 16 / 9)); }
+.arena-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #0a1123;
+  border: 3px solid #53657a;
+  box-shadow: 0 0 0 3px #070b18, 0 10px 36px #0008;
+}
+.arena-canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+.arena-stage-vignette {
+  position: absolute; z-index: 2; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, #050b1dd6 0%, #07132770 13%, transparent 31%, transparent 71%, #030b1b65 100%);
+}
+
+/* Top line: portraits, health and clock only. The pause control is BELOW the clock. */
+.arena-hud {
+  position: absolute; z-index: 8; top: 0; right: 0; left: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) clamp(62px, 9.3vw, 120px) minmax(0, 1fr);
+  gap: clamp(4px, 1.2vw, 18px);
+  align-items: start;
+  padding: clamp(7px, 1.3vw, 18px);
+  pointer-events: none;
+}
+.arena-fighter-hud { display: flex; gap: clamp(6px, .9vw, 12px); min-width: 0; align-items: flex-start; }
+.arena-portrait {
+  flex: 0 0 auto; width: clamp(43px, 7vw, 86px); height: clamp(43px, 7vw, 86px);
+  object-fit: cover; image-rendering: pixelated;
+  background: #14283c; border: 3px solid #060b19;
+  outline: 2px solid #dceaff;
+  box-shadow: 4px 4px 0 #060915, inset 0 0 0 2px #25384c;
+}
+.arena-fighter-stats { flex: 1; min-width: 0; padding-top: 2px; }
+.arena-player-title { display: flex; gap: 6px; align-items: center; min-width: 0; margin-bottom: 9px; }
+.arena-player-tag {
+  display: inline-block; flex: none; padding: 4px 5px 3px;
+  font: clamp(8px, .9vw, 12px)/1 'Press Start 2P', monospace;
+  color: #ff8993; text-shadow: 2px 2px #3b0c1c;
+  background: #090f24b8; border-bottom: 2px solid #db4c62;
+}
+.arena-fighter-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: clamp(10px, 1.17vw, 17px)/1.5 'Press Start 2P', monospace;
+  color: #fff; text-transform: uppercase; letter-spacing: -.5px;
+  text-shadow: -2px -2px 0 #050816, 2px -2px 0 #050816, -2px 2px 0 #050816, 2px 2px 0 #050816, 3px 4px 0 #050816;
+}
+.arena-health-track {
+  width: 100%; height: clamp(17px, 2.35vw, 29px); position: relative;
+  padding: 3px; overflow: hidden; background: #ae3547;
+  border: 3px solid #0a0e1b; outline: 2px solid #dde8f0;
+  box-shadow: 3px 5px 0 #070916b8, inset 0 0 0 1px #ffacb9a3;
+}
+.arena-health-track::after {
+  content: ''; position: absolute; inset: 3px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(20% - 2px), #09102465 calc(20% - 2px) 20%);
+}
+.arena-health-fill {
+  height: 100%; background: linear-gradient(180deg, #fffacb 0 24%, #ffe659 25% 65%, #f5a92f 66%);
+  box-shadow: inset 0 -2px 0 #a66b2c;
+  transition: width 85ms linear;
+}
+.arena-health-fill.is-critical { background: linear-gradient(#ffa69a, #ff424d 60%, #d72c46 61%); }
+.arena-player-two { flex-direction: row-reverse; }
+.arena-player-two .arena-portrait { outline-color: #a3e6ff; }
+.arena-player-two .arena-player-title { flex-direction: row-reverse; }
+.arena-player-two .arena-player-tag { color: #79dfff; border-color: #389dd2; text-shadow: 2px 2px #0c3551; }
+.arena-player-two .arena-health-track { display: flex; justify-content: flex-end; }
+.arena-player-two .arena-health-track::after { left: 3px; right: 3px; }
+.arena-player-two .arena-health-fill { background: linear-gradient(180deg, #fffacb 0 24%, #ffe659 25% 65%, #f5a92f 66%); }
+.arena-player-two .arena-health-fill.is-critical { background: linear-gradient(#ffa69a, #ff424d 60%, #d72c46 61%); }
+
+.arena-time { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: -3px; }
+.arena-round-label {
+  font: clamp(7px, .75vw, 10px)/1.3 'Press Start 2P', monospace;
+  color: #ffebaa; white-space: nowrap;
+  text-shadow: 2px 2px 0 #040b16;
+}
+.arena-time-number {
+  display: grid; place-items: center; width: 100%; height: clamp(43px, 5.6vw, 75px);
+  background: linear-gradient(180deg, #2b4059 0 12%, #0d1a32 14% 100%);
+  border: 4px solid #091224; outline: 2px solid #d7e3ee;
+  box-shadow: 4px 5px 0 #020814b8, inset 0 0 0 2px #6984a4;
+  color: #ffdb5a;
+  font: clamp(20px, 3vw, 41px)/1 'Press Start 2P', monospace;
+  letter-spacing: -3px;
+  text-shadow: -2px -2px 0 #060b17, 2px -2px 0 #060b17, -2px 2px 0 #060b17, 3px 3px 0 #060b17;
+}
+.arena-time-number.is-urgent { color: #ff737c; animation: arena-clock-alert 650ms steps(2, end) infinite; }
+@keyframes arena-clock-alert { to { border-color: #ee4f61; } }
+.arena-pause-shortcut {
+  pointer-events: auto; display: grid; place-items: center;
+  width: clamp(27px, 3vw, 35px); height: clamp(25px, 2.5vw, 31px);
+  margin-top: 3px; padding: 0;
+  background: #112136dd; color: #fff5c8;
+  border: 2px solid #131c2d; outline: 1px solid #aebfd1;
+  box-shadow: 2px 3px 0 #050915;
+  border-radius: 2px;
+}
+.arena-pause-shortcut:hover { background: #334968; }
+.arena-pause-shortcut:active { transform: translateY(2px); box-shadow: none; }
+
+/* Big, crisp hit confirms, above the fighters and below the health bars. */
+.arena-combo {
+  position: absolute; z-index: 7; top: 29%; display: flex; flex-direction: column;
+  gap: 2px; pointer-events: none; transform: rotate(-3deg);
+  color: #ffdc47; filter: drop-shadow(2px 2px 0 #070b17);
+}
+.arena-combo-one { left: clamp(10px, 3.5%, 45px); }
+.arena-combo-two { right: clamp(10px, 3.5%, 45px); text-align: right; transform: rotate(3deg); color: #85e5ff; }
+.arena-combo strong {
+  font: clamp(17px, 3vw, 42px)/1.3 'Press Start 2P', monospace;
+  white-space: nowrap;
+  -webkit-text-stroke: 1px #21121c;
+  text-shadow: 2px 2px 0 #130f21;
+}
+.arena-combo strong small { font-size: .43em; }
+.arena-combo > b {
+  font: clamp(11px, 1.5vw, 21px)/1.4 'Press Start 2P', monospace;
+  color: #fff9da; text-shadow: 2px 2px 0 #172035;
+}
+.arena-combo > span { font: 900 clamp(12px, 1.5vw, 19px)/1.2 'Barlow Condensed', sans-serif; letter-spacing: 1px; color: #fff; text-shadow: 2px 2px #080d16; }
+.arena-announcement { position: absolute; inset: 0; z-index: 10; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+.arena-announcement span {
+  max-width: 96%; background: #0a1429d8; color: #ffe371;
+  border: 3px solid #0a0c17; outline: 2px solid #f3c36b;
+  padding: clamp(8px, 1.7vw, 22px) clamp(12px, 3vw, 40px);
+  font: clamp(10px, 1.9vw, 25px)/1.6 'Press Start 2P', monospace;
+  text-align: center; text-shadow: 3px 3px #4a2e29;
+  box-shadow: 5px 7px 0 #03081595;
+}
+
+/* Pause and result panels, deliberately 16-bit/squared instead of glass UI. */
+.arena-result-overlay, .arena-pause-overlay {
+  position: absolute; z-index: 30; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px; background: #070b1ed9;
+}
+.arena-result-card, .arena-pause-card {
+  width: min(460px, 100%); max-height: min(94dvh, 96%); overflow-y: auto; overscroll-behavior: contain;
+  padding: clamp(15px, 2vw, 25px); text-align: center;
+  color: #fff; background: linear-gradient(180deg, #22344d, #0d172a 72%);
+  border: 4px solid #0c1425; outline: 3px solid #8ba8c4;
+  box-shadow: 7px 9px 0 #040812, inset 0 3px 0 #ffffff19;
+}
+.arena-pause-card { width: min(480px, 100%); }
+.arena-result-eyebrow, .arena-pause-eyebrow {
+  display: block; font: 900 12px/1.35 'Barlow Condensed', sans-serif;
+  letter-spacing: 2.5px; color: #a8bed8;
+}
+.arena-pause-heading h2 {
+  margin: 10px 0 5px; color: #fff6dd;
+  font: clamp(26px, 3.5vw, 40px)/1.3 'Press Start 2P', monospace;
+  text-shadow: 4px 4px 0 #060c18;
+}
+.arena-pause-heading h2 span { color: #ffc752; }
+.arena-pause-heading p { margin: 0; color: #b2c5d9; font-size: 13px; font-weight: 900; letter-spacing: 2px; }
+.arena-primary-button, .arena-secondary-button {
+  min-height: 43px; padding: 10px 17px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font: 900 15px/1.1 'Barlow Condensed', sans-serif;
+  letter-spacing: 1.1px; border: 2px solid #11182a; box-shadow: 0 4px 0 #050c1a;
+  border-radius: 2px; transition: transform 80ms;
+}
+.arena-primary-button { background: linear-gradient(#ffe184 0 40%,#f4b637 40%); color: #152033; outline: 1px solid #ffeaad; }
+.arena-secondary-button { background: #344d69; color: #eef5ff; outline: 1px solid #9bb7d0; }
+.arena-primary-button:active, .arena-secondary-button:active { transform: translateY(3px); box-shadow: none; }
+.arena-pause-resume { width: 100%; margin: 17px 0 10px; font-size: 17px; }
+.arena-pause-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.arena-pause-options button {
+  display: flex; justify-content: center; align-items: center; gap: 7px;
+  min-width: 0; min-height: 44px; padding: 7px;
+  color: #e4efff; background: #21344f;
+  border: 2px solid #0a1122; outline: 1px solid #657f9b;
+  box-shadow: 0 3px 0 #080e1c; font: 900 13px/1.1 'Barlow Condensed',sans-serif;
+  letter-spacing: .5px;
+}
+.arena-pause-options button:hover { background: #314969; outline-color: #c9e1f6; }
+.arena-pause-options .arena-pause-exit { grid-column: 1/-1; background: #442c3b; color: #ffcfcc; outline-color: #b07680; }
+.arena-pause-help {
+  margin-top: 17px; padding: 11px 12px; display: flex; flex-direction: column; gap: 7px;
+  background: #071326; border: 2px solid #344b67;
+  text-align: left; font: 800 12px/1.4 'Barlow Condensed',sans-serif;
+  letter-spacing: .5px; color: #aabdd4;
+}
+.arena-pause-help > strong { color: #ffda7b; font: 10px/1.5 'Press Start 2P', monospace; margin-bottom: 2px; }
+.arena-pause-help b { color: #ffe5a4; }
+.arena-pause-keyboard { border-top: 1px solid #344b67; padding-top: 8px; display: flex; align-items: center; gap: 5px; }
+.arena-result-headline { margin: 9px 0 0; color: #ffcc54; font: clamp(37px, 8vw, 75px)/1.3 'Press Start 2P', monospace; text-shadow: 5px 5px 0 #ac4e34, 8px 8px 0 #050916; }
+.arena-result-name { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 24px; text-transform: uppercase; font: 900 clamp(19px, 3vw, 28px)/1.1 'Barlow Condensed',sans-serif; }
+.arena-result-name .winner-p1 { color: #ffd65c; }
+.arena-result-name .winner-p2 { color: #78ddff; }
+.arena-result-wins { color: #fff; }
+.arena-result-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+
+/* Two-button mobile layout: a subtle touch zone + thumb-sized controls. */
+.mobile-controls {
+  position: fixed; inset: auto 0 0; z-index: 20;
+  display: none; justify-content: space-between; align-items: flex-end; gap: 8px;
+  padding: 0 max(20px, env(safe-area-inset-right)) max(19px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  user-select: none; -webkit-user-select: none; pointer-events: none; touch-action: none;
+}
+.mobile-movement-zone {
+  position: relative; flex: 0 0 auto; pointer-events: auto; touch-action: none;
+  width: clamp(160px, 34vw, 300px); height: clamp(123px, 28dvh, 186px);
+  cursor: crosshair;
+}
+.mobile-stick-hint {
+  position: absolute; left: 24%; top: 53%; transform: translate(-50%,-50%);
+  display: flex; align-items: center; flex-direction: column; gap: 1px;
+  color: #d4e8ff9b; text-shadow: 0 2px 6px #061027;
+  pointer-events: none; opacity: .9;
+}
+.mobile-stick-cross { font: 400 29px/1 Arial,sans-serif; }
+.mobile-stick-hint small { font: 800 10px/1.2 'Barlow Condensed', sans-serif; letter-spacing: 1.7px; }
+.mobile-stick {
+  position: absolute; width: 116px; height: 116px; transform: translate(-50%,-50%);
+  border: 1.5px solid #e3f5ff73; border-radius: 50%;
+  background: radial-gradient(circle,#19375431 29%,#0b20365d 72%,#142d4590 75%);
+  box-shadow: inset 0 0 0 8px #dceeff0a, 0 3px 12px #0004;
+  pointer-events: none;
+}
+.mobile-stick::after { content: ''; position: absolute; inset: 10px; border: 1px dashed #bad8f951; border-radius: 50%; }
+.mobile-stick-knob {
+  position: absolute; left: 31px; top: 31px; width: 54px; height: 54px;
+  border: 2px solid #e9f9fff0; border-radius: 50%;
+  background: linear-gradient(145deg,#8099b9e8,#233850ea 65%);
+  box-shadow: inset 0 3px 0 #dffaff4f, 0 5px 9px #0309156b;
+}
+.mobile-action-side { pointer-events: auto; min-width: 0; width: clamp(165px, 25vw, 244px); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mobile-actions { width: 100%; display: flex; justify-content: space-between; align-items: end; gap: clamp(8px,1.25vw,13px); }
+.mobile-action {
+  position: relative; display: flex; flex: 1 1 0; align-items: center; justify-content: center;
+  flex-direction: column; gap: 0; width: 0; min-width: 0; aspect-ratio: 1.05 / 1;
+  min-height: 75px; max-height: 108px; border: 2px solid #0b1726;
+  border-radius: 18px; color: #fff9ed; text-shadow: 0 2px 0 #0b18345c;
+  box-shadow: inset 0 3px 0 #fefefe60, inset 0 -5px 0 #07142830, 0 0 0 2px #b2d3dc9a, 0 5px 0 #07101fc4;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+  transition: transform 75ms, filter 75ms;
+}
+.mobile-action::after {
+  content: ''; position: absolute; inset: 6px; border: 1px solid #fff4; border-radius: 13px;
+  pointer-events: none;
+}
+.mobile-action-letter { font: 900 clamp(20px,2.2vw,27px)/1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: -.04em; }
+.mobile-action strong { font: 900 clamp(12px,1.25vw,17px)/1.1 'Barlow Condensed',sans-serif; letter-spacing: 1.1px; }
+.mobile-action small { font: 800 clamp(8px,1vw,11px)/1.15 'Barlow Condensed',sans-serif; letter-spacing: .55px; white-space: nowrap; }
+.mobile-strike { background: linear-gradient(160deg, #f8d979ed 0%,#d09c4fe8 46%,#a9663ff0 100%); }
+.mobile-strike .mobile-action-letter { color: #3a211a; text-shadow: 0 1px #fff9; }
+.mobile-strike strong { color: #351c19; text-shadow: 0 1px #fff6; }
+.mobile-strike small { color: #442e27; text-shadow: 0 1px #ffe48c; }
+.mobile-skill { background: linear-gradient(145deg, #73d5f5ee 0%,#298bb6e9 54%,#1a598cf0 100%); }
+.mobile-skill .mobile-action-letter { color: #effbff; }
+.mobile-skill small { color: #dcf8ff; }
+.mobile-action.is-pressed { transform: translateY(4px) scale(.97); box-shadow: inset 0 3px 5px #08132266,0 0 0 2px #dcecff8a, 0 1px 0 #061020; }
+.mobile-hold-indicator { position: absolute; left: 13%; bottom: 5px; width: 0; height: 3px; border-radius: 3px; background: #fff9cd; opacity: 0; }
+.mobile-strike.is-pressed .mobile-hold-indicator { opacity: 1; animation: mobile-hold-charge 270ms linear forwards; }
+.mobile-strike.is-charged { filter: brightness(1.2); }
+@keyframes mobile-hold-charge { from { width: 0; } to { width: 74%; } }
+.mobile-super {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: min(100%, 158px); min-height: 36px; padding: 4px 9px;
+  color: #3e2c0a; background: linear-gradient(180deg,#fff6b4,#ffd960 56%,#dca342);
+  border: 2px solid #583c14; border-radius: 11px;
+  box-shadow: inset 0 2px 0 #ffffffe3, 0 0 0 2px #fff3bb9f, 0 3px 0 #1a1016a8;
+  animation: arena-ready-pulse 1.2s ease-in-out infinite alternate;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.mobile-super strong { font: 900 14px/1.1 'Oxanium','Barlow Condensed',sans-serif; }
+.mobile-super-star { font-size: 19px; line-height: 1; }
+.mobile-super small { font: 900 9px/1.1 'Barlow Condensed',sans-serif; letter-spacing: 1px; }
+.mobile-super.is-pressed { transform: translateY(2px); }
+@keyframes arena-ready-pulse { to { filter: brightness(1.12); box-shadow: inset 0 2px #fff, 0 0 13px #ffce6bb0, 0 3px 0 #211324; } }
+.arena-mobile-guide { display: none; }
+
+/* Movement lab can only be opened from pause. */
+.arena-lab-layer { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 15px; }
+.arena-lab-scrim { position: absolute; inset: 0; background: #050b19ed; border: 0; }
+.arena-lab-panel {
+  position: relative; width: min(1100px,100%); max-height: 94dvh; overflow-y: auto; overscroll-behavior: contain;
+  padding: clamp(14px,2.2vw,24px); background: #111b2f; color: #eef4ff;
+  border: 4px solid #101326; outline: 3px solid #8c7ebd; box-shadow: 6px 8px 0 #020713;
+}
+.arena-lab-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border-bottom: 2px solid #435371; padding-bottom: 13px; }
+.arena-lab-overline { font: 900 11px/1.3 'Barlow Condensed',sans-serif; letter-spacing: 2px; color: #c7b6ff; }
+.arena-lab-header h2 { margin: 5px 0; color: #ffde7b; font: clamp(14px,2.2vw,25px)/1.6 'Press Start 2P',monospace; }
+.arena-lab-header p { margin: 0; font-size: 14px; color: #bdcce1; }
+.arena-icon-button { display: grid; place-items: center; flex: none; width: 35px; height: 35px; background: #31465e; border: 2px solid #9db9d4; color: #fff; }
+.arena-lab-dummy { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 0 2px; }
+.arena-lab-dummy > span { color: #f7dc9b; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+.arena-lab-dummy-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.arena-lab-dummy-buttons button { padding: 8px 10px; color: #fff; background: #253750; border: 2px solid #6581a0; font-size: 12px; font-weight: 900; }
+.arena-lab-dummy-buttons button.is-active { color: #142438; background: #89e9fa; border-color: #e6fcff; }
+.arena-lab-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-top: 16px; }
+.arena-lab-group { min-width: 0; padding: 10px; background: #0a1325; border: 2px solid #435371; }
+.arena-lab-group h3 { margin: 2px 0 12px; color: #ffdc7b; font-size: 14px; font-weight: 900; }
+.arena-lab-move { min-width: 0; display: flex; align-items: stretch; gap: 4px; border: 1px solid #293b53; background: #1d2b40; margin-top: 6px; }
+.arena-lab-move.is-equipped { border-color: #f7d37a; background: #353447; }
+.arena-lab-equip { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; text-align: left; padding: 8px; color: #eaf4ff; background: none; border: 0; }
+.arena-lab-equip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; font-size: 13px; }
+.arena-lab-equip small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #a8bad0; }
+.arena-lab-fire { display: grid; flex: 0 0 36px; place-items: center; border: 0; background: #ffd46e; color: #152236; }
+.arena-lab-fire:hover { background: #ffedab; }
+
+@media (pointer: coarse), (max-width: 750px) { .mobile-controls { display: flex; } }
+
+/* Fullscreen landscape: dedicate every available pixel to the fight. */
+@media (orientation: landscape) and (max-height: 700px), (orientation: landscape) and (pointer: coarse) {
+  .arena-screen { min-height: 0; height: 100dvh; width: 100%; padding: 0; }
+  .arena-shell { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; }
+  .arena-stage { position: absolute; inset: 0; height: 100%; width: 100%; aspect-ratio: auto; border: 0; box-shadow: none; }
+  .arena-hud { padding: max(7px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left)); grid-template-columns: minmax(0,1fr) clamp(50px,12dvh,80px) minmax(0,1fr); gap: clamp(7px,1.3vw,15px); }
+  .arena-portrait { width: clamp(37px,13dvh,65px); height: clamp(37px,13dvh,65px); border-width: 2px; outline-width: 1px; }
+  .arena-player-title { margin-bottom: 6px; }
+  .arena-player-tag { font-size: clamp(7px,2dvh,10px); padding: 3px; }
+  .arena-fighter-name { font-size: clamp(9px,2.8dvh,17px); }
+  .arena-health-track { height: clamp(13px,4.6dvh,23px); border-width: 2px; outline-width: 1px; padding: 2px; }
+  .arena-time-number { height: clamp(37px,11dvh,56px); border-width: 3px; outline-width: 1px; font-size: clamp(17px,5dvh,27px); letter-spacing: -2px; }
+  .arena-round-label { font-size: clamp(6px,1.8dvh,9px); }
+  .arena-pause-shortcut { width: 28px; height: 26px; margin-top: 2px; outline-width: 1px; }
+  .arena-pause-shortcut svg { width: 13px; height: 13px; }
+  .arena-combo { top: 31%; }
+  .arena-combo strong { font-size: clamp(25px,8dvh,42px); }
+  .arena-combo > b { font-size: clamp(12px,4dvh,19px); }
+  .arena-combo > span { font-size: clamp(11px,3.5dvh,17px); }
+  .mobile-controls { padding: 0 max(14px,env(safe-area-inset-right)) max(44px,calc(env(safe-area-inset-bottom) + 37px)) max(14px,env(safe-area-inset-left)); }
+  .mobile-action-side { width: clamp(160px,54dvh,232px); }
+  .mobile-actions { gap: clamp(5px,1.3dvh,9px); }
+  .mobile-action { height: clamp(45px,13dvh,58px); min-height: 45px; }
+  .mobile-super { height: 40px; min-height: 40px; }
+  .arena-result-overlay, .arena-pause-overlay { position: fixed; inset: 0; z-index: 40; }
+}
+
+/* Portrait: the stage remains 16:9. Controls live BELOW it, not on the fighters. */
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) {
+  .arena-screen { min-height: 100dvh; height: 100dvh; overflow-x: hidden; overflow-y: auto; padding: max(8px,env(safe-area-inset-top)) 0 max(9px,env(safe-area-inset-bottom)); display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
+  .arena-shell { width: 100%; max-width: none; flex: 0 0 auto; }
+  .arena-stage { width: 100%; height: auto; aspect-ratio: 16/9; border-width: 0; box-shadow: none; }
+  .arena-hud { padding: 5px 6px; grid-template-columns: minmax(0,1fr) 42px minmax(0,1fr); gap: 4px; }
+  .arena-portrait { width: clamp(26px,7.9vw,38px); height: clamp(26px,7.9vw,38px); border-width: 1px; outline-width: 1px; box-shadow: 2px 2px 0 #050915; }
+  .arena-fighter-hud { gap: 4px; }
+  .arena-fighter-stats { padding-top: 0; }
+  .arena-player-title { margin: 0 0 5px; gap: 3px; }
+  .arena-player-tag { font-size: 6px; padding: 2px; border-bottom-width: 1px; }
+  .arena-fighter-name { font-size: clamp(7px,2.2vw,10px); letter-spacing: -1px; line-height: 1.3; }
+  .arena-health-track { height: 12px; border-width: 2px; padding: 1px; outline-width: 1px; box-shadow: 1px 2px 0 #0007; }
+  .arena-health-track::after { inset: 1px; }
+  .arena-time { gap: 2px; margin-top: 0; }
+  .arena-round-label { font-size: 5.5px; letter-spacing: -.6px; }
+  .arena-time-number { height: 31px; border-width: 2px; font-size: 14px; letter-spacing: -1px; outline-width: 1px; box-shadow: 2px 2px 0 #060915; }
+  .arena-pause-shortcut { margin-top: 1px; width: 26px; height: 23px; outline-width: 1px; }
+  .arena-combo { top: 37%; }
+  .arena-combo-one { left: 3%; } .arena-combo-two { right: 3%; }
+  .arena-combo strong { font-size: 14px; }
+  .arena-combo > b { font-size: 9px; }
+  .arena-combo > span { font-size: 10px; }
+  .arena-mobile-guide {
+    display: flex; flex: 1 1 auto; min-height: 40px; align-items: center; justify-content: center;
+    gap: 8px; padding: 8px 10px; color: #9dbee2; text-align: center;
+    font: 900 clamp(10px,2.7vw,12px)/1.25 'Barlow Condensed',sans-serif;
+    letter-spacing: 1.2px;
+  }
+  .arena-mobile-guide svg { color: #f3cd7f; flex: none; }
+  .mobile-controls {
+    position: relative; inset: auto; z-index: 11; width: 100%; flex: 0 0 auto;
+    justify-content: space-between; align-items: flex-end;
+    padding: 16px max(12px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+    background: linear-gradient(#0d1a2a, #172641); border-top: 2px solid #426180;
+  }
+  .mobile-action-side { width: clamp(149px,42vw,203px); }
+  .mobile-actions { gap: 7px; }
+  .mobile-action { min-height: 48px; height: clamp(49px,12.2vw,57px); }
+  .mobile-super { height: 41px; min-height: 41px; }
+  .arena-pause-overlay, .arena-result-overlay { position: fixed; inset: 0; z-index: 40; }
+}
+
+@media (orientation: landscape) and (max-height: 365px) {
+  .arena-hud { padding-top: 4px; }
+  .arena-portrait { width: 32px; height: 32px; }
+  .arena-fighter-name { font-size: 9px; }
+  .arena-player-title { margin-bottom: 3px; }
+  .arena-health-track { height: 12px; }
+  .arena-time-number { height: 31px; font-size: 15px; }
+  .arena-pause-shortcut { height: 22px; width: 24px; }
+  .mobile-action-side { width: clamp(146px,51dvh,184px); }
+  .mobile-action { height: 42px; min-height: 42px; }
+  .mobile-super { height: 33px; min-height: 33px; }
+  .mobile-controls { padding-bottom: max(37px,calc(env(safe-area-inset-bottom) + 31px)); }
+  .arena-pause-card { padding: 12px; }
+  .arena-pause-heading h2 { font-size: 20px; margin: 3px 0; }
+  .arena-pause-heading p { display: none; }
+  .arena-pause-resume { margin-top: 8px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .mobile-controls { padding-left: 7px; padding-right: 7px; }
+  .mobile-action-side { width: 144px; }
+  .mobile-action { min-height: 45px; height: 45px; }
+  .arena-player-tag { display: none; }
+}
+@media (max-width: 920px) { .arena-lab-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { .arena-lab-grid { grid-template-columns: 1fr; } .arena-lab-layer { padding: 9px; } }
+@media (prefers-reduced-motion: reduce) { .arena-screen *, .arena-screen *::before, .arena-screen *::after { animation: none !important; transition: none !important; } }
+
+/* PHOTO BRAWL / FIGHT UI 4 — modern 16-bit: clean type at native pixel density. */
+.arena-screen { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; }
+.arena-portrait { image-rendering: auto; border-radius: 9px; border: 2px solid #102034; outline: 1px solid #ecf3f9b4; box-shadow: 0 4px 12px #020c1a76; }
+.arena-stage-vignette { background: linear-gradient(180deg,#041020a8 0%,#0820364a 14%, transparent 32%, transparent 84%, #07142521 100%); }
+.arena-player-tag { font: 900 clamp(10px,1.15vw,14px)/1.1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .5px; border-radius: 4px; padding: 3px 6px; }
+.arena-fighter-name { font: 900 clamp(13px,1.6vw,20px)/1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .15px; text-shadow: 0 2px 4px #050a18,1px 1px 0 #030711; }
+.arena-player-title { margin-bottom: 5px; }
+.arena-health-track { height: clamp(17px,2vw,24px); border: 2px solid #0a1628; outline: 1px solid #e0e9f6bd; border-radius: 5px; padding: 2px; background: #3a2539; box-shadow: inset 0 2px 4px #0007,0 3px 10px #0008; }
+.arena-health-track::after { border-radius: 3px; opacity: .3; }
+.arena-health-fill { border-radius: 2px; background: linear-gradient(180deg,#fff5be 0%,#ffda56 53%,#ffaf40 100%); }
+.arena-player-two .arena-health-fill { background: linear-gradient(180deg,#d1f9ff,#65d5ff 56%,#319ac9); }
+.arena-meter-row { display: flex; align-items: center; gap: 5px; width: 100%; margin-top: 6px; }
+.arena-meter-tag { flex: none; color: #abeaff; font: 900 clamp(9px,.92vw,11px)/1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .4px; text-shadow: 0 1px 3px #001; }
+.arena-meter-track { flex: 1; min-width: 0; height: 8px; background: #091629e8; border: 1px solid #a3b9c885; border-radius: 3px; overflow: hidden; box-shadow: inset 0 1px 3px #0008; }
+.arena-meter-fill { height: 100%; border-radius: 2px; background: linear-gradient(180deg,#b0f4ff,#31bbe7); transition: width 90ms linear; }
+.arena-meter-number { width: 32px; flex: none; font: 900 10px/1 'Oxanium','Barlow Condensed',sans-serif; color: #dbf5ff; text-align: right; }
+.arena-meter-row.is-ready .arena-meter-tag,.arena-meter-row.is-ready .arena-meter-number { color: #ffeb96; }
+.arena-meter-row.is-ready .arena-meter-track { border-color: #ffe18e; box-shadow: 0 0 8px #f8c44784; }
+.arena-meter-row.is-ready .arena-meter-fill { background: linear-gradient(#fff5b4,#ffb93e); }
+.arena-meter-row.is-ready .arena-meter-number { width: 41px; }
+.arena-player-two .arena-meter-row { flex-direction: row-reverse; }
+.arena-player-two .arena-meter-number { text-align: left; }
+.arena-time { gap: 1px; }
+.arena-round-label { color: #e4efff; font: 900 clamp(9px,.85vw,12px)/1.1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .9px; }
+.arena-time-number { height: clamp(42px,5vw,62px); background: linear-gradient(170deg,#29496a,#10223d 75%); border: 2px solid #0a1426; outline: 1px solid #c7e9ffbd; border-radius: 8px; color: #ffe498; box-shadow: inset 0 2px 0 #f4fbff1c,0 4px 10px #02091580; font: 900 clamp(25px,3.8vw,47px)/1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: -2px; text-shadow: 0 2px 4px #0008; }
+.arena-pause-shortcut { border-radius: 6px; outline: 0; border: 1px solid #c1d3e17d; background: #152b43bc; box-shadow: 0 2px 6px #010711b8; }
+.arena-combo { top: 29%; }
+.arena-combo strong { font: 900 clamp(25px,4.8vw,62px)/.95 'Oxanium','Barlow Condensed',sans-serif; color: #ffeb8e; -webkit-text-stroke: 1px #293247; text-shadow: 0 3px 0 #654b42, 0 5px 10px #0009; }
+.arena-combo > b { font: 900 clamp(13px,1.55vw,21px)/1.15 'Oxanium','Barlow Condensed',sans-serif; color: #fff5d7; text-shadow: 0 2px 5px #000; }
+.arena-combo > span { font-size: clamp(11px,1.2vw,16px); }
+.arena-announcement span { border: 2px solid #081428; outline: 1px solid #ffdf91; border-radius: 12px; font: 900 clamp(22px,3vw,38px)/1.15 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .7px; background: #0c2039e8; box-shadow: 0 5px 20px #030612af; }
+.arena-pause-heading h2 { font: 900 clamp(35px,4vw,50px)/1 'Oxanium','Barlow Condensed',sans-serif; text-shadow: 0 3px 6px #0009; }
+.arena-result-headline { font: 900 clamp(60px,8vw,94px)/1 'Oxanium','Barlow Condensed',sans-serif; text-shadow: 0 4px 0 #a86543,0 7px 10px #000c; }
+.arena-pause-help > strong { font: 900 14px/1.2 'Oxanium','Barlow Condensed',sans-serif; }
+.arena-pause-card,.arena-result-card { border-radius: 14px; border-width: 2px; outline-width: 1px; box-shadow: 0 15px 45px #000b; }
+.arena-pause-options button,.arena-primary-button,.arena-secondary-button { border-radius: 8px; }
+.arena-pause-help { border-radius: 8px; }
+.arena-pause-advanced { opacity: .78; }
+@media (pointer: coarse), (max-width: 750px) { .mobile-controls { display: flex; } }
+@media (orientation: landscape) and (max-height: 700px), (orientation: landscape) and (pointer: coarse) {
+ .arena-hud { grid-template-columns: minmax(0,1fr) clamp(48px,11dvh,77px) minmax(0,1fr); padding-top: max(7px,env(safe-area-inset-top)); }
+ .arena-portrait { width: clamp(32px,12dvh,63px); height: clamp(32px,12dvh,63px); }
+ .arena-fighter-name { font-size: clamp(10px,3.2dvh,17px); }
+ .arena-player-tag { font-size: clamp(8px,2.2dvh,11px); }
+ .arena-health-track { height: clamp(13px,4dvh,20px); }
+ .arena-meter-row { margin-top: 5px; }
+ .arena-meter-track { height: 7px; }
+ .arena-meter-tag { font-size: 9px; }
+ .arena-meter-number { font-size: 9px; }
+ .arena-time-number { height: clamp(31px,10dvh,51px); font-size: clamp(18px,7dvh,31px); }
+ .arena-round-label { font-size: 9px; }
+ .arena-combo { top: 30%; }
+ .arena-combo strong { font-size: clamp(26px,7dvh,43px); }
+ .arena-combo > b { font-size: clamp(13px,3.5dvh,19px); }
+ .mobile-controls { padding: 0 max(17px,env(safe-area-inset-right)) max(17px,env(safe-area-inset-bottom)) max(17px,env(safe-area-inset-left)); }
+ .mobile-movement-zone { height: clamp(103px,29dvh,150px); width: clamp(155px,36vw,280px); }
+ .mobile-action-side { width: clamp(157px,46dvh,210px); }
+ .mobile-action { min-height: clamp(60px,20dvh,87px); max-height: 87px; }
+ .mobile-action-letter { font-size: clamp(17px,5dvh,24px); }
+ .mobile-action strong { font-size: clamp(12px,3.3dvh,16px); }
+ .mobile-action small { font-size: clamp(8px,2.15dvh,10px); }
+ .mobile-super { min-height: 29px; }
+}
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) {
+ .arena-screen { overflow: hidden; }
+ .arena-hud { grid-template-columns: minmax(0,1fr) 38px minmax(0,1fr); padding: 5px 5px; }
+ .arena-portrait { width: clamp(27px,7.6vw,38px); height: clamp(27px,7.6vw,38px); }
+ .arena-fighter-name { font-size: clamp(8px,2.9vw,12px); letter-spacing: 0; }
+ .arena-player-tag { font-size: 7px; padding: 1px 3px; }
+ .arena-player-title { margin-bottom: 3px; }
+ .arena-health-track { height: 10px; border-width: 1px; padding: 1px; }
+ .arena-meter-row { margin-top: 4px; gap: 3px; }
+ .arena-meter-track { height: 5px; }
+ .arena-meter-tag { font-size: 7px; }
+ .arena-meter-number { font-size: 7px; width: 22px; }
+ .arena-meter-row.is-ready .arena-meter-number { width: 30px; }
+ .arena-round-label { font-size: 7px; }
+ .arena-time-number { height: 27px; font-size: 17px; border-width: 1px; letter-spacing: -.5px; }
+ .arena-pause-shortcut { width: 26px; height: 22px; }
+ .arena-combo { top: 35%; }
+ .arena-combo strong { font-size: 18px; }
+ .arena-combo > b { font-size: 10px; }
+ .arena-combo > span { font-size: 9px; }
+ .arena-mobile-guide { flex: 1 1 auto; min-height: 38px; max-height: none; color: #a4c9df; font-size: clamp(11px,3vw,14px); letter-spacing: .2px; align-items: flex-start; padding: clamp(14px,4dvh,28px) 12px 10px; background: radial-gradient(ellipse at 50% 10%,#1735509a,transparent 65%),#080f1e; }
+ .mobile-controls { flex: 0 0 auto; position: relative; padding: 10px max(11px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(11px,env(safe-area-inset-left)); background: linear-gradient(#0e2034,#11243a); border-top: 1px solid #46647b; min-height: 170px; }
+ .mobile-movement-zone { width: clamp(142px,43vw,208px); height: 130px; }
+ .mobile-action-side { width: clamp(157px,45vw,205px); }
+ .mobile-action { min-height: 69px; }
+ .mobile-action-letter { font-size: 22px; }
+ .mobile-action strong { font-size: 13px; }
+ .mobile-action small { font-size: 9px; }
+ .mobile-super { min-height: 32px; }
+}
+@media (orientation: landscape) and (max-height: 365px) {
+ .arena-portrait { width: 31px; height: 31px; }
+ .arena-player-title { margin-bottom: 2px; }
+ .arena-fighter-name { font-size: 10px; }
+ .arena-health-track { height: 11px; }
+ .arena-meter-row { margin-top: 3px; }
+ .arena-time-number { height: 30px; font-size: 19px; }
+ .mobile-movement-zone { height: 96px; }
+ .mobile-action-side { width: clamp(138px,42dvh,171px); gap: 5px; }
+ .mobile-action { min-height: 57px; max-height: 65px; border-radius: 11px; }
+ .mobile-action::after { border-radius: 7px; }
+ .mobile-action-letter { font-size: 17px; }
+ .mobile-action strong { font-size: 12px; }
+ .mobile-action small { font-size: 8px; }
+ .mobile-super { min-height: 26px; }
+ .mobile-super strong { font-size: 12px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+ .mobile-action-side { width: 143px; }
+ .mobile-movement-zone { width: 132px; }
+ .mobile-action { min-height: 64px; }
+}
+
+/* Small portrait-only tutorial sits in the unused space, never over the fighters. */
+.arena-guide-panel { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 380px; width: 100%; margin: auto; padding: 12px 16px; text-align: center; }
+.arena-guide-eyebrow { font: 900 11px/1.1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: 2.4px; color: #85c3dc; }
+.arena-guide-panel > strong { font: 900 clamp(18px,5vw,24px)/1.1 'Oxanium','Barlow Condensed',sans-serif; letter-spacing: .4px; color: #f5f4e6; text-shadow: 0 2px 5px #0009; }
+.arena-guide-combos { display: grid; width: 100%; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.arena-guide-combos > span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 58px; padding: 7px 4px; border: 1px solid #53779565; border-radius: 8px; background: #1b324aaa; }
+.arena-guide-combos b { color: #ffdf8c; font: 900 clamp(13px,3.3vw,18px)/1 'Oxanium','Barlow Condensed',sans-serif; white-space: nowrap; }
+.arena-guide-combos small { font: 800 clamp(9px,2.5vw,12px)/1.1 'Barlow Condensed',sans-serif; color: #b9ddf4; letter-spacing: .2px; }
+.arena-guide-turn { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; color: #a8bacf; font: 800 clamp(10px,2.7vw,12px)/1.25 'Barlow Condensed',sans-serif; letter-spacing: .55px; }
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) {
+ .arena-mobile-guide { align-items: center; padding: 6px 12px; }
+}
+@media (orientation: portrait) and (max-height: 650px) {
+ .arena-guide-panel { gap: 7px; }
+ .arena-guide-combos > span { min-height: 45px; }
+ .arena-guide-turn { margin-top: 0; }
+}
+
+/* V4.1 polish: clear touch targets and optional left-handed layout. */
+.mobile-controls.is-southpaw { flex-direction: row-reverse; }
+.mobile-strike.is-combo-ready:not(.is-pressed) { border-color: #ffefb6; filter: drop-shadow(0 0 5px #f9ce6b91); }
+.mobile-strike.is-combo-ready small { color: #503017; font-weight: 900; }
+.mobile-action, .mobile-super, .arena-pause-shortcut { -webkit-touch-callout: none; }
+.mobile-action:focus-visible, .mobile-super:focus-visible, .arena-pause-shortcut:focus-visible { outline: 3px solid #fff2ab; outline-offset: 3px; }
+
+/* V5 — Modern 16-bit: intermediate-resolution, readable pixel typography.
+   No texture upscale or blurry LCD/glass effects on controls. */
+html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
+.arena-canvas, .mobile-controls, .mobile-movement-zone,
+.mobile-action, .mobile-super, .mobile-jump { touch-action: none; -webkit-touch-callout: none; }
+.arena-screen { font-family: 'Pixelify Sans', 'Oxanium', sans-serif; }
+.arena-fighter-name, .arena-player-tag, .arena-meter-tag, .arena-meter-number,
+.arena-round-label, .arena-time-number, .arena-combo strong, .arena-combo > b,
+.arena-announcement span, .arena-result-headline, .arena-pause-heading h2,
+.arena-primary-button, .arena-secondary-button, .arena-pause-options button,
+.arena-guide-panel > strong, .arena-guide-combos b, .arena-guide-eyebrow,
+.arena-pause-help > strong { font-family: 'Pixelify Sans', monospace; letter-spacing: .2px; }
+.arena-fighter-name { font-size: clamp(14px,1.7vw,21px); font-weight: 700; line-height: 1.05; text-shadow: 2px 2px 0 #061127, -1px -1px 0 #061127; }
+.arena-player-tag { font-size: clamp(10px,1.1vw,14px); font-weight: 700; border-radius: 2px; }
+.arena-health-track { border-radius: 2px; outline: 1px solid #e6eef2; box-shadow: 2px 3px 0 #081123; }
+.arena-health-fill,.arena-meter-track,.arena-meter-fill { border-radius: 0; }
+.arena-meter-track { height: 9px; border: 1px solid #89c5df; border-radius: 1px; box-shadow: inset 1px 1px 0 #050e21; }
+.arena-meter-tag,.arena-meter-number { font-size: clamp(9px,1vw,12px); }
+.arena-time-number { font-weight: 700; font-size: clamp(24px,3.8vw,46px); border-radius: 3px; box-shadow: 3px 4px 0 #050d20, inset 0 3px 0 #ffffff2a; text-shadow: 2px 2px 0 #031327; }
+.arena-round-label { font-size: clamp(9px,1vw,12px); font-weight: 700; }
+.arena-pause-shortcut { border-radius: 2px; box-shadow: 2px 3px 0 #051022; }
+.arena-combo strong { font-size: clamp(30px,5.4vw,68px); -webkit-text-stroke: .7px #231829; text-shadow: 3px 4px 0 #6e3a2c, 5px 6px 0 #101424; line-height: .9; }
+.arena-combo > b { font-size: clamp(16px,1.8vw,23px); text-shadow: 2px 2px 0 #081322; }
+.arena-announcement span { border-radius: 3px; font-size: clamp(22px,3vw,39px); box-shadow: 4px 5px 0 #030d20; }
+.arena-pause-card,.arena-result-card { border-radius: 4px; border: 3px solid #0c172c; outline: 2px solid #aec1cf; box-shadow: 6px 7px 0 #020615; }
+.arena-pause-heading h2 { font-size: clamp(34px,4vw,50px); }
+.arena-pause-options button,.arena-primary-button,.arena-secondary-button { border-radius: 3px; font-size: 15px; font-weight: 700; }
+.arena-pause-help { border-radius: 3px; }
+.arena-guide-combos > span { border-radius: 3px; }
+.arena-guide-combos b { font-size: clamp(13px,3.5vw,19px); }
+.arena-guide-panel > strong { font-size: clamp(20px,5vw,28px); }
+
+/* Touch UI: three actions, but only two are attacks. Compact jump above A/B. */
+.mobile-utility-row { display: flex; align-items: center; justify-content: flex-end; gap: 7px; width: 100%; min-height: 37px; }
+.mobile-jump {
+  flex: 0 0 auto; min-width: 75px; height: 37px; display: flex; align-items: center;
+  justify-content: center; gap: 6px; padding: 4px 9px;
+  border: 2px solid #0b1730; border-radius: 3px; outline: 1px solid #d6edf5;
+  background: linear-gradient(180deg,#b9f6cb 0 21%,#65c9a2 22% 70%,#27856e 71%);
+  color: #0a2e31; box-shadow: inset 0 2px 0 #ffffff9c,0 3px 0 #061322;
+  pointer-events: auto; user-select: none;
+  opacity: var(--mobile-control-opacity,.8);
+}
+.mobile-jump span { font: 700 22px/1 'Pixelify Sans',monospace; }
+.mobile-jump strong { font: 700 15px/1 'Pixelify Sans',monospace; }
+.mobile-jump.is-pressed { transform: translateY(2px); box-shadow: inset 0 2px 0 #0003,0 1px 0 #051324; }
+.mobile-action { opacity: var(--mobile-control-opacity,.8); border-radius: 4px; border: 2px solid #0a172b; outline: 1px solid #e2edf0;
+  box-shadow: inset 0 3px 0 #ffffff8f, inset 0 -4px 0 #07172b40,0 4px 0 #071324;
+  text-shadow: 1px 1px 0 #05112355;
+}
+.mobile-action::after { inset: 4px; border-radius: 1px; border: 1px solid #ffffff72; }
+.mobile-strike { background: linear-gradient(180deg,#fff1aa 0 19%,#eebd57 20% 68%,#b87336 69%); }
+.mobile-skill { background: linear-gradient(180deg,#b9eeff 0 18%,#63bde1 19% 68%,#277cae 69%); }
+.mobile-action-letter { font: 700 clamp(26px,3vw,34px)/.95 'Pixelify Sans',monospace; }
+.mobile-action strong { font: 700 clamp(13px,1.55vw,18px)/1.1 'Pixelify Sans',monospace; letter-spacing: 0; }
+.mobile-action small { font: 600 clamp(9px,1vw,12px)/1.1 'Pixelify Sans',monospace; letter-spacing: 0; }
+.mobile-super { width: auto; flex: 1 1 auto; min-width: 0; height: 37px; min-height: 37px;
+  background: linear-gradient(#fff5bf 0 25%,#f8d169 26% 70%,#df9d3d 71%);
+  border-radius: 3px; border: 2px solid #49311b; outline: 1px solid #fff3cf;
+  box-shadow: inset 0 2px 0 #ffffffe0,0 3px 0 #231924;
+  opacity: var(--mobile-control-opacity,.8);
+}
+.mobile-super strong { font: 700 16px/1 'Pixelify Sans',monospace; }
+.mobile-super span { font: 700 22px/1 'Pixelify Sans',monospace; }
+.mobile-stick,.mobile-stick-hint { opacity: var(--mobile-control-opacity,.8); }
+.mobile-stick { border-radius: 50%; box-shadow: inset 0 0 0 4px #aad1e016, 0 3px 0 #06122280; }
+.mobile-stick-knob { border-radius: 50%; box-shadow: inset 0 3px 0 #f3fcff70, 0 3px 0 #061322; }
+.mobile-stick-hint small { font: 700 11px/1 'Pixelify Sans',monospace; letter-spacing: .5px; }
+.mobile-hold-indicator { border-radius: 0; }
+.mobile-action:focus-visible,.mobile-super:focus-visible,.mobile-jump:focus-visible { outline: 2px solid #fff1aa; outline-offset: 3px; }
+.arena-opacity-control {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px;
+  background: #15283f; border: 1px solid #7696ad; color: #e9f4fc;
+  padding: 11px 14px; text-align: left;
+}
+.arena-opacity-control span { font: 700 14px/1.1 'Pixelify Sans',monospace; }
+.arena-opacity-control input { width: 100%; min-height: 24px; accent-color: #ffd26b; cursor: pointer; touch-action: pan-x; }
+
+@media (orientation: landscape) and (max-height: 700px), (orientation: landscape) and (pointer: coarse) {
+  .arena-fighter-name { font-size: clamp(11px,3.1dvh,19px); }
+  .arena-player-tag { font-size: clamp(9px,2.5dvh,12px); }
+  .arena-meter-tag,.arena-meter-number { font-size: 9px; }
+  .arena-round-label { font-size: 9px; }
+  .arena-time-number { font-size: clamp(20px,6.8dvh,33px); }
+  .arena-combo strong { font-size: clamp(30px,8dvh,49px); }
+  .arena-combo > b { font-size: clamp(14px,3.8dvh,22px); }
+  .mobile-utility-row { min-height: 31px; }
+  .mobile-jump { height: 31px; min-width: 73px; }
+  .mobile-super { height: 31px; min-height: 31px; }
+  .mobile-action { min-height: clamp(51px,17dvh,79px); }
+  .mobile-action-letter { font-size: clamp(23px,5.8dvh,30px); }
+  .mobile-action strong { font-size: clamp(12px,3.6dvh,16px); }
+  .mobile-action small { font-size: clamp(9px,2.3dvh,11px); }
+}
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) {
+  .arena-fighter-name { font-size: clamp(9px,2.9vw,12px); }
+  .arena-meter-tag,.arena-meter-number { font-size: 8px; }
+  .arena-time-number { font-size: 19px; }
+  .arena-combo strong { font-size: 22px; }
+  .arena-combo > b { font-size: 13px; }
+  .mobile-controls { min-height: 155px; }
+  .mobile-movement-zone { height: 120px; }
+  .mobile-action-side { gap: 6px; }
+  .mobile-utility-row { min-height: 31px; }
+  .mobile-jump { height: 31px; min-width: 71px; }
+  .mobile-super { height: 31px; min-height: 31px; }
+  .mobile-action { min-height: 64px; }
+  .mobile-action-letter { font-size: 27px; }
+  .mobile-action strong { font-size: 14px; }
+  .mobile-action small { font-size: 9px; }
+}
+@media (orientation: landscape) and (max-height: 365px) {
+  .mobile-utility-row { min-height: 27px; }
+  .mobile-jump { height: 27px; min-width: 65px; }
+  .mobile-super { height: 27px; min-height: 27px; }
+  .mobile-action { min-height: 55px; }
+  .mobile-action-letter { font-size: 22px; }
+  .mobile-action strong { font-size: 12px; }
+  .mobile-action small { font-size: 9px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .mobile-action-side { width: 144px; }
+  .mobile-jump { min-width: 65px; }
+  .mobile-action { min-height: 61px; }
+}
+/* Last ergonomics pass for very narrow screens (landscape and portrait). */
+.mobile-jump { padding-inline: 6px; gap: 3px; min-width: 64px; }
+.mobile-jump strong { font-size: 14px; }
+.mobile-jump span { font-size: 19px; }
+@media (max-width: 345px) {
+  .mobile-super span { display: none; }
+  .mobile-super strong { font-size: 13px; }
+  .mobile-action small { font-size: 9px; }
+  .mobile-jump strong { font-size: 12px; }
+}
