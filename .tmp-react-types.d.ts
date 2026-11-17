@@ -2,6 +2,7 @@ declare namespace JSX { interface IntrinsicElements { [elemName:string]: any } i
 declare module 'react' {
   namespace React {
     type ReactNode = any;
+    interface FormEvent<T=any>{currentTarget:T;preventDefault():void;}
     interface MutableRefObject<T> {current:T}
     type FC<P = {}> = (props:P) => JSX.Element;
     type CSSProperties = Record<string,string|number|undefined>;
@@ -22,5 +23,5 @@ declare module 'react-dom/client' {export function createRoot(root:any):{render(
 declare module 'react/jsx-runtime' {export const jsx:any;export const jsxs:any;export const Fragment:any;}
 declare module 'lucide-react' {const icon:any; export const ArrowLeft:any, ArrowRight:any, ArrowUp:any, BookOpen:any, Camera:any, Check:any, ChevronLeft:any, ChevronRight:any, CircleHelp:any, Crown:any, Gamepad2:any, KeyRound:any, Loader2:any, Settings2:any, ShieldCheck:any, SlidersHorizontal:any, Sparkles:any, Swords:any, Target:any, Trash2:any, UsersRound:any, Volume2:any, VolumeX:any, X:any, Zap:any, Globe2:any, Wifi:any, Copy:any, Link:any, Pause:any, Play:any, Eye:any, RotateCcw:any, FlaskConical:any, Keyboard:any, Smartphone:any, Move:any, ImagePlus:any, AlertTriangle:any, UploadCloud:any, FileJson:any, Wand2:any, ArrowLeftRight:any, Info:any, Save:any, CheckCircle:any, RotateCw:any, Download:any, RefreshCw:any, Settings:any, Monitor:any, Menu:any, Shield:any, ExternalLink:any, UserRound:any, Plus:any, Music:any, Volume:any, FileText:any;}
 
-declare module 'lucide-react' { export const CheckCircle2:any, ClipboardCopy:any, CloudUpload:any, Image:any, Upload:any, Share2:any; }
+declare module 'lucide-react' { export const Pencil:any, Heart:any, LockKeyhole:any, Search:any, CheckCircle2:any, ClipboardCopy:any, CloudUpload:any, Image:any, Upload:any, Share2:any; }
 interface ImportMeta { readonly env: Record<string,string|boolean|undefined> }

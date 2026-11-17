@@ -82,9 +82,9 @@ export function AccountPanel({onClose,onRestored}:Props){
      if(file.size>150*1024*1024)throw new Error('El archivo supera el máximo de 150 MB.');
      const fighters=readLocalFightersBackup(await file.text());
      const report=await mergeCustomFighters(fighters);
-     for(const fighter of report.added)onRestored(fighter);
+     for(const fighter of [...report.added,...report.updated])onRestored(fighter);
      setLocalCount(c=>c===null?null:c+report.added.length);
-     setNotice(`Importación segura: ${report.added.length} añadidos, ${report.unchanged} ya presentes, ${report.conflicts} conservados como copias distintas. Ningún luchador existente se ha sobrescrito.`);
+     setNotice(`Importación segura: ${report.added.length} añadidos, ${report.updated.length} nombres actualizados, ${report.unchanged} ya presentes y ${report.conflicts} conflictos conservados como copias distintas. Sin reemplazar sprites ni estadísticas.`);
    }catch(error){setNotice(error instanceof Error?error.message:'No se pudo importar. Tu colección original se mantiene intacta.');}
    finally{setBusy(false);}
  }
@@ -93,11 +93,12 @@ export function AccountPanel({onClose,onRestored}:Props){
    if(!user||busy)return;setBusy(true);setNotice('Descargando imágenes privadas…');
    try{
      const result=await restoreCloudFightersReport();
-     // This ONE IndexedDB transaction never replaces an existing local ID.
+     // Name-only changes can update a matching local ID if the cloud name is newer;
+     // artwork and combat data are never replaced.
      const report=await mergeCustomFighters(result.fighters);
-     for(const fighter of report.added)onRestored(fighter);
+     for(const fighter of [...report.added,...report.updated])onRestored(fighter);
      setLocalCount(c=>c===null?null:c+report.added.length);
-     setNotice(`${report.added.length} recuperados; ${report.unchanged} ya presentes; ${report.conflicts} conflictos conservados como nuevas copias.${result.failed.length?` ${result.failed.length} no pudieron descargarse: ${result.failed[0]}`:''} No se ha borrado ningún personaje local.`);
+     setNotice(`${report.added.length} recuperados; ${report.updated.length} nombres actualizados; ${report.unchanged} ya presentes; ${report.conflicts} conflictos conservados como nuevas copias.${result.failed.length?` ${result.failed.length} no pudieron descargarse: ${result.failed[0]}`:''} No se ha borrado ningún personaje local.`);
    }catch(error){setNotice(error instanceof Error?error.message:'No se pudo recuperar la colección. Tus luchadores locales no se han modificado.');}
    finally{setBusy(false);}
  }

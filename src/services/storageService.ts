@@ -49,6 +49,38 @@ export async function saveCustomFighter(fighter: FighterProfile): Promise<void> 
   });
 }
 
+/** Normalized, arcade-friendly name; game mechanics and artwork are never affected. */
+export function normalizeFighterName(value:string):string {
+  const name=value.replace(/[\u0000-\u001f\u007f]/g,' ').trim().replace(/\s+/g,' ').toLocaleUpperCase('es');
+  if (!name) throw new Error('Escribe un nombre para el luchador.');
+  if ([...name].length>20) throw new Error('El nombre no puede superar los 20 caracteres.');
+  return name;
+}
+
+/** Rename the existing IndexedDB row atomically: retain its id, artwork and all combat data. */
+export async function renameCustomFighter(id:string,value:string):Promise<FighterProfile> {
+  const fighterName=normalizeFighterName(value);
+  const db=await openDatabase();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE_FIGHTERS,'readwrite');
+    const store=tx.objectStore(STORE_FIGHTERS);
+    const request=store.get(id);
+    let result:FighterProfile|undefined;
+    request.onsuccess=()=>{
+      const original=request.result as FighterProfile|undefined;
+      if (!original) { tx.abort(); return; }
+      if (original.isPreset || original.id.startsWith('preset_')) { tx.abort(); return; }
+      // Read the latest persisted profile rather than copying a possibly stale UI snapshot.
+      const updated={...original,fighterName,nameUpdatedAt:Math.max(Date.now(),(original.nameUpdatedAt??0)+1)};
+      store.put(updated);
+      result=updated;
+    };
+    tx.oncomplete=()=>{db.close();resolve(result!);};
+    tx.onerror=()=>{db.close();reject(tx.error??new Error('No se pudo cambiar el nombre.'));};
+    tx.onabort=()=>{db.close();reject(new Error('El luchador no existe o no se puede renombrar.'));};
+  });
+}
+
 export async function getAllCustomFighters(): Promise<FighterProfile[]> {
   // Do NOT turn an IndexedDB error into an empty collection. A temporary
   // storage failure must not look like the player lost all their fighters.
@@ -112,7 +144,7 @@ export function readLocalFightersBackup(text:string): FighterProfile[] {
   return fighters;
 }
 
-export type FighterMergeReport = {added:FighterProfile[]; unchanged:number; conflicts:number};
+export type FighterMergeReport = {added:FighterProfile[]; updated:FighterProfile[]; unchanged:number; conflicts:number};
 
 function canonicalMetadata(fighter:FighterProfile):string {
   // Supabase jsonb may reorder keys: canonicalize only small metadata, NOT art.
@@ -124,6 +156,12 @@ function sameFighterContent(a:FighterProfile,b:FighterProfile): boolean {
   return a.spriteSheetDataUrl===b.spriteSheetDataUrl &&
     a.portraitDataUrl===b.portraitDataUrl && canonicalMetadata(a)===canonicalMetadata(b);
 }
+function sameFighterExceptDisplayName(a:FighterProfile,b:FighterProfile):boolean {
+  return a.spriteSheetDataUrl===b.spriteSheetDataUrl && a.portraitDataUrl===b.portraitDataUrl &&
+    canonicalMetadata({...a,fighterName:'',nameUpdatedAt:undefined})===
+    canonicalMetadata({...b,fighterName:'',nameUpdatedAt:undefined});
+}
+
 function uniqueImportId():string {
   // crypto.randomUUID is unavailable in some LAN http:// development contexts.
   const uuid=typeof crypto!=='undefined' && typeof crypto.randomUUID==='function'
@@ -140,7 +178,7 @@ export async function mergeCustomFighters(incoming:FighterProfile[]):Promise<Fig
   if (!incoming.every(validFighter)) throw new Error('Hay luchadores con datos inválidos. No se ha modificado tu colección.');
   const db = await openDatabase();
   return new Promise((resolve,reject) => {
-    const added:FighterProfile[]=[];
+    const added:FighterProfile[]=[], updated:FighterProfile[]=[];
     let unchanged=0, conflicts=0;
     const tx=db.transaction(STORE_FIGHTERS,'readwrite');
     const store=tx.objectStore(STORE_FIGHTERS);
@@ -150,6 +188,18 @@ export async function mergeCustomFighters(incoming:FighterProfile[]):Promise<Fig
       const ids=new Set(stored.map(f=>f.id));
       for(const fighter of incoming){
         if(ids.has(fighter.id)){
+          const original=stored.find(existing=>existing.id===fighter.id)!;
+          // A rename is not a new fighter. Retain artwork and combat data;
+          // accept only the newer explicitly dated display name.
+          if(sameFighterExceptDisplayName(original,fighter)){
+            if((fighter.nameUpdatedAt??0)>(original.nameUpdatedAt??0)){
+              const renamed={...original,fighterName:fighter.fighterName,nameUpdatedAt:fighter.nameUpdatedAt};
+              store.put(renamed);
+              stored.splice(stored.indexOf(original),1,renamed);
+              updated.push(renamed);
+            }else{unchanged++;}
+            continue;
+          }
           if(stored.some(existing=>sameFighterContent(existing,fighter))){unchanged++;continue;}
           // A previously imported copy should not be duplicated every time.
           const similar=stored.some(existing=>sameFighterContent(existing,fighter));
@@ -163,7 +213,7 @@ export async function mergeCustomFighters(incoming:FighterProfile[]):Promise<Fig
         }
       }
     };
-    tx.oncomplete=()=>{db.close();resolve({added,unchanged,conflicts});};
+    tx.oncomplete=()=>{db.close();resolve({added,updated,unchanged,conflicts});};
     tx.onerror=()=>{db.close();reject(tx.error ?? new Error('Error importando personajes. No se ha importado nada.'));};
     tx.onabort=()=>{db.close();reject(tx.error ?? new Error('Importación cancelada. No se ha importado nada.'));};
   });

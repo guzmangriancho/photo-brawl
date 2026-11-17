@@ -117,6 +117,8 @@ export interface FighterProfile extends FighterDesignSchema {
   id: string;
   isPreset?: boolean;
   createdAt: number;
+  /** Last local display-name edit; used to sync renames without overwriting newer cloud names. */
+  nameUpdatedAt?: number;
   spriteSheetDataUrl: string; // 1024x1024 processed PNG with transparent background and foot-grounded 4x4 grid
   portraitDataUrl: string;    // 512x512 PNG
   /** New character sheets use 16 cells with windup/impact pairs and a contextual final slot. */

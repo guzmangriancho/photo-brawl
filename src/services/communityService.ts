@@ -69,6 +69,27 @@ export async function saveFighterCloud(fighter:FighterProfile):Promise<CloudFigh
   if(error)throw error;
   return data as CloudFighter;
 }
+/** Rename a cloud copy without uploading the original spritesheet/portrait again. */
+export async function syncRenamedFighter(fighter:FighterProfile):Promise<'synced'|'pending'|'newer-remote'> {
+  if(!supabase)return 'pending';
+  const {data:auth,error:authError}=await supabase.auth.getUser();
+  if(authError)throw authError;
+  if(!auth.user)return 'pending';
+  const entry=await cloudEntry(fighter.id);
+  if(!entry)return 'pending'; // Automatic migration will upload it privately.
+  const cloudStamp=entry.fighter_data.nameUpdatedAt??0;
+  const localStamp=fighter.nameUpdatedAt??0;
+  if(cloudStamp>localStamp)return 'newer-remote';
+  if(entry.fighter_name===fighter.fighterName && cloudStamp===localStamp)return 'synced';
+  const fighter_data={...entry.fighter_data,fighterName:fighter.fighterName,nameUpdatedAt:localStamp};
+  const {data:updated,error}=await supabase.from('fighters')
+    .update({fighter_name:fighter.fighterName,fighter_data,updated_at:new Date().toISOString()})
+    .eq('id',entry.id).eq('owner_id',auth.user.id).select('id').maybeSingle();
+  if(error)throw error;
+  if(!updated)throw new Error('Supabase no confirmó el nuevo nombre. Se reintentará.');
+  return 'synced';
+}
+
 export async function publishFighter(fighter:FighterProfile):Promise<CloudFighter> {
   const saved=await saveFighterCloud(fighter);
   const prefix=`${saved.owner_id}/${saved.id}`;
@@ -140,8 +161,15 @@ export async function backupMissingLocalFighters(fighters:FighterProfile[],onPro
     const fighter=fighters[i];
     try{
       if(expectedUserId && await currentUserId()!==expectedUserId)throw new Error('La sesión cambió durante la copia.');
-      if(await cloudEntry(fighter.id)){existing++;}
-      else{await saveFighterCloud(fighter);uploaded++;}
+      const remote=await cloudEntry(fighter.id);
+      if(remote){
+        // Preserve the newest explicit rename across devices; never upload stale names.
+        if((fighter.nameUpdatedAt??0)>(remote.fighter_data.nameUpdatedAt??0)){
+          const result=await syncRenamedFighter(fighter);
+          if(result!=='synced')throw new Error('No se pudo actualizar el nombre en la nube.');
+        }
+        existing++;
+      }else{await saveFighterCloud(fighter);uploaded++;}
     }catch(error){failed.push(`${fighter.fighterName}: ${error instanceof Error?error.message:'No se pudo guardar'}`);}
     onProgress?.(i+1,fighters.length);
   }

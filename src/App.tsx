@@ -47,7 +47,7 @@ export function App() {
         if(existing.isPreset || existing.id.startsWith("preset_") || existing.spriteSheetKeyVersion===3)continue;
         try{
           const repaired={...existing,spriteSheetDataUrl:await repairSavedSpriteChroma(existing.spriteSheetDataUrl),spriteSheetKeyVersion:3 as const};
-          if(active)setFighters(list=>list.map(f=>f.id===repaired.id?repaired:f));
+          if(active)setFighters(list=>list.map(f=>f.id===repaired.id?{...f,spriteSheetDataUrl:repaired.spriteSheetDataUrl,spriteSheetKeyVersion:3}:f));
         }catch(error){console.warn('No se pudo reparar la transparencia del luchador',existing.id,error);}
       }
     }).catch(error => {
@@ -62,6 +62,10 @@ export function App() {
     setFighters((prev) => [newFighter, ...prev.filter(f=>f.id!==newFighter.id)]);
     // The creator saves to IndexedDB first. Give that transaction time to finish.
     requestAutomaticMigration();
+  };
+
+  const handleFighterRenamed = (fighter: FighterProfile) => {
+    setFighters(prev => prev.map(f => f.id===fighter.id ? fighter : f));
   };
 
   const handleFighterDeleted = (id: string) => {
@@ -122,6 +126,7 @@ export function App() {
       fighters={fighters}
       onFighterCreated={handleFighterCreated}
       onFighterDeleted={handleFighterDeleted}
+      onFighterRenamed={handleFighterRenamed}
       onStartMatch={handleStartMatch}
       onOnlineMatch={handleOnlineMatch}
       onStartTutorial={handleStartTutorial}

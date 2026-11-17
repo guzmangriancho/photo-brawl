@@ -447,3 +447,15 @@
   align-items:center;
   text-align:center;
 }
+
+/* V16.4 - in-place fighter renaming, compact for short mobile viewports */
+.pb-profile-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:21px;flex-shrink:0}
+.pb-profile-tools .pb-delete-link,.pb-profile-tools .pb-rename-link{margin:0;padding:3px 0;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-size:clamp(9px,1.1vw,12px)!important;font-family:'Oxanium',sans-serif;font-weight:800;background:none;border:0;text-decoration:none;line-height:1.05}
+.pb-profile-tools .pb-rename-link{color:#9de7ff!important}
+.pb-profile-tools .pb-delete-link{color:#ffb0ba!important}
+.pb-rename-feedback{font:700 clamp(9px,.9vw,11px) 'Oxanium',sans-serif;color:#a5eecc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;text-align:center;cursor:pointer}
+.pb-rename-modal{width:min(420px,94vw);gap:clamp(7px,1.5vh,13px)}
+.pb-rename-label{font:900 clamp(10px,1.2vw,13px) 'Oxanium',sans-serif;color:#8de3ff;letter-spacing:.7px}
+.pb-rename-input{width:100%;padding:clamp(8px,1.5vh,13px) 12px;border:2px solid #71bde0;border-radius:4px;background:#081b36;color:#ffe39b;font:900 clamp(17px,2.6vw,26px) 'Pixelify Sans','Oxanium',sans-serif;text-transform:uppercase;letter-spacing:.4px;min-width:0}
+.pb-rename-error{font:700 12px 'Oxanium',sans-serif;color:#ff9ca6}
+@media(max-height:410px){.pb-rename-modal{gap:5px;padding:9px 12px}.pb-rename-input{padding:6px 10px}.pb-rename-modal .pb-panel-title h2{font-size:20px}.pb-rename-modal .pb-modal-note{font-size:10px}}

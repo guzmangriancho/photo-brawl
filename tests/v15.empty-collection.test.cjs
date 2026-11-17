@@ -33,7 +33,9 @@ function harness(initialFighters){
     './FighterCreator':{FighterCreator},'./OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./PwaInstallPrompt':{PwaInstallPrompt},
     '../network/OnlineSession':{OnlineSession:{restore:async()=>null}},
     '../services/creatorDraftService':{markCreatorOpen:()=>{},wasCreatorOpen:()=>false},
-    '../services/storageService':{deleteCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},
+    '../services/storageService':{deleteCustomFighter:async()=>{},renameCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},
+    '../services/communityService':{syncRenamedFighter:async()=> 'pending'},
+    '../services/automaticFighterMigration':{requestAutomaticMigration:()=>{}},
     '../engine/SoundFX':{soundFX:{muted:false,selectBeep:()=>{},confirmBeep:()=>{}}},
     '../data/stages':{STAGE_IDS:stages,STAGE_ART:Object.fromEntries(stages.map(id=>[id,{name:id,short:id,image:'/backgrounds/snow.jpg'}]))},
     './arcadeMenus.css':{}
