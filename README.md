@@ -1,3 +1,7 @@
+## V13 — Fondos personalizados
+
+Se han instalado los seis fondos pixel art enviados (uno para el menú y cinco escenarios). Ver `docs/ESCENARIOS_V13.md` para los detalles de selección y despliegue.
+
 # PHOTO BRAWL V12 — Pulido visual y rounds best-of-three
 
 **Actualización de la V11 con el fix WebSocket fragmentado incluido:** transparencia de los huecos interiores del spritesheet, reparación automática de imágenes antiguas de luchadores personalizados, proyectiles personalizados visibles también online, proporciones correctas del personaje del menú, creador mejor adaptado a móvil, cuenta atrás automática tras dos jugadores listos y partidas al mejor de tres (gana quien logra dos rondas).

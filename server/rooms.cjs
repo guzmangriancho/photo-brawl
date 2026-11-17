@@ -10,7 +10,7 @@ const LETTERS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const WAIT_GRACE=Math.max(15_000,Math.min(180_000,Number(process.env.ONLINE_RECONNECT_GRACE_MS)||90_000));
 const IDLE_EXPIRY=15*60_000;
 const COUNTDOWN_MS=Math.max(300,Math.min(10000,Number(process.env.ONLINE_START_COUNTDOWN_MS)||3000));
-const STAGES=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT'];
+const STAGES=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP'];
 const rooms=new Map();
 const token=()=>randomBytes(24).toString('hex');
 function code(){let c;do{c=Array.from({length:6},()=>LETTERS[randomInt(LETTERS.length)]).join('');}while(rooms.has(c));return c;}

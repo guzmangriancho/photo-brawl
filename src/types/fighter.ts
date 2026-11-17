@@ -127,7 +127,7 @@ export interface FighterProfile extends FighterDesignSchema {
   scaleMultiplier?: number;   // e.g. 1.15 for heavy tanks, 0.96 for nimble rushdown
 }
 
-export type StageId = 'SKI_RESORT' | 'NIGHT_PLAZA' | 'SUMMER_SUMMIT';
+export type StageId = 'SKI_RESORT' | 'NIGHT_PLAZA' | 'SUMMER_SUMMIT' | 'TEMPLE_SUNSET' | 'INDUSTRIAL_ROOFTOP';
 export type GameMode = '1P_VS_CPU' | '1P_VS_2P' | 'CPU_VS_CPU' | 'TRAINING' | 'ONLINE';
 export type CpuDifficulty = 'EASY' | 'NORMAL' | 'HARD';
 

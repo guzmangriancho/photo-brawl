@@ -45,3 +45,8 @@
 .pb-online-countdown strong{font:900 clamp(25px,5vh,40px)/1 Oxanium,sans-serif;color:#fff;text-shadow:2px 3px #8e4865;min-width:30px;text-align:center}
 .pb-online-countdown small{font-size:9px;color:#a7d9ef}
 @media (max-width:680px){.pb-online-countdown{min-height:32px;gap:6px;padding:3px 6px;font-size:10px}.pb-online-countdown strong{font-size:24px}.pb-online-countdown small{font-size:8px}}
+
+/* Five scenes without wrapping or vertical scrolling. */
+.pb-online-stages>div{min-width:0}
+.pb-online-stages button{font-size:clamp(9px,1.15vw,12px);padding:4px 1px;white-space:nowrap}
+@media (orientation:portrait){.pb-online-stages{flex-direction:column;gap:3px}.pb-online-stages>div{width:100%}.pb-online-stages button{font-size:clamp(9px,2.3vw,12px)}}

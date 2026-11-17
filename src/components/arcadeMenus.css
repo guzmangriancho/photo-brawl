@@ -1,7 +1,7 @@
 /* PHOTO BRAWL V8 — one-screen arcade menus: no global header, no page scrolling */
 .pb-app,.pb-app *{box-sizing:border-box}
-.pb-app{--edge:#8ca6c4;--ink:#edf6ff;--muted:#aecce4;width:100%;height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;position:relative;isolation:isolate;color:var(--ink);background:#121a34 url('/arcade-gym.svg') center / cover no-repeat;font-family:'Pixelify Sans','Oxanium',sans-serif;-webkit-font-smoothing:antialiased;touch-action:pan-x}
-.pb-app:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(100deg,#070d27ae,#101c3c82 51%,#050b25bd),linear-gradient(0deg,#02081968,transparent 45%)}
+.pb-app{--edge:#8ca6c4;--ink:#edf6ff;--muted:#aecce4;width:100%;height:100vh;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none;position:relative;isolation:isolate;color:var(--ink);background:#121a34 url('/backgrounds/menu.jpg') center center / cover no-repeat;font-family:'Pixelify Sans','Oxanium',sans-serif;-webkit-font-smoothing:antialiased;touch-action:pan-x}
+.pb-app:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(100deg,#070d278e,#101c3c7a 51%,#050b25bd),linear-gradient(0deg,#0208197a,transparent 55%)}
 .pb-app:after{content:"";position:fixed;inset:0;z-index:9;opacity:.035;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,#060713 3px 4px)}
 .pb-app button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .pb-app button:disabled{opacity:.35;cursor:default}
@@ -292,3 +292,24 @@
 /* Square crop follows both axes of the menu card; never stretch a 256x256 frame. */
 .pb-featured-art{container-type:size}
 .pb-fighter-stand{width:min(100cqw,100cqh,240px);height:auto;max-height:none;aspect-ratio:1;flex:0 0 auto}
+
+/* V13: All five supplied arenas. No synthetic thumbnail mountains or stretched art. */
+.pb-stage-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:clamp(3px,.55vw,7px); }
+.pb-stage-choice { gap:3px; padding:3px; }
+.pb-stage-art, .pb-stage-night_plaza .pb-stage-art, .pb-stage-summer_summit .pb-stage-art {
+  background-position:center center; background-repeat:no-repeat; background-size:cover;
+  border:1px solid #6389ae; border-radius:2px;
+}
+.pb-stage-art::after, .pb-stage-night_plaza .pb-stage-art::after, .pb-stage-summer_summit .pb-stage-art::after { content:none; }
+.pb-stage-choice b {font-size:clamp(9px,1.1vw,14px)}
+.pb-stage-choice small {font-size:clamp(7px,.74vw,10px)}
+@media (orientation:portrait) {
+ .pb-stage-grid { grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:4px; }
+ .pb-stage-choice { gap:1px;padding:2px; }
+ .pb-stage-choice b {font-size:clamp(10px,2.8vw,13px)}
+ .pb-stage-choice small {font-size:clamp(8px,2vw,10px)}
+}
+@media (orientation:landscape) and (max-height:420px){
+ .pb-stage-choice small {display:none}
+ .pb-stage-choice b {font-size:10px}
+}

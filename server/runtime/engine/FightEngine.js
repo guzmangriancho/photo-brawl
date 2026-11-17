@@ -2,7 +2,24 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FightEngine = exports.FLOOR_Y = exports.STAGE_HEIGHT = exports.STAGE_WIDTH = void 0;
 const SpriteProcessor_1 = require("./SpriteProcessor");
+const stages_1 = require("../data/stages");
 const SoundFX_1 = require("./SoundFX");
+// Visual assets are loaded only in browsers. The authoritative Node combat server
+// never needs Image/DOM APIs. Frames render the old procedural background until ready.
+const stageImageCache = new Map();
+function readyStageImage(stage) {
+    if (typeof Image === 'undefined')
+        return null;
+    const cached = stageImageCache.get(stage);
+    if (cached !== undefined)
+        return cached?.complete && cached.naturalWidth > 0 ? cached : null;
+    const image = new Image();
+    stageImageCache.set(stage, image);
+    image.decoding = 'async';
+    image.src = stages_1.STAGE_ART[stage].image;
+    image.onerror = () => stageImageCache.set(stage, null);
+    return null;
+}
 exports.STAGE_WIDTH = 960;
 exports.STAGE_HEIGHT = 540;
 exports.FLOOR_Y = 472;
@@ -2049,6 +2066,16 @@ class FightEngine {
         ctx.restore();
     }
     renderStage(ctx) {
+        const background = readyStageImage(this.stage);
+        if (background) {
+            // Images are painted at a consistent native 16:9 stage size. Pixel fighters
+            // still use nearest-neighbour rendering after the background is drawn.
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(background, 0, 0, exports.STAGE_WIDTH, exports.STAGE_HEIGHT);
+            ctx.imageSmoothingEnabled = false;
+            return;
+        }
         if (this.stage === 'SKI_RESORT') {
             const sky = ctx.createLinearGradient(0, 0, 0, exports.FLOOR_Y);
             sky.addColorStop(0, '#0284c7');

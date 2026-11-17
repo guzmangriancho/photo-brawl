@@ -1,6 +1,6 @@
 /* PHOTO BRAWL: cache only the game's shell, never Gemini requests or user photos. */
-const CACHE_NAME = 'pb-shell-v12-1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './arcade-gym.svg'];
+const CACHE_NAME = 'pb-shell-v13-1';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './backgrounds/menu.jpg', './backgrounds/snow.jpg', './backgrounds/neon.jpg', './backgrounds/beach.jpg', './backgrounds/asia.jpg', './backgrounds/rooftop.jpg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -29,7 +29,7 @@ self.addEventListener('fetch', event => {
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-    if (response.ok && (url.pathname.includes('/assets/') || /\.(js|css|svg|png|webp|woff2?)$/i.test(url.pathname))) {
+    if (response.ok && (url.pathname.includes('/assets/') || /\.(js|css|svg|png|jpe?g|webp|woff2?)$/i.test(url.pathname))) {
       const clone = response.clone();
       void caches.open(CACHE_NAME).then(cache => cache.put(event.request,clone));
     }
