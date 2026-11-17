@@ -1,3 +1,7 @@
+## V22 — Resumen de combate en el popup final
+
+El mismo popup que ofrece **REVANCHA / PEDIR REVANCHA** y **SALIR / CAMBIAR LUCHADOR** ahora incluye el resultado, el marcador de rondas y el escenario. En clasificatorias muestra el ELO anterior, el ELO nuevo y la variación de ambos jugadores; en amistosas indica que el ELO no cambia. **Importante:** ejecuta `supabase/migrations/202611180002_ranked_result_details.sql` en Supabase → SQL Editor para que la función devuelva los ratings anteriores y posteriores. No sustituye la migración V21: mantiene su eliminación del límite de revanchas y la protección por identificador único.
+
 ## V21 — Corregido el registro de revanchas clasificatorias
 
 Ahora cada partida clasificatoria terminada cuenta para el historial y el ELO, aunque se juegue contra el mismo rival varias veces seguidas. Se conserva la protección para que un mismo resultado no pueda contabilizarse dos veces. **Importante:** ejecuta `supabase/migrations/202611180001_ranked_rematches.sql` en Supabase → SQL Editor; desplegar solo el frontend no actualiza la función de base de datos. Guía: [`docs/CLASIFICATORIAS_REVANCHAS_V21.md`](docs/CLASIFICATORIAS_REVANCHAS_V21.md).

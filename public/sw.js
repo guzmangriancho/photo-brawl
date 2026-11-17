@@ -1,5 +1,5 @@
 /* PHOTO BRAWL: cache only the game's shell, never Gemini requests or user photos. */
-const CACHE_NAME = 'pb-shell-v21-ranked-rematches';
+const CACHE_NAME = 'pb-shell-v22-result-summary';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable.png', './icons/apple-touch-icon.png', './icons/favicon.png', './backgrounds/menu.jpg', './backgrounds/snow.jpg', './backgrounds/neon.jpg', './backgrounds/beach.jpg', './backgrounds/asia.jpg', './backgrounds/rooftop.jpg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -32,11 +32,12 @@ test('the arena listens for and displays the authoritative ranked result',()=>{
  const arena=read('src/components/FightArena.tsx');
  assert.match(arena,/online\.on\('ranked_result'/);
  assert.match(arena,/CLASIFICATORIA REGISTRADA/);
- assert.match(arena,/same_opponent_cooldown/);
+ assert.match(arena,/arena-match-summary/);
+ assert.match(arena,/host_rating_before/);
 });
 
 test('PWA cache is versioned so installed clients receive the ranked fix',()=>{
- assert.match(read('public/sw.js'),/pb-shell-v21-ranked-rematches/);
+ assert.match(read('public/sw.js'),/pb-shell-v22-result-summary/);
 });
 
 test('modified React screens transpile without JSX or TypeScript syntax errors',()=>{

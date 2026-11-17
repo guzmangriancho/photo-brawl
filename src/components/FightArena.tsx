@@ -13,6 +13,7 @@ import {
   STAGE_WIDTH,
 } from '../engine/FightEngine';
 import { soundFX } from '../engine/SoundFX';
+import { STAGE_ART } from '../data/stages';
 import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
 import { MobileControls } from './MobileControls';
@@ -115,7 +116,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [rematchRequested,setRematchRequested]=useState(false);
   const [otherWantsRematch,setOtherWantsRematch]=useState(false);
   const [onlineLatency,setOnlineLatency]=useState<number|null>(null);
-  const [rankedResult,setRankedResult]=useState<{recorded:boolean;reason?:string;host_rating?:number;guest_rating?:number}|null>(null);
+  const [rankedResult,setRankedResult]=useState<{
+    recorded:boolean;reason?:string;
+    host_rating_before?:number;guest_rating_before?:number;
+    host_rating?:number;guest_rating?:number;
+  }|null>(null);
   const engineRef = useRef<FightEngine | null>(null);
   const pausedRef = useRef(false);
   const labRef = useRef(false);
@@ -195,7 +200,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
       online.on('rematch',()=>{engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);}),
-      online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
+      online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating_before?:number;guest_rating_before?:number;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
       online.on('rematch_vote',(votes:{host:boolean;guest:boolean})=>{
         setOtherWantsRematch(online.role==='host'?votes.guest:votes.host);
       }),
@@ -439,6 +444,18 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const winnerIsP1 = snapshot.winnerName === p1Profile.fighterName;
   const rankedOnline = onlineMode && online?.room?.ranked === true;
   const rankedRating = online?.role === 'host' ? rankedResult?.host_rating : rankedResult?.guest_rating;
+  const rankedDetailsReady = rankedResult?.recorded === true
+    && typeof rankedResult.host_rating_before === 'number'
+    && typeof rankedResult.guest_rating_before === 'number'
+    && typeof rankedResult.host_rating === 'number'
+    && typeof rankedResult.guest_rating === 'number';
+  const eloLabel = (before:number, after:number) => {
+    const change=after-before;
+    return `${change>0?'+':''}${change} ELO`;
+  };
+  const resultModeLabel = rankedOnline ? 'CLASIFICATORIA' : onlineMode ? 'AMISTOSA ONLINE'
+    : tutorial ? 'TUTORIAL' : mode === 'TRAINING' ? 'ENTRENAMIENTO' : 'PARTIDA AMISTOSA';
+  const stageLabel = STAGE_ART[stage]?.name ?? stage;
 
   return (
     <main className="arena-screen">
@@ -498,11 +515,45 @@ export const FightArena: React.FC<FightArenaProps> = ({
           {snapshot.roundOver && !paused && (
             <div className="arena-result-overlay">
               <div className="arena-result-card">
-                <span className="arena-result-eyebrow">FIN DEL COMBATE</span>
+                <span className="arena-result-eyebrow">FIN DEL COMBATE · {resultModeLabel}</span>
                 <div className="arena-result-headline">K.O.</div>
                 <p className="arena-result-name"><span className={winnerIsP1 ? 'winner-p1' : 'winner-p2'}>{snapshot.winnerName ?? 'EMPATE'}</span><span className="arena-result-wins">{snapshot.winnerName ? 'GANA' : ''}</span></p>
-                {rankedOnline && <p className={`arena-ranked-result ${rankedResult?.recorded?'is-success':rankedResult?'is-error':''}`} role="status">{!rankedResult?'REGISTRANDO RESULTADO…':rankedResult.recorded?`CLASIFICATORIA REGISTRADA${typeof rankedRating==='number'?` · ELO ${rankedRating}`:''}`:rankedResult.reason==='same_opponent_cooldown'?'SUPABASE AÚN TIENE EL LÍMITE ANTIGUO. EJECUTA LA MIGRACIÓN V21.':rankedResult.reason==='duplicate'?'ESTA PARTIDA YA ESTABA REGISTRADA.':'NO SE PUDO REGISTRAR. REVISA LOS LOGS DE RENDER.'}</p>}
-                {otherWantsRematch && onlineMode && <p className="arena-online-invite">TU RIVAL QUIERE REVANCHA</p>}<div className="arena-result-actions"><button className="arena-primary-button" type="button" disabled={rematchRequested} onClick={handleRematch}><RotateCcw size={16}/> {rematchRequested?'ESPERANDO RIVAL':onlineMode?'PEDIR REVANCHA':'REVANCHA'}</button><button className="arena-secondary-button" type="button" onClick={onExit}>{onlineMode?'SALIR DEL ONLINE':'CAMBIAR LUCHADOR'}</button></div>
+                <section className="arena-match-summary" aria-label="Resumen del combate">
+                  <div className="arena-summary-score">
+                    <span>{p1Profile.fighterName}</span>
+                    <strong>{snapshot.p1RoundWins} <i>—</i> {snapshot.p2RoundWins}</strong>
+                    <span>{p2Profile.fighterName}</span>
+                  </div>
+                  {rankedOnline ? (
+                    <div className="arena-elo-summary" aria-live="polite">
+                      {!rankedResult && <p className="arena-summary-pending">ACTUALIZANDO ELO Y REGISTRANDO RESULTADO…</p>}
+                      {rankedDetailsReady && <>
+                        <div className="arena-elo-heading"><strong>CAMBIOS DE CLASIFICACIÓN</strong><span>ANTES → AHORA</span></div>
+                        <div className="arena-elo-row">
+                          <span className="arena-elo-player"><i className="arena-elo-dot is-p1" />{p1Profile.fighterName}</span>
+                          <span className="arena-elo-values">{rankedResult!.host_rating_before} <b>→</b> {rankedResult!.host_rating}</span>
+                          <strong className={`arena-elo-delta ${(rankedResult!.host_rating!-rankedResult!.host_rating_before!)>=0?'is-positive':'is-negative'}`}>{eloLabel(rankedResult!.host_rating_before!,rankedResult!.host_rating!)}</strong>
+                        </div>
+                        <div className="arena-elo-row">
+                          <span className="arena-elo-player"><i className="arena-elo-dot is-p2" />{p2Profile.fighterName}</span>
+                          <span className="arena-elo-values">{rankedResult!.guest_rating_before} <b>→</b> {rankedResult!.guest_rating}</span>
+                          <strong className={`arena-elo-delta ${(rankedResult!.guest_rating!-rankedResult!.guest_rating_before!)>=0?'is-positive':'is-negative'}`}>{eloLabel(rankedResult!.guest_rating_before!,rankedResult!.guest_rating!)}</strong>
+                        </div>
+                        <p className="arena-summary-confirmed">CLASIFICATORIA REGISTRADA · RESULTADO GUARDADO</p>
+                      </>}
+                      {rankedResult?.recorded && !rankedDetailsReady && <p className="arena-summary-confirmed">RESULTADO GUARDADO · ELO ACTUAL {typeof rankedRating==='number'?rankedRating:'ACTUALIZADO'}</p>}
+                      {rankedResult && !rankedResult.recorded && <p className="arena-summary-error">{rankedResult.reason==='duplicate'?'ESTA PARTIDA YA ESTABA REGISTRADA. NO SE HA SUMADO ELO OTRA VEZ.':'NO SE PUDO CONFIRMAR EL REGISTRO. EL ELO NO SE HA VERIFICADO.'}</p>}
+                    </div>
+                  ) : (
+                    <div className="arena-friendly-summary">
+                      <strong>{onlineMode ? 'COMBATE AMISTOSO' : resultModeLabel}</strong>
+                      <span>El ELO de ambos jugadores no cambia en esta modalidad.</span>
+                    </div>
+                  )}
+                  <div className="arena-summary-stage"><span>ESCENARIO</span><strong>{stageLabel}</strong></div>
+                </section>
+                {otherWantsRematch && onlineMode && <p className="arena-online-invite">TU RIVAL QUIERE REVANCHA</p>}
+                <div className="arena-result-actions"><button className="arena-primary-button" type="button" disabled={rematchRequested} onClick={handleRematch}><RotateCcw size={16}/> {rematchRequested?'ESPERANDO RIVAL':onlineMode?'PEDIR REVANCHA':'REVANCHA'}</button><button className="arena-secondary-button" type="button" onClick={onExit}>{onlineMode?'SALIR DEL ONLINE':'CAMBIAR LUCHADOR'}</button></div>
               </div>
             </div>
           )}
