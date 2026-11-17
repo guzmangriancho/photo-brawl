@@ -4,7 +4,10 @@ const assert=require('node:assert/strict');
 const {spawn}=require('node:child_process');
 const path=require('node:path');
 const {once}=require('node:events');
+const fs=require('node:fs');
+const ts=(()=>{try{return require('typescript');}catch{return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript');}})();
 const {validateProfile}=require('../server/validation.cjs');
+const {pickRandomStage}=require('../server/rooms.cjs');
 const root=path.join(__dirname,'..');
 const PORT=18871;
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/re0AAAAASUVORK5CYII=';
@@ -151,4 +154,78 @@ test('invalid room resume token cannot impersonate a player',async()=>{
   const attacker=await connect();attacker.send({type:'resume',code,token:'x'.repeat(48)});
   assert.match((await attacker.next('error')).message,/recuperar/);
   attacker.close();host.close();
+});
+
+
+test('room lets both players change fighters before starting and cancels a pending countdown',async()=>{
+  const host=await connect();host.send({type:'create',profile:profile('HOST'),stage:'SKI_RESORT'});
+  const code=(await host.next('welcome')).code;await host.next('room');
+  const guest=await connect();guest.send({type:'join',code,profile:profile('GUEST')});
+  await guest.next('welcome');await guest.next('room');
+  host.send({type:'ready',ready:true});guest.send({type:'ready',ready:true});
+  await host.next('room',m=>m.room.status==='countdown');
+  guest.send({type:'choose',profile:profile('GUEST_ALT','DOUBLE_JUMP')});
+  const changed=await host.next('room',m=>m.room.status==='waiting'&&m.room.guest?.name==='GUEST_ALT');
+  assert.equal(changed.room.host.ready,false);
+  assert.equal(changed.room.guest.ready,false);
+  await new Promise(resolve=>setTimeout(resolve,550));
+  assert.equal(host.messages.some(m=>m.type==='start'),false,'fighter change must cancel the old countdown');
+  host.close();guest.close();
+});
+
+test('random arena mode is shared by both players and resolves to a valid stage',async()=>{
+  const host=await connect();host.send({type:'create',profile:profile('HOST'),stage:'SKI_RESORT'});
+  const code=(await host.next('welcome')).code;await host.next('room');
+  const guest=await connect();guest.send({type:'join',code,profile:profile('GUEST')});
+  await guest.next('welcome');await guest.next('room');
+  host.send({type:'stage',stage:'RANDOM'});
+  const hostRoom=await host.next('room',m=>m.room.randomStage===true);
+  const guestRoom=await guest.next('room',m=>m.room.randomStage===true);
+  assert.equal(hostRoom.room.randomStage,true);
+  assert.equal(guestRoom.room.randomStage,true);
+  host.send({type:'ready',ready:true});guest.send({type:'ready',ready:true});
+  await host.next('room',m=>m.room.status==='countdown');
+  const start=await host.next('start');await guest.next('start');
+  assert.ok(['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP'].includes(start.stage));
+  host.close();guest.close();
+});
+
+test('random arena rerolls never repeat the immediately previous stage',()=>{
+  const stages=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP'];
+  for(const previous of stages){
+    for(let i=0;i<30;i++){
+      const next=pickRandomStage(previous);
+      assert.ok(stages.includes(next));
+      assert.notEqual(next,previous);
+    }
+  }
+});
+
+
+test('online room UI contains the fighter picker and random arena control',()=>{
+  const lobby=fs.readFileSync(path.join(root,'src/components/OnlineLobby.tsx'),'utf8');
+  assert.match(lobby,/pb-online-fighter-list/);
+  assert.match(lobby,/session\?\.choose\(next\)/);
+  assert.match(lobby,/onFighterChange\(next\)/);
+  assert.match(lobby,/session\?\.stage\('RANDOM'\)/);
+  const css=fs.readFileSync(path.join(root,'src/components/online.css'),'utf8');
+  assert.match(css,/pb-online-fighter-picker/);
+});
+
+test('rematch event applies the server-selected arena to the active client engine',()=>{
+  const server=fs.readFileSync(path.join(root,'server/rooms.cjs'),'utf8');
+  const session=fs.readFileSync(path.join(root,'src/network/OnlineSession.ts'),'utf8');
+  const arena=fs.readFileSync(path.join(root,'src/components/FightArena.tsx'),'utf8');
+  assert.match(server,/if\(room\.randomStage\)room\.stage=pickRandomStage\(room\.stage\)/);
+  assert.match(server,/type:'rematch',stage:room\.stage/);
+  assert.match(session,/this\.match=\{\.\.\.this\.match,stage:msg\.stage as StageId\}/);
+  assert.match(arena,/engine\.stage=event\.stage;setCurrentStage\(event\.stage\)/);
+});
+
+test('changed online React and TypeScript files transpile without syntax errors',()=>{
+  for(const file of ['src/components/OnlineLobby.tsx','src/components/CharacterSelect.tsx','src/components/FightArena.tsx','src/network/OnlineSession.ts','src/network/protocol.ts']){
+    const out=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{fileName:file,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}});
+    const errors=(out.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error);
+    assert.deepEqual(errors.map(e=>ts.flattenDiagnosticMessageText(e.messageText,' ')),[],file);
+  }
 });

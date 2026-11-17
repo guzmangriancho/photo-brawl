@@ -11,6 +11,8 @@ export interface RoomView {
   host: { name: string; ready: boolean; connected: boolean };
   guest: { name: string; ready: boolean; connected: boolean } | null;
   stage: StageId;
+  /** When enabled, the server rolls a new arena for every match/rematch. */
+  randomStage?: boolean;
   ranked?: boolean;
   countdownEndsAt?: number | null;
 }

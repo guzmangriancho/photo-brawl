@@ -127,7 +127,9 @@ export class OnlineSession {
         }else if(msg.type==='resumed'){
           this.emit('connection',{connected:true,reconnecting:false});
         }else if(msg.type==='rematch'){
-          this.state=null;this.emit('rematch',null);
+          this.state=null;
+          if(this.match && typeof msg.stage==='string')this.match={...this.match,stage:msg.stage as StageId};
+          this.emit('rematch',{stage:typeof msg.stage==='string'?msg.stage:undefined});
         }else if(msg.type==='rematch_vote'){
           this.emit('rematch_vote',{host:msg.host,guest:msg.guest});
         }else if(msg.type==='ranked_result'){
@@ -192,8 +194,8 @@ export class OnlineSession {
     activeRestore.finally(()=>{activeRestore=null;});
     return activeRestore;
   }
-  choose(profile:FighterProfile,stage:StageId){this.send({type:'choose',profile,stage});}
-  stage(stage:StageId){this.send({type:'stage',stage});}
+  choose(profile:FighterProfile){this.send({type:'choose',profile});}
+  stage(stage:StageId|'RANDOM'){this.send({type:'stage',stage});}
   ready(value:boolean){this.send({type:'ready',ready:value});}
   start(){this.send({type:'start'});}
   requestRematch(){this.send({type:'rematch'});}

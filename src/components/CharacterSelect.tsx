@@ -162,7 +162,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     return ()=>{current=false;};
   },[]);
   useEffect(()=>{
-    if(onlineSession?.room?.status==='waiting' && featured)onlineSession.choose(featured,stage);
+    if(onlineSession && (onlineSession.room?.status==='waiting'||onlineSession.room?.status==='countdown') && featured)onlineSession.choose(featured);
   },[featured?.id]);
   useEffect(()=>{if(onlineSession?.room?.role==='host' && onlineSession.room.status==='waiting')onlineSession.stage(stage);},[stage]);
   const setOnlineSessionSafe=(session:OnlineSession|null)=>{
@@ -311,7 +311,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   </div>
 
   {showTutorial && page === 'HOME' && <div className="pb-modal-backdrop pb-tutorial-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget)setShowTutorial(false);}}><section className="pb-modal pb-frame pb-tutorial-modal" role="dialog" aria-modal="true" aria-label="Tutorial gratuito"><button type="button" className="pb-modal-close" onClick={()=>setShowTutorial(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="ESCUELA ARCADE · GRATIS PARA SIEMPRE">APRENDE A COMBATIR</PanelTitle><p className="pb-tutorial-intro">Prueba los controles y los combos con uno de estos cuatro luchadores de entrenamiento. No aparecen en tu colección ni en los modos normales.</p><div className="pb-tutorial-choices">{TUTORIAL_FIGHTERS.map(f=><button type="button" key={f.id} className={`pb-tutorial-choice ${tutorialId===f.id?'is-selected':''}`} aria-pressed={tutorialId===f.id} onClick={()=>setTutorialId(f.id)}><FighterPortrait fighter={f}/><strong>{f.fighterName}</strong>{tutorialId===f.id&&<Check size={15}/>}</button>)}</div><div className="pb-tutorial-bottom"><span><BookOpen size={15}/> Mover · Saltar · Golpear · Técnicas</span><button type="button" className="pb-arcade-button pb-gold" onClick={()=>{setShowTutorial(false);onStartTutorial(tutorialFighter.id);}}><Gamepad2 size={17}/> EMPEZAR TUTORIAL</button></div></section></div>}
-  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && featured && <OnlineLobby fighter={featured} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onClose={()=>setShowOnlineLobby(false)}/>}
+  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && featured && <OnlineLobby fighter={featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>setP1Id(next.id)} onClose={()=>setShowOnlineLobby(false)}/>}
   {onlineError && mode==='ONLINE' && !showOnlineLobby && <div className="pb-online-notice" role="status" onClick={()=>setOnlineError('')}>{onlineError} · Toca para cerrar</div>}
   {renamingId && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!renamingBusy)setRenamingId(null);}}><form className="pb-modal pb-frame pb-rename-modal" role="dialog" aria-modal="true" aria-label="Cambiar nombre de luchador" onSubmit={submitRename}>
     <button type="button" className="pb-modal-close" onClick={()=>setRenamingId(null)} disabled={renamingBusy} aria-label="Cerrar"><X size={18}/></button>

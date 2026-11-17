@@ -9,11 +9,11 @@ import { supabaseConfigured } from '../services/supabaseClient';
 import './online.css';
 
 interface Props {
-  fighter: FighterProfile; stage: StageId;
+  fighter: FighterProfile; fighters: FighterProfile[]; stage: StageId;
   session: OnlineSession|null; room: RoomView|null; externalError?:string;
-  onSession: (s:OnlineSession|null)=>void; onClose:()=>void;
+  onSession: (s:OnlineSession|null)=>void; onFighterChange:(fighter:FighterProfile)=>void; onClose:()=>void;
 }
-export function OnlineLobby({fighter,stage,session,room,externalError,onSession,onClose}:Props){
+export function OnlineLobby({fighter,fighters,stage,session,room,externalError,onSession,onFighterChange,onClose}:Props){
   const [code,setCode]=useState(()=>new URLSearchParams(location.search).get('room')?.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6) || '');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -37,6 +37,15 @@ export function OnlineLobby({fighter,stage,session,room,externalError,onSession,
     finally{setBusy(false);}
   };
   const myReady=room ? (room.role==='host'?room.host.ready:room.guest?.ready) : false;
+  const ownFighterId=fighter.id;
+  const availableFighters=fighters.filter(item=>!item.isPreset&&!item.id.startsWith('preset_'));
+  const canChangeFighter=!!room&&(room.status==='waiting'||room.status==='countdown');
+  const chooseFighter=(next:FighterProfile)=>{
+    if(!canChangeFighter||next.id===ownFighterId)return;
+    setError('');
+    session?.choose(next);
+    onFighterChange(next);
+  };
   const copy=async()=>{
     const text=room?.code||'';
     try{await navigator.clipboard.writeText(text);setCopied(true);}catch{setCode(text);setError('Selecciona el código para copiarlo.');}
@@ -62,7 +71,18 @@ export function OnlineLobby({fighter,stage,session,room,externalError,onSession,
       </div> : <div className="pb-online-ready">
         <div className="pb-online-code"><small>{room.ranked?'CLASIFICATORIA · 2 RONDAS PARA GANAR':'AMISTOSO · CÓDIGO DE SALA'}</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> INVITAR</button></div></div>
         <div className="pb-online-players"><div><ShieldCheck size={18}/><strong>{room.host.name}</strong><small>{room.host.connected?(room.host.ready?'LISTO':'PREPARANDO'):'RECONECTANDO'}</small></div><b>VS</b><div><Gamepad2 size={18}/><strong>{room.guest?.name||'ESPERANDO RIVAL'}</strong><small>{!room.guest?'COMPARTE EL CÓDIGO':!room.guest.connected?'RECONECTANDO':room.guest.ready?'LISTO':'PREPARANDO'}</small></div></div>
-        {room.role==='host' && room.status==='waiting' && <div className="pb-online-stages"><span>ESCENARIO</span><div>{STAGE_IDS.map(id => [id, STAGE_ART[id].short] as [StageId,string]).map(([id,label])=><button key={id} type="button" className={room.stage===id?'is-active':''} onClick={()=>session?.stage(id)}>{label}</button>)}</div></div>}
+        {(room.status==='waiting'||room.status==='countdown') && <div className="pb-online-fighter-picker">
+          <div className="pb-online-picker-heading"><span>TU LUCHADOR</span><small>{room.status==='countdown'?'CAMBIAR CANCELA LA CUENTA ATRÁS':'PUEDES CAMBIAR ANTES DE EMPEZAR'}</small></div>
+          <div className="pb-online-fighter-list" aria-label="Elegir luchador para la sala">
+            {availableFighters.map(item=><button key={item.id} type="button" className={item.id===ownFighterId?'is-active':''} aria-pressed={item.id===ownFighterId} onClick={()=>chooseFighter(item)}>
+              <img src={item.portraitDataUrl} alt=""/><span>{item.fighterName}</span>{item.id===ownFighterId&&<Check size={13}/>} 
+            </button>)}
+          </div>
+          <small className="pb-online-picker-note">Si cambias de personaje, los dos jugadores tendrán que volver a marcar «Estoy listo».</small>
+        </div>}
+        {room.role==='host' && room.status==='waiting' && <div className="pb-online-stages"><span>ESCENARIO</span><div>{STAGE_IDS.map(id => [id, STAGE_ART[id].short] as [StageId,string]).map(([id,label])=><button key={id} type="button" className={!room.randomStage&&room.stage===id?'is-active':''} onClick={()=>session?.stage(id)}>{label}</button>)}<button type="button" className={room.randomStage?'is-active':''} onClick={()=>session?.stage('RANDOM')}>AZAR</button></div></div>}
+        {room.role==='guest' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
+        {room.role==='host' && room.status!=='waiting' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
         {room.status==='countdown' && <div className="pb-online-countdown" role="status" aria-live="off"><span>PREPARADOS · A COMBATIR</span><strong>{remaining}</strong><small>INICIO AUTOMÁTICO</small></div>}
         <div className="pb-online-ready-actions"><button type="button" className={myReady?'is-ready':''} onClick={()=>session?.ready(!myReady)}><Check size={17}/> {room.status==='countdown'?'CANCELAR':myReady?'ESTOY LISTO ✓':'ESTOY LISTO'}</button><button type="button" onClick={onClose}><ArrowLeft size={16}/> VOLVER AL MENÚ</button></div>
         <p className="pb-online-hint">{room.status==='countdown'?'¡La partida comienza sola al terminar la cuenta atrás!':'Cuando ambos estéis listos, comenzará una cuenta atrás de 3 segundos.'}</p>

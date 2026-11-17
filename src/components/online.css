@@ -57,3 +57,33 @@
 .pb-online-match-kind button:disabled{opacity:.5}
 .pb-online-ranked-help{font:750 10px/1.2 Oxanium,system-ui;color:#aad5f2}
 @media(max-height:420px){.pb-online-match-kind button{min-height:25px;font-size:11px}.pb-online-ranked-help{font-size:9px}}
+
+/* V23: roster picker inside the existing online room dialog. */
+.pb-online-fighter-picker{display:flex;flex-direction:column;gap:5px;min-width:0;padding:6px 8px;background:#07172fcf;border:1px solid #3c668d;border-radius:5px}
+.pb-online-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pb-online-picker-heading>span,.pb-online-stage-current>span{font:900 10px 'Oxanium',sans-serif;color:#a3ddfd;letter-spacing:.8px}
+.pb-online-picker-heading small{font-size:9px;text-align:right;color:#f4d28b}
+.pb-online-fighter-list{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:2px 1px 5px;scrollbar-width:thin;scrollbar-color:#6fa8ce #0a1a31}
+.pb-online-fighter-list button{position:relative;flex:0 0 82px;min-width:0;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px;background:#102947;border-color:#426d94;font-size:10px;line-height:1.05}
+.pb-online-fighter-list button.is-active{background:#594523;border-color:#f4cd73;color:#fff0bd;box-shadow:inset 0 0 0 1px #ffe6a0,0 2px #0007}
+.pb-online-fighter-list img{width:34px;height:34px;object-fit:cover;image-rendering:pixelated;border:1px solid #9ac8e8;border-radius:3px}
+.pb-online-fighter-list button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-online-fighter-list button>svg{position:absolute;right:3px;top:3px;color:#ffe39a}
+.pb-online-picker-note{font:700 9px/1.2 'Oxanium',sans-serif;color:#a9cce4;letter-spacing:.1px}
+.pb-online-stage-current{display:flex;align-items:center;justify-content:center;gap:8px;padding:3px 6px;background:#07172f8c;border:1px solid #345b7f;border-radius:4px}
+.pb-online-stage-current strong{font:800 10px 'Oxanium',sans-serif;color:#ffe3a0;text-align:center}
+.pb-online-stages button{font-size:clamp(9px,1.05vw,11px);padding:4px 2px}
+.pb-online-stages button:last-child{background:#44345f;border-color:#aa8bd8;color:#f0dcff}
+.pb-online-stages button:last-child.is-active{background:#78509a;border-color:#f0d2ff;color:#fff}
+@media (orientation:landscape) and (max-height:420px){
+  .pb-online-fighter-picker{gap:2px;padding:3px 6px}
+  .pb-online-fighter-list button{flex-basis:68px;min-height:49px;padding:2px;font-size:9px}
+  .pb-online-fighter-list img{width:25px;height:25px}
+  .pb-online-picker-note{display:none}
+  .pb-online-stage-current{padding:1px 4px}
+}
+@media (orientation:portrait){
+  .pb-online-picker-heading{align-items:flex-start;flex-direction:column;gap:1px}
+  .pb-online-picker-heading small{text-align:left}
+  .pb-online-stages>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+}

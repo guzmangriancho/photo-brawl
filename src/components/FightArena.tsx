@@ -94,6 +94,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
+  const [currentStage,setCurrentStage]=useState<StageId>(stage);
   const tutorialStepRef=useRef(0);
   const tutorialLightRef=useRef(0);
   const tutorialOriginRef=useRef<number|null>(null);
@@ -199,7 +200,10 @@ export const FightArena: React.FC<FightArenaProps> = ({
         setOnlineIssue(event.reconnecting?(event.opponent?'opponent':'reconnecting'):null);
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
-      online.on('rematch',()=>{engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);}),
+      online.on('rematch',(event:{stage?:StageId}|null)=>{
+        if(event?.stage){engine.stage=event.stage;setCurrentStage(event.stage);}
+        engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);
+      }),
       online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating_before?:number;guest_rating_before?:number;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
       online.on('rematch_vote',(votes:{host:boolean;guest:boolean})=>{
         setOtherWantsRematch(online.role==='host'?votes.guest:votes.host);
@@ -455,7 +459,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   };
   const resultModeLabel = rankedOnline ? 'CLASIFICATORIA' : onlineMode ? 'AMISTOSA ONLINE'
     : tutorial ? 'TUTORIAL' : mode === 'TRAINING' ? 'ENTRENAMIENTO' : 'PARTIDA AMISTOSA';
-  const stageLabel = STAGE_ART[stage]?.name ?? stage;
+  const stageLabel = STAGE_ART[currentStage]?.name ?? currentStage;
 
   return (
     <main className="arena-screen">

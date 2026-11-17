@@ -15,6 +15,11 @@ const STAGES=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUST
 const rooms=new Map();
 const token=()=>randomBytes(24).toString('hex');
 function code(){let c;do{c=Array.from({length:6},()=>LETTERS[randomInt(LETTERS.length)]).join('');}while(rooms.has(c));return c;}
+function pickRandomStage(previous=null){
+  const choices=previous?STAGES.filter(stage=>stage!==previous):STAGES;
+  const pool=choices.length?choices:STAGES;
+  return pool[randomInt(pool.length)];
+}
 function send(player,msg){return player?.peer?.send(msg)??false;}
 function each(room,msg){send(room.host,msg);send(room.guest,msg);}
 function status(room){
@@ -24,7 +29,7 @@ function lobby(room){
   for(const player of [room.host,room.guest])if(player?.peer){
     send(player,{type:'room',room:{
       code:room.code,role:player.role,status:status(room),
-      stage:room.stage,ranked:room.ranked,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
+      stage:room.stage,randomStage:room.randomStage===true,ranked:room.ranked,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
       host:{name:room.host.profile.fighterName,ready:room.host.ready,connected:Boolean(room.host.peer)},
       guest:room.guest?{name:room.guest.profile.fighterName,ready:room.guest.ready,connected:Boolean(room.guest.peer)}:null,
     }});
@@ -39,6 +44,8 @@ function startMatch(room){
   if(room.status!=='countdown')return;
   cancelCountdown(room);
   if(!room.guest||!room.host.ready||!room.guest.ready||!room.host.peer||!room.guest.peer){lobby(room);return;}
+  if(room.randomStage)room.stage=pickRandomStage(room.hasStarted?room.stage:null);
+  room.hasStarted=true;
   room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
   room.resultRecorded=false;room.matchId=randomUUID();
   room.status='playing';room.host.vote=false;room.guest.vote=false;
@@ -90,7 +97,7 @@ function handle(peer,msg) {
     const finish=(accountId)=>{
       if(peer.room)return; // Prevent concurrent handshakes from claiming two rooms.
       const host=newPlayer(peer,'host',profile);host.accountId=accountId;
-      const item={code:code(),host,guest:null,ranked:isRanked,resultRecorded:false,matchId:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
+      const item={code:code(),host,guest:null,ranked:isRanked,resultRecorded:false,matchId:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],randomStage:false,hasStarted:false,engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
       rooms.set(item.code,item);bind(peer,item,item.host);lobby(item);
     };
     if(isRanked)return rankedApi.verifyUser(msg.accessToken).then(finish).catch(error=>fail(peer,error.message));
@@ -134,11 +141,16 @@ function handle(peer,msg) {
   if(msg.type==='leave'){leave(peer,true);return;}
   if(msg.type==='ping'){send(player,{type:'pong',t:msg.t});return;}
   if(msg.type==='choose') {
-    if(room.status!=='waiting')return fail(peer,'No puedes cambiar de luchador durante el combate.');
+    if(room.status!=='waiting'&&room.status!=='countdown')return fail(peer,'No puedes cambiar de luchador durante el combate.');
     const profile=validateProfile(msg.profile);
     if(!profile)return fail(peer,'Luchador no válido.');
-    player.profile=profile;player.ready=false;
-    if(player.role==='host' && STAGES.includes(msg.stage))room.stage=msg.stage;
+    const changed=player.profile.id!==profile.id;
+    if(!changed)return;
+    if(room.status==='countdown')cancelCountdown(room);
+    player.profile=profile;
+    // Fighter selection is part of the match setup: both players must confirm
+    // again after either roster changes.
+    room.host.ready=false;if(room.guest)room.guest.ready=false;
     lobby(room);return;
   }
   if(msg.type==='ready') {
@@ -150,7 +162,14 @@ function handle(peer,msg) {
   }
   if(msg.type==='stage') {
     if(room.status!=='waiting'||player.role!=='host')return;
-    if(STAGES.includes(msg.stage))room.stage=msg.stage;
+    const nextRandom=msg.stage==='RANDOM';
+    const nextStage=STAGES.includes(msg.stage)?msg.stage:room.stage;
+    const changed=room.randomStage!==nextRandom||(!nextRandom&&room.stage!==nextStage);
+    if(changed){
+      room.randomStage=nextRandom;
+      if(!nextRandom)room.stage=nextStage;
+      room.host.ready=false;if(room.guest)room.guest.ready=false;
+    }
     lobby(room);return;
   }
   // Start is exclusively server-controlled once both users ready up.
@@ -184,11 +203,12 @@ function handle(peer,msg) {
     each(room,{type:'rematch_vote',host:room.host.vote,guest:room.guest.vote});
     if(room.host.vote && room.guest?.vote && room.host.peer && room.guest.peer){
       room.resultRecorded=false;room.matchId=randomUUID();
+      if(room.randomStage)room.stage=pickRandomStage(room.stage);
       room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
       room.host.mask=0;room.guest.mask=0;
       room.host.lastSeq=-1;room.guest.lastSeq=-1;
       room.host.vote=false;room.guest.vote=false;
-      each(room,{type:'rematch'});sendState(room);
+      each(room,{type:'rematch',stage:room.stage});sendState(room);
     }
     return;
   }
@@ -248,4 +268,4 @@ function cleanup(){
   }
 }
 const timer=setInterval(cleanup,1000);timer.unref();
-module.exports={handle,closed,leave,rooms,validateProfile,cleanup};
+module.exports={handle,closed,leave,rooms,validateProfile,cleanup,pickRandomStage};
