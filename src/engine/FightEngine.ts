@@ -8,6 +8,7 @@ import {
 import { loadImage } from './SpriteProcessor';
 import { STAGE_ART } from '../data/stages';
 import { soundFX } from './SoundFX';
+import { drawAttackFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawMeteorFX, drawProjectileFX, drawHitstopSparkFX } from './ArcadeVFX';
 import type { NetworkState, NetworkFighter } from '../network/protocol';
 
 // Visual assets are loaded only in browsers. The authoritative Node combat server
@@ -113,6 +114,8 @@ export interface Particle {
   color: string;
   life: number;
   maxLife: number;
+  /** Optional visual style; older snapshots default to classic pixel squares. */
+  kind?: 'spark' | 'dust' | 'energy';
 }
 
 export interface FloatingCallout {
@@ -1629,7 +1632,7 @@ export class FightEngine {
       this.addMeter(attacker, 5);
       this.addMeter(defender, 6);
       this.applyCornerAwarePushback(attacker, defender, atk.pushback * 0.8);
-      this.spawnHitSparks(hitX, hitY, '#60a5fa', 10);
+      this.spawnHitSparks(hitX, hitY, '#60a5fa', 10, attacker.facing);
       this.addCallout(defender.x, defender.y - 140, 'GUARD', '#93c5fd');
       return;
     }
@@ -1641,7 +1644,7 @@ export class FightEngine {
       defender.hp = Math.max(1, defender.hp - armorDmg);
       this.hitstopFrames = 4;
       soundFX.armorAbsorb();
-      this.spawnHitSparks(hitX, hitY, '#facc15', 14);
+      this.spawnHitSparks(hitX, hitY, '#facc15', 14, attacker.facing);
       this.addCallout(defender.x, defender.y - 150, 'SUPER ARMOR!', '#facc15');
       return;
     }
@@ -1710,6 +1713,11 @@ export class FightEngine {
       soundFX.heavyHit();
     }
 
+    this.spawnHitSparks(
+      hitX, hitY, atk.slot === 'LIGHT' ? '#fef08a' : atk.slot === 'SUPER' ? '#fcd34d' : '#fb923c',
+      atk.slot === 'LIGHT' ? 10 : atk.slot === 'SUPER' ? 28 : 18, attacker.facing
+    );
+    // KO hits get the full contact burst as well as ordinary hits.
     if (defender.hp <= 0) {
       this.triggerKnockout(attacker, defender);
       return;
@@ -1742,7 +1750,6 @@ export class FightEngine {
       this.applyCornerAwarePushback(attacker, defender, atk.pushback);
     }
 
-    this.spawnHitSparks(hitX, hitY, atk.slot === 'LIGHT' ? '#fef08a' : '#fb923c', 15);
     if (atk.slot === 'SUPER' && atk.mechanic === 'MULTI_HIT_RUSH_COMBO') {
       this.crossSlashes.push({
         x: defender.x + (Math.random() - 0.5) * 40,
@@ -1809,6 +1816,7 @@ export class FightEngine {
           vy: (Math.random() - 0.5) * 1.8,
           size: p.mechanic === 'GROUND_SHOCKWAVE' ? 7 : 5,
           color: p.color,
+          kind: 'energy',
           life: 10,
           maxLife: 10,
         });
@@ -1888,7 +1896,7 @@ export class FightEngine {
             alpha: 0.95,
           });
         }
-        this.spawnHitSparks(p.x, p.y, p.color, 18);
+        this.spawnHitSparks(p.x, p.y, p.color, 18, p.vx >= 0 ? 1 : -1);
 
         if (defender.hp <= 0) {
           this.triggerKnockout(attacker, defender);
@@ -2085,15 +2093,17 @@ export class FightEngine {
         vy: -Math.random() * 2.5 - 0.5,
         size: 6,
         color: '#e2e8f0',
+        kind: 'dust',
         life: 16,
         maxLife: 16,
       });
     }
   }
 
-  private spawnHitSparks(x: number, y: number, color: string, count: number): void {
+  private spawnHitSparks(x: number, y: number, color: string, count: number, direction: -1 | 0 | 1 = 0): void {
     for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
+      const angle = direction === 0 ? Math.random() * Math.PI * 2
+        : (direction === 1 ? 0 : Math.PI) + (Math.random() - .5) * Math.PI * 1.65;
       const spd = 2 + Math.random() * 7.5;
       this.particles.push({
         x,
@@ -2102,6 +2112,7 @@ export class FightEngine {
         vy: Math.sin(angle) * spd,
         size: 5 + Math.floor(Math.random() * 5),
         color: i % 3 === 0 ? '#ffffff' : color,
+        kind: 'spark',
         life: 14 + Math.floor(Math.random() * 8),
         maxLife: 22,
       });
@@ -2113,6 +2124,8 @@ export class FightEngine {
   }
 
   private updateParticles(): void {
+    // Keep wire snapshots and mobile draw costs bounded during long supers.
+    if (this.particles.length > 160) this.particles.splice(0, this.particles.length - 160);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const pt = this.particles[i];
       pt.x += pt.vx;
@@ -2143,6 +2156,7 @@ export class FightEngine {
         vy: -2 - Math.random() * 2,
         size: 7,
         color: m.color,
+        kind: 'energy',
         life: 12,
         maxLife: 12,
       });
@@ -2241,13 +2255,7 @@ export class FightEngine {
     this.renderStage(ctx);
 
     if (this.superFlashFrames > 0) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
-      ctx.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
-      const owner = this.superFlashOwner === 0 ? this.p1 : this.p2;
-      ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
-      ctx.beginPath();
-      ctx.arc(owner.x, owner.y - 80, 140 - this.superFlashFrames * 3, 0, Math.PI * 2);
-      ctx.fill();
+      drawSuperFlashFX(ctx,this.superFlashOwner===0?this.p1:this.p2,this.superFlashFrames,this.frameCount);
     }
 
     this.renderShadow(ctx, this.p1);
@@ -2272,51 +2280,12 @@ export class FightEngine {
       this.renderProjectile(ctx, p);
     }
 
-    // Render Cascading Meteors (METEOR_SCREEN_DROP)
-    for (const m of this.meteors) {
-      ctx.fillStyle = m.color;
-      ctx.beginPath();
-      ctx.arc(Math.round(m.x), Math.round(m.y), m.size / 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.arc(Math.round(m.x), Math.round(m.y), m.size / 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Render Cross-Slashes (MULTI_HIT_RUSH_COMBO)
-    for (const cs of this.crossSlashes) {
-      ctx.save();
-      ctx.strokeStyle = cs.color;
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(cs.x - 36, cs.y - 36);
-      ctx.lineTo(cs.x + 36, cs.y + 36);
-      ctx.moveTo(cs.x + 36, cs.y - 36);
-      ctx.lineTo(cs.x - 36, cs.y + 36);
-      ctx.stroke();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Render Shockwave Rings (Parry, Roman Cancel, Command Grab Slam, Mine Explosion)
-    for (const sw of this.shockwaves) {
-      ctx.save();
-      ctx.strokeStyle = sw.color;
-      ctx.globalAlpha = Math.max(0, sw.alpha);
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(Math.round(sw.x), Math.round(sw.y), Math.round(sw.radius), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    for (const pt of this.particles) {
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(Math.round(pt.x - pt.size / 2), Math.round(pt.y - pt.size / 2), pt.size, pt.size);
-    }
+    // Mechanic-specific impact FX, all presentation-only and snapshot-safe.
+    for (const m of this.meteors) drawMeteorFX(ctx,m,this.frameCount);
+    for (const cs of this.crossSlashes) drawCrossSlashFX(ctx,cs.x,cs.y,cs.color,cs.life);
+    for (const sw of this.shockwaves) drawShockwaveFX(ctx,sw,this.frameCount);
+    drawParticlesFX(ctx,this.particles);
+    drawHitstopSparkFX(ctx,this.particles,this.hitstopFrames);
 
     ctx.font = '12px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
@@ -2479,92 +2448,11 @@ export class FightEngine {
 
   private renderFighter(ctx: CanvasRenderingContext2D, f: FighterRuntime): void {
     const cell = this.getSpriteCellForFighter(f);
-    const primary = f.profile.moveset.specialNeutral.primaryHex || '#facc15';
 
-    // Distinct Signature Visual Effects per Special & Super Mechanic!
-    if (
-      f.state === 'ATTACK' &&
-      f.currentAttack &&
-      f.stateFrame >= f.currentAttack.startup &&
-      f.stateFrame < f.currentAttack.startup + f.currentAttack.active
-    ) {
-      const { slot, mechanic } = f.currentAttack;
-
-      if (slot === 'SP_NEUTRAL' && mechanic === 'SHORT_SHOTGUN_BLAST') {
-        const bx = f.facing === 1 ? f.x + 28 : f.x - 168;
-        ctx.fillStyle = primary + '77';
-        ctx.fillRect(Math.round(bx), Math.round(f.y - 118), 140, 86);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(Math.round(bx + (f.facing === 1 ? 0 : 100)), Math.round(f.y - 95), 40, 40);
-      } else if (slot === 'SP_FORWARD') {
-        if (mechanic === 'SPINNING_ADVANCE') {
-          ctx.strokeStyle = primary;
-          ctx.lineWidth = 4;
-          ctx.strokeRect(Math.round(f.x - 56), Math.round(f.y - 125), 112, 85);
-        } else if (mechanic === 'SLIDE_LOW_KICK') {
-          ctx.fillStyle = primary + '88';
-          const sx = f.facing === 1 ? f.x - 20 : f.x - 85;
-          ctx.fillRect(Math.round(sx), Math.round(f.y - 24), 105, 22);
-        } else if (mechanic === 'ARMORED_SHOULDER_DASH') {
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 5;
-          ctx.strokeRect(Math.round(f.x - 45), Math.round(f.y - 150), 90, 145);
-        }
-      } else if (slot === 'SP_UP') {
-        if (mechanic === 'VERTICAL_TORNADO') {
-          ctx.fillStyle = primary + '55';
-          ctx.fillRect(Math.round(f.x - 55), Math.round(f.y - 175), 110, 170);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(Math.round(f.x - 45), Math.round(f.y - 160), 90, 140);
-        } else if (mechanic === 'DIVE_KICK_FROM_AIR') {
-          ctx.strokeStyle = primary;
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.moveTo(f.x, f.y - 40);
-          ctx.lineTo(f.x + f.facing * 75, f.y + 15);
-          ctx.stroke();
-        }
-      } else if (slot === 'SUPER') {
-        if (mechanic === 'GIANT_BEAM_LASER') {
-          const beamX = f.facing === 1 ? f.x + 24 : f.x - 684;
-          ctx.fillStyle = primary;
-          ctx.fillRect(beamX, f.y - 145, 660, 112);
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(beamX, f.y - 128, 660, 78);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(beamX, f.y - 110, 660, 42);
-        } else if (mechanic === 'METEOR_SCREEN_DROP') {
-          ctx.fillStyle = 'rgba(250, 204, 21, 0.42)';
-          ctx.fillRect(Math.round(f.x - 120), 0, 240, FLOOR_Y);
-          ctx.fillStyle = primary;
-          ctx.fillRect(Math.round(f.x - 70), Math.round(f.y - 170), 140, 170);
-        } else if (mechanic === 'MULTI_HIT_RUSH_COMBO') {
-          ctx.fillStyle = primary + '88';
-          const slashX = f.facing === 1 ? f.x + 18 : f.x - 188;
-          ctx.fillRect(Math.round(slashX), Math.round(f.y - 145), 170, 125);
-          if (this.frameCount % 2 === 0) {
-            this.spawnHitSparks(f.x + f.facing * 85, f.y - 80, '#facc15', 4);
-          }
-        } else if (mechanic === 'OMEGA_SUPLEX') {
-          ctx.strokeStyle = '#facc15';
-          ctx.lineWidth = 6;
-          ctx.strokeRect(Math.round(f.x - 95), Math.round(f.y - 165), 190, 165);
-          if (this.frameCount % 3 === 0) {
-            this.spawnHitSparks(f.x, f.y - 50, '#facc15', 5);
-          }
-        }
-      }
-    }
-
-    // Visual Crouch / Guard Shield Indicator
-    if (f.state === 'BLOCK_CROUCH') {
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
-      ctx.fillRect(Math.round(f.x + f.facing * 22 - 8), Math.round(f.y - 75), 16, 70);
-    } else if (f.state === 'BLOCK_STAND') {
-      ctx.fillStyle = 'rgba(250, 204, 21, 0.32)';
-      ctx.fillRect(Math.round(f.x + f.facing * 22 - 8), Math.round(f.y - 140), 16, 100);
-    }
+    // Each attack and guard has its own crisp arcade silhouette. Never draw
+    // a debug-style rectangle over a fighter during actual gameplay.
+    drawAttackFX(ctx, f, this.frameCount);
+    drawGuardFX(ctx, f, this.frameCount);
 
     if (f.spriteSheet) {
       ctx.save();
@@ -2638,45 +2526,30 @@ export class FightEngine {
   }
 
   private renderProjectile(ctx: CanvasRenderingContext2D, p: ProjectileEntity): void {
-    if (p.mechanic === 'GROUND_SHOCKWAVE') {
-      // Seismic ground pillar visual
-      ctx.fillStyle = p.color;
-      ctx.fillRect(Math.round(p.x - 24), Math.round(FLOOR_Y - 46), 48, 46);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(Math.round(p.x - 12), Math.round(FLOOR_Y - 34), 24, 34);
-      return;
-    }
-
-    if (p.mechanic === 'TRAP_MINE_DROP') {
-      const pulse = Math.sin(this.frameCount * 0.3) * 4;
-      ctx.fillStyle = p.armed ? p.color : '#71717a';
-      ctx.beginPath();
-      ctx.arc(Math.round(p.x), Math.round(p.y), 18 + pulse, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      return;
-    }
-
+    drawProjectileFX(ctx,p,this.frameCount);
+    if (p.mechanic === 'GROUND_SHOCKWAVE' || p.mechanic === 'TRAP_MINE_DROP') return;
     if (p.spriteSheet && p.useSpriteArt !== false) {
-      const sx = 3 * 256;
-      const sy = 3 * 256;
-      const size = 96;
+      const sx = 3 * 256, sy = 3 * 256, size = 96;
       ctx.save();
       ctx.translate(Math.round(p.x), Math.round(p.y));
-      if (p.mechanic === 'BOOMERANG_RETURN' || p.mechanic === 'ARCING_LOB_OBJECT') {
-        ctx.rotate((this.frameCount * 0.35) * p.facing);
-      } else {
-        ctx.scale(p.facing, 1);
-      }
-      ctx.drawImage(p.spriteSheet, sx, sy, 256, 256, -size / 2, -size / 2, size, size);
+      if (p.mechanic === 'BOOMERANG_RETURN' || p.mechanic === 'ARCING_LOB_OBJECT') ctx.rotate(this.frameCount * .35 * p.facing);
+      else ctx.scale(p.facing, 1);
+      ctx.drawImage(p.spriteSheet,sx,sy,256,256,-size/2,-size/2,size,size);
       ctx.restore();
     } else {
-      ctx.fillStyle = p.color;
+      // Generated fighters without an isolated projectile still get a designed
+      // faceted energy orb, not a featureless circle.
+      ctx.save();ctx.translate(p.x,p.y);
+      ctx.fillStyle=p.color;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
+      for(let i=0;i<12;i++){
+        const a=i*Math.PI/6,r=p.radius*(i%2?.72:1.12);
+        const x=Math.cos(a)*r,y=Math.sin(a)*r;
+        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.closePath();ctx.fill();
+      ctx.fillStyle='#fefce8';ctx.beginPath();ctx.arc(0,0,p.radius*.42,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     }
   }
 
