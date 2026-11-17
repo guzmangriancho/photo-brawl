@@ -1,3 +1,7 @@
+## Novedades V16.3 — Cuentas, comunidad y ranking accesibles
+
+Ahora **Inicio** muestra accesos a CUENTA, COMUNIDAD y RANKING. Las fichas públicas, el ranking desde Supabase y los botones PUBLICAR/OCULTAR están conectados a la interfaz. Las salas online admiten partidas AMISTOSAS y CLASIFICATORIAS; estas últimas autentican a ambos jugadores y usan el marcador del servidor para registrar el ELO al terminar el mejor de tres. **No se han eliminado ni migrado destructivamente los luchadores locales.** Consulta [`docs/COMUNIDAD_RANKING_V16_3.md`](docs/COMUNIDAD_RANKING_V16_3.md) para los requisitos de despliegue y sus limitaciones.
+
 ## V16.2 · SQL corregido y migración automática de luchadores locales
 
 - Corrige el `ERROR 42601` de la línea 57 en la restricción `public_asset_ownership`.

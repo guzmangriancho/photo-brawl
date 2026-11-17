@@ -1,5 +1,6 @@
 'use strict';
-const {randomInt,randomBytes} = require('node:crypto');
+const {randomInt,randomBytes,randomUUID} = require('node:crypto');
+const rankedApi=require('./ranked.cjs');
 const {FightEngine} = require('./runtime/engine/FightEngine.js');
 const {unpackControls}=require('./runtime/network/protocol.js');
 const {validateProfile,cleanActions}=require('./validation.cjs');
@@ -23,7 +24,7 @@ function lobby(room){
   for(const player of [room.host,room.guest])if(player?.peer){
     send(player,{type:'room',room:{
       code:room.code,role:player.role,status:status(room),
-      stage:room.stage,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
+      stage:room.stage,ranked:room.ranked,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
       host:{name:room.host.profile.fighterName,ready:room.host.ready,connected:Boolean(room.host.peer)},
       guest:room.guest?{name:room.guest.profile.fighterName,ready:room.guest.ready,connected:Boolean(room.guest.peer)}:null,
     }});
@@ -39,6 +40,7 @@ function startMatch(room){
   cancelCountdown(room);
   if(!room.guest||!room.host.ready||!room.guest.ready||!room.host.peer||!room.guest.peer){lobby(room);return;}
   room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
+  room.resultRecorded=false;room.matchId=randomUUID();
   room.status='playing';room.host.vote=false;room.guest.vote=false;
   room.host.mask=0;room.guest.mask=0;
   each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage});
@@ -49,6 +51,13 @@ function startMatch(room){
     room.engine.p2Input=unpackControls(room.guest.mask);
     const previousRound=room.engine.roundNumber;
     room.engine.step();
+    if(room.ranked && room.engine.roundOver && !room.resultRecorded){
+      room.resultRecorded=true;
+      const {p1RoundWins,p2RoundWins}=room.engine;
+      void rankedApi.recordResult({id:room.matchId,hostId:room.host.accountId,guestId:room.guest.accountId,hostRounds:p1RoundWins,guestRounds:p2RoundWins,stage:room.stage})
+        .then(result=>each(room,{type:'ranked_result',result}))
+        .catch(error=>{console.error('[ranked] No se pudo registrar el resultado:',error.message);each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});});
+    }
     if(room.engine.roundNumber!==previousRound){room.host.mask=0;room.guest.mask=0;}
     if(room.engine.frameCount%2===0)sendState(room);
   },1000/60);
@@ -77,8 +86,15 @@ function handle(peer,msg) {
     const profile=validateProfile(msg.profile);
     if(!profile)return fail(peer,'Luchador no válido; comprueba los recursos PNG.');
     if(rooms.size>=40)return fail(peer,'Servidor lleno; inténtalo después.');
-    const item={code:code(),host:newPlayer(peer,'host',profile),guest:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
-    rooms.set(item.code,item);bind(peer,item,item.host);lobby(item);return;
+    const isRanked=msg.ranked===true;
+    const finish=(accountId)=>{
+      if(peer.room)return; // Prevent concurrent handshakes from claiming two rooms.
+      const host=newPlayer(peer,'host',profile);host.accountId=accountId;
+      const item={code:code(),host,guest:null,ranked:isRanked,resultRecorded:false,matchId:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
+      rooms.set(item.code,item);bind(peer,item,item.host);lobby(item);
+    };
+    if(isRanked)return rankedApi.verifyUser(msg.accessToken).then(finish).catch(error=>fail(peer,error.message));
+    finish(null);return;
   }
   if(msg.type==='join') {
     if(room)return fail(peer,'Ya estás en una sala.');
@@ -87,8 +103,14 @@ function handle(peer,msg) {
     if(!existing || existing.status!=='waiting' || existing.guest)return fail(peer,'Sala no encontrada o completa.');
     const profile=validateProfile(msg.profile);
     if(!profile)return fail(peer,'Luchador no válido.');
-    existing.guest=newPlayer(peer,'guest',profile);
-    existing.host.ready=false;bind(peer,existing,existing.guest);lobby(existing);return;
+    const finish=(accountId)=>{
+      if(peer.room || existing.guest || existing.status!=='waiting')return fail(peer,'Sala no disponible.');
+      if(accountId&&accountId===existing.host.accountId)return fail(peer,'No puedes competir contra tu propia cuenta.');
+      existing.guest=newPlayer(peer,'guest',profile);existing.guest.accountId=accountId;
+      existing.host.ready=false;bind(peer,existing,existing.guest);lobby(existing);
+    };
+    if(existing.ranked)return rankedApi.verifyUser(msg.accessToken).then(finish).catch(error=>fail(peer,error.message));
+    finish(null);return;
   }
   if(msg.type==='resume') {
     if(room)return fail(peer,'Ya estás en una sala.');
@@ -161,6 +183,7 @@ function handle(peer,msg) {
     player.vote=true;
     each(room,{type:'rematch_vote',host:room.host.vote,guest:room.guest.vote});
     if(room.host.vote && room.guest?.vote && room.host.peer && room.guest.peer){
+      room.resultRecorded=false;room.matchId=randomUUID();
       room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
       room.host.mask=0;room.guest.mask=0;
       room.host.lastSeq=-1;room.guest.lastSeq=-1;

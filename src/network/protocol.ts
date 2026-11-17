@@ -11,6 +11,7 @@ export interface RoomView {
   host: { name: string; ready: boolean; connected: boolean };
   guest: { name: string; ready: boolean; connected: boolean } | null;
   stage: StageId;
+  ranked?: boolean;
   countdownEndsAt?: number | null;
 }
 export interface NetworkFighter {

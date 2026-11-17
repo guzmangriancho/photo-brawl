@@ -52,6 +52,8 @@
 .pb-mode-heading{font-family:'Oxanium',sans-serif;color:#96e6ff;letter-spacing:1.3px;font-size:clamp(10px,1.1vw,13px);font-weight:900}
 .pb-home-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(9px,1.7vh,16px);flex:1;min-height:0}
 .pb-mode-tile{display:flex;gap:clamp(7px,1vw,12px);align-items:center;position:relative;padding:clamp(8px,1.2vw,14px);min-width:0;min-height:0;background:linear-gradient(130deg,#162f5be8,#0d2244f5);color:#e5f3ff;text-align:left;border:2px solid #6786ac;border-radius:7px;box-shadow:inset 0 3px #ffffff1a,0 4px #020716;transition:background .1s,transform .1s}
+.pb-mode-online{grid-column:1 / -1;justify-content:center;gap:clamp(12px,2vw,22px)}
+.pb-mode-online>span:nth-child(2){align-items:center;text-align:center}
 .pb-mode-tile.is-selected{border-color:#f5d477;background:linear-gradient(130deg,#244d82,#153d63);box-shadow:inset 0 0 0 2px #ffd5645e,inset 0 3px #fff3,0 4px #020716}
 .pb-mode-tile:active{transform:translateY(2px)}
 .pb-mode-tile>span:nth-child(2){display:flex;flex-direction:column;min-width:0;gap:4px}
@@ -399,4 +401,49 @@
  .pb-play-unavailable strong {font-size:clamp(12px,3.4vw,18px);}
  .pb-play-unavailable small {font-size:clamp(10px,2.5vw,13px);}
  .pb-roster-welcome .pb-empty-avatar {width:min(25vw,95px);}
+}
+/* V16.3: five compact home shortcuts, without a global header. */
+.pb-home-footer{grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(3px,.5vw,7px)}
+.pb-home-footer button{gap:3px;padding:3px 2px;min-width:0;font-size:clamp(9px,1.05vw,12px);white-space:nowrap;line-height:1}
+.pb-home-footer button svg{width:clamp(11px,1.4vw,15px);height:15px;flex-shrink:0}
+@media (orientation:portrait){.pb-home-footer button{font-size:clamp(8px,2.25vw,12px);min-height:30px}.pb-home-footer button svg{width:12px;height:12px}}
+@media (orientation:landscape) and (max-height:410px){.pb-home-footer button{font-size:clamp(8px,1.03vw,11px);min-height:27px}}
+
+@media (orientation:portrait) and (max-width:370px){.pb-home-footer button svg{display:none}.pb-home-footer button{font-size:clamp(8px,2.55vw,10px)}}
+
+/* V16.3.1 — Home modes: two genuinely equal-height rows at every viewport size.
+   First row: 1v1 + Training (equal widths). Second row: Online (full width).
+   Kept after all responsive rules so portrait/small-landscape overrides cannot
+   accidentally restore the old 3-column or 3-row layout. */
+.pb-home-modes {
+  width:100%;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  grid-auto-flow:row;
+  min-height:0;
+}
+.pb-home-modes > .pb-mode-tile {
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  align-self:stretch;
+  justify-self:stretch;
+  box-sizing:border-box;
+}
+.pb-home-modes > .pb-mode-online {
+  grid-column:1 / -1;
+  grid-row:2;
+}
+
+/* V16.3.2 — Center 1v1 and Training as complete icon+label groups.
+   Preserve the two equal-height rows and full-width Online tile. */
+.pb-home-modes > .pb-mode-tile:not(.pb-mode-online) {
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+.pb-home-modes > .pb-mode-tile:not(.pb-mode-online) > span:nth-child(2) {
+  align-items:center;
+  text-align:center;
 }

@@ -50,3 +50,10 @@
 .pb-online-stages>div{min-width:0}
 .pb-online-stages button{font-size:clamp(9px,1.15vw,12px);padding:4px 1px;white-space:nowrap}
 @media (orientation:portrait){.pb-online-stages{flex-direction:column;gap:3px}.pb-online-stages>div{width:100%}.pb-online-stages button{font-size:clamp(9px,2.3vw,12px)}}
+/* V16.3: compact optional ranked mode; default remains casual/private. */
+.pb-online-match-kind{display:grid;grid-template-columns:1fr 1fr;gap:7px;flex-shrink:0}
+.pb-online-match-kind button{min-height:29px;background:#172b4e;color:#aed2ec;border:2px solid #527da8;font:900 clamp(10px,1.15vw,13px) Oxanium,system-ui}
+.pb-online-match-kind button.on{color:#ffe39a;background:#443b6e;border-color:#d5b678}
+.pb-online-match-kind button:disabled{opacity:.5}
+.pb-online-ranked-help{font:750 10px/1.2 Oxanium,system-ui;color:#aad5f2}
+@media(max-height:420px){.pb-online-match-kind button{min-height:25px;font-size:11px}.pb-online-ranked-help{font-size:9px}}

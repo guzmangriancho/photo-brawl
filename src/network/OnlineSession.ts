@@ -1,6 +1,7 @@
 import type { FighterProfile, StageId } from '../types/fighter';
 import type { InputState, MoveSlot } from '../engine/FightEngine';
 import { packControls } from './protocol';
+import { getOnlineAccessToken } from '../services/supabaseClient';
 import type { NetworkState, OnlineStart, PlayerRole, RemoteAction, RoomView } from './protocol';
 
 const SESSION_KEY = 'pb-online-reconnect-v2';
@@ -8,7 +9,7 @@ const SAVED_MAX_AGE=3*60_000; // Server grace is 90s by default.
 const RETRY_MAX_AGE=85_000;
 type SavedSession={code:string;token:string;savedAt:number};
 let activeRestore: Promise<OnlineSession | null> | null = null;
-export type SessionEvent = 'room'|'start'|'state'|'connection'|'error'|'opponent_left'|'rematch'|'rematch_vote';
+export type SessionEvent = 'room'|'start'|'state'|'connection'|'error'|'opponent_left'|'rematch'|'rematch_vote'|'ranked_result';
 type Listener = (value: any) => void;
 function endpoint(): string {
   const configured = (import.meta.env.VITE_ONLINE_WS_URL as string | undefined)?.trim();
@@ -129,6 +130,8 @@ export class OnlineSession {
           this.state=null;this.emit('rematch',null);
         }else if(msg.type==='rematch_vote'){
           this.emit('rematch_vote',{host:msg.host,guest:msg.guest});
+        }else if(msg.type==='ranked_result'){
+          this.emit('ranked_result',msg.result);
         }else if(msg.type==='opponent_left'||msg.type==='closed'){
           this.emit('opponent_left',null);this.clearSaved();this.intentionalClose=true;
           ws.close();
@@ -163,11 +166,14 @@ export class OnlineSession {
       };
     });
   }
-  static async create(profile:FighterProfile,stage:StageId):Promise<OnlineSession>{
-    const s=new OnlineSession();await s.connect({type:'create',profile,stage});return s;
+  static async create(profile:FighterProfile,stage:StageId,ranked=false):Promise<OnlineSession>{
+    const accessToken=ranked?await getOnlineAccessToken():null;
+    if(ranked&&!accessToken)throw new Error('Inicia sesión en CUENTA para crear una sala clasificatoria.');
+    const s=new OnlineSession();await s.connect({type:'create',profile,stage,ranked,accessToken});return s;
   }
   static async join(code:string,profile:FighterProfile):Promise<OnlineSession>{
-    const s=new OnlineSession();await s.connect({type:'join',code:code.trim().toUpperCase(),profile});return s;
+    const accessToken=await getOnlineAccessToken();
+    const s=new OnlineSession();await s.connect({type:'join',code:code.trim().toUpperCase(),profile,accessToken});return s;
   }
   // React StrictMode may run mount effects twice. Reuse one handshake instead of
   // opening two connections and inadvertently invalidating the first socket.

@@ -20,6 +20,8 @@ function harness(initialFighters){
   const stubComponent=(name)=>{const fn=()=>null; Object.defineProperty(fn,'name',{value:name}); return fn;};
   const FighterCreator=stubComponent('FighterCreator');
   const OnlineLobby=stubComponent('OnlineLobby');
+  const CommunityPage=stubComponent('CommunityPage');
+  const AccountPanel=stubComponent('AccountPanel');
   const PwaInstallPrompt=stubComponent('PwaInstallPrompt');
   const jsx=(type,props,key)=>({type,props:props||{},key});
   const stages=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE','ROOFTOP'];
@@ -28,7 +30,7 @@ function harness(initialFighters){
     'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:Symbol('fragment')},
     'lucide-react':new Proxy({}, {get:(target,key)=>String(key)}),
     '../data/presetFighters':{getPresetFighters:()=>[{...prototype,id:'preset_1',fighterName:'DEMO',isPreset:true}]},
-    './FighterCreator':{FighterCreator},'./OnlineLobby':{OnlineLobby},'./PwaInstallPrompt':{PwaInstallPrompt},
+    './FighterCreator':{FighterCreator},'./OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./PwaInstallPrompt':{PwaInstallPrompt},
     '../network/OnlineSession':{OnlineSession:{restore:async()=>null}},
     '../services/creatorDraftService':{markCreatorOpen:()=>{},wasCreatorOpen:()=>false},
     '../services/storageService':{deleteCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},

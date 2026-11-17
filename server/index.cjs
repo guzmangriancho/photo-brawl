@@ -2,6 +2,7 @@
 const http=require('node:http');
 const {upgrade}=require('./transport.cjs');
 const {handle,closed}=require('./rooms.cjs');
+const rankedApi=require('./ranked.cjs');
 // Render and similar platforms inject PORT; keep ONLINE_PORT for local development.
 const PORT=Number(process.env.PORT||process.env.ONLINE_PORT||8787);
 const ALLOWED=(process.env.ONLINE_ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -19,7 +20,7 @@ function safeOrigin(req){
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1}));return;
+    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1,ranked:rankedApi.available()}));return;
   }
   res.writeHead(404);res.end('Not Found');
 });
@@ -29,7 +30,7 @@ server.on('upgrade',(req,socket,head)=>{
     socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');return;
   }
   upgrade(req,socket,head,(peer)=>{
-    peer.onMessage(msg=>{try{handle(peer,msg);}catch(err){console.error('[online]',err);peer.send({type:'error',message:'Error interno del servidor.'});}});
+    peer.onMessage(msg=>{try{void Promise.resolve(handle(peer,msg)).catch(err=>{console.error('[online]',err);peer.send({type:'error',message:'Error interno del servidor.'});});}catch(err){console.error('[online]',err);peer.send({type:'error',message:'Error interno del servidor.'});}});
     peer.onClose(()=>closed(peer));
   });
 });

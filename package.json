@@ -1,7 +1,7 @@
 {
   "name": "photo-brawl-16bit",
   "private": true,
-  "version": "1.8.2",
+  "version": "1.8.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,7 @@
     "test:v14": "node --test tests/v14.roster-chroma.test.cjs",
     "test:v15": "node --test tests/v15.empty-collection.test.cjs",
     "test:online": "npm run build:server-engine && node --test tests/online.test.cjs tests/online.fragments.test.cjs tests/v12.rules.test.cjs",
-    "test:v16": "npm run build:server-engine && node --test tests/v16.community.test.cjs tests/v16.local-preservation.test.cjs tests/v16.auto-migration.test.cjs"
+    "test:v16": "npm run build:server-engine && node --test tests/v16.social-wiring.test.cjs tests/v16.local-preservation.test.cjs tests/v16.auto-migration.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",
