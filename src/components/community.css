@@ -104,3 +104,12 @@
 .pb-community-author-grid{flex:1}
 @media(max-width:620px){.pb-community-tabs-three button{font-size:clamp(9px,2.7vw,13px)}.pb-community-tabs-three button svg{width:12px}.pb-community-info{font-size:9px}.pb-community-page .pb-community-grid{grid-template-rows:repeat(2,minmax(0,1fr))}}
 @media(max-height:410px){.pb-community-detail .pb-community-moves{gap:2px}.pb-community-detail .pb-community-moves span{font-size:9px;padding:2px}}
+
+/* V19.6 · Acceso tradicional con contraseña, sin dependencias de email OTP. */
+.pb-login-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;flex-shrink:0}
+.pb-login-switch button{min-width:0;background:#132b4e;color:#a5cee7;border:2px solid #527da8;min-height:34px}
+.pb-login-switch button.selected{background:#34467a;border-color:#eac17d;color:#ffe09b}
+.pb-login-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pb-login-form>button[type=submit]{width:100%;min-height:37px}
+@media(max-width:490px){.pb-login-fields{grid-template-columns:1fr}.pb-login-switch button{min-height:30px}}
+@media(max-height:410px){.pb-login-form{gap:5px}.pb-login-form .pb-social-fields input{min-height:27px;padding:3px}.pb-login-form>button[type=submit]{min-height:30px}.pb-login-switch button{min-height:26px}.pb-login-form small{font-size:9px;line-height:1.15}}

@@ -13,7 +13,11 @@ interface Props {onClose:()=>void;onRestored:(fighter:FighterProfile)=>void}
 export function AccountPanel({onClose,onRestored}:Props){
  const {user,loading}=usePlayerAccount();
  const [tab,setTab]=useState<'account'|'backup'>('account');
- const [email,setEmail]=useState(''),[sent,setSent]=useState(false);
+ const [email,setEmail]=useState('');
+ const [authMode,setAuthMode]=useState<'login'|'register'>('login');
+ const [password,setPassword]=useState(''),[passwordConfirm,setPasswordConfirm]=useState('');
+ const [securityOpen,setSecurityOpen]=useState(false),[newPassword,setNewPassword]=useState('');
+ const [newPasswordConfirm,setNewPasswordConfirm]=useState('');
  const [handle,setHandle]=useState(''),[displayName,setDisplayName]=useState('');
  const [rating,setRating]=useState(1000),[wins,setWins]=useState(0),[losses,setLosses]=useState(0);
  const [localCount,setLocalCount]=useState<number|null>(null);
@@ -37,13 +41,58 @@ export function AccountPanel({onClose,onRestored}:Props){
    return()=>{active=false;};
  },[tab]);
 
- async function sendEmail(){
-   if(!supabase || busy)return;
+ /** Supabase handles password hashing, login sessions, and RLS identity. No email is sent
+  * when Confirm Email is disabled in the Supabase Auth Email provider configuration. */
+ async function submitCredentials(){
+   if(!supabase||busy)return;
+   const cleanEmail=email.trim().toLowerCase();
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)){
+     setNotice('Escribe un correo electrónico válido.');return;
+   }
+   if(password.length<8){setNotice('La contraseña debe tener al menos 8 caracteres.');return;}
+   if(authMode==='register'&&password!==passwordConfirm){
+     setNotice('Las dos contraseñas no coinciden.');return;
+   }
    setBusy(true);setNotice('');
    try{
-     const {error}=await supabase.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:location.origin+'/'}});
-     if(error)throw error;setSent(true);setNotice('Revisa tu correo. El enlace de acceso abrirá PHOTO BRAWL.');
-   }catch(err){setNotice(err instanceof Error?err.message:'No se pudo enviar el enlace.');}finally{setBusy(false);}
+     if(authMode==='register'){
+       const {data,error}=await supabase.auth.signUp({email:cleanEmail,password});
+       if(error)throw error;
+       if(!data.session){
+         setNotice('Supabase no ha iniciado sesión. Desactiva «Confirm Email» en Authentication → Providers → Email y revisa si la cuenta ya existía.');
+         return;
+       }
+       setNotice('¡Cuenta creada! Tu colección local se copiará automáticamente a tu nube privada.');
+     }else{
+       const {error}=await supabase.auth.signInWithPassword({email:cleanEmail,password});
+       if(error)throw error;
+       setNotice('Has iniciado sesión. Tu colección local está protegida.');
+     }
+     setPassword('');setPasswordConfirm('');
+   }catch(err){
+     const e=err as {message?:string;code?:string};
+     const code=String(e?.code||'');
+     const message=String(e?.message||'');
+     if(code==='invalid_credentials'||/invalid login credentials/i.test(message))setNotice('Correo o contraseña incorrectos.');
+     else if(code==='user_already_exists'||/already registered/i.test(message))setNotice('Este correo ya tiene cuenta. Entra desde la pestaña ENTRAR.');
+     else if(code==='weak_password'||/password should be/i.test(message))setNotice('La contraseña es demasiado débil. Prueba una más larga.');
+     else if(code==='over_email_send_rate_limit'||/email rate limit/i.test(message))setNotice('Supabase sigue intentando enviar correos. Desactiva «Confirm Email» en el panel de Supabase.');
+     else setNotice(message||'No se pudo completar el acceso.');
+   }finally{setBusy(false);}
+ }
+
+ async function updatePassword(){
+   if(!supabase||!user||busy)return;
+   if(newPassword.length<8){setNotice('Usa una contraseña de al menos 8 caracteres.');return;}
+   if(newPassword!==newPasswordConfirm){setNotice('Las dos contraseñas no coinciden.');return;}
+   setBusy(true);setNotice('');
+   try{
+     const {error}=await supabase.auth.updateUser({password:newPassword});
+     if(error)throw error;
+     setNewPassword('');setNewPasswordConfirm('');setSecurityOpen(false);
+     setNotice('Contraseña guardada. Ya puedes entrar con correo y contraseña en este u otro dispositivo.');
+   }catch(err){setNotice(err instanceof Error?err.message:'No se pudo guardar la contraseña.');}
+   finally{setBusy(false);}
  }
  async function saveProfile(){
    if(!supabase||!user||busy)return;
@@ -125,15 +174,32 @@ export function AccountPanel({onClose,onRestored}:Props){
       <small>Las copias incluyen sprites, retratos, estadísticas y ataques; nunca la foto original ni la clave Gemini. Al importar o recuperar, los conflictos se conservan como luchadores distintos.</small>
     </div> : !supabaseConfigured?<div className="pb-social-blank"><KeyRound size={29}/><b>SUPABASE NO CONFIGURADO</b><small>Tu colección local sigue funcionando. Ve a MIS COPIAS para exportarla.</small></div>:
     loading?<p className="pb-social-status">COMPROBANDO SESIÓN…</p>:
-    !user?<div className="pb-social-form">
-       <p>Entra con tu correo para guardar personajes privados, compartir luchadores y competir en el ranking.</p>
-       <label>CORREO ELECTRÓNICO<input type="email" autoComplete="email" value={email} placeholder="tu@email.com" onChange={e=>setEmail(e.target.value)}/></label>
-       <button type="button" className="pb-social-gold" disabled={busy||!email.includes('@')} onClick={()=>void sendEmail()}>{sent?'REENVIAR ENLACE':'ENTRAR CON CORREO'}</button>
-       <small>La colección local no se borra al iniciar sesión. Al iniciar sesión, se hará una copia privada automática de los luchadores de este dispositivo, sin publicarlos.</small>
-    </div>:<div className="pb-social-form">
-      <p className="pb-social-user"><ShieldCheck size={17}/> {user.email}</p><div className="pb-account-record"><b>{rating} ELO</b><span>{wins} VICTORIAS · {losses} DERROTAS</span></div>
-      <div className="pb-social-fields"><label>NOMBRE PÚBLICO<input maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label><label>USUARIO ÚNICO<input maxLength={24} value={handle} onChange={e=>setHandle(e.target.value.toLowerCase())}/></label></div>
-      <div className="pb-social-buttons"><button type="button" disabled={busy} onClick={()=>void saveProfile()}><Save size={15}/> GUARDAR PERFIL</button><button type="button" disabled={busy} onClick={()=>{setTab('backup');setNotice('');}}><CloudUpload size={15}/> ESTADO Y COPIAS</button></div>
+    !user?<form className="pb-social-form pb-login-form" onSubmit={e=>{e.preventDefault();void submitCredentials();}}>
+       <div className="pb-login-switch" role="group" aria-label="Entrar o registrarse">
+         <button type="button" className={authMode==='login'?'selected':''} disabled={busy} onClick={()=>{setAuthMode('login');setPasswordConfirm('');setNotice('');}}>ENTRAR</button>
+         <button type="button" className={authMode==='register'?'selected':''} disabled={busy} onClick={()=>{setAuthMode('register');setNotice('');}}>REGISTRARSE</button>
+       </div>
+       <div className="pb-social-fields pb-login-fields">
+         <label>CORREO ELECTRÓNICO<input type="email" required autoComplete="email" value={email} placeholder="tu@email.com" onChange={e=>setEmail(e.target.value)}/></label>
+         <label>CONTRASEÑA<input type="password" required minLength={8} autoComplete={authMode==='login'?'current-password':'new-password'} value={password} placeholder="Mínimo 8 caracteres" onChange={e=>setPassword(e.target.value)}/></label>
+       </div>
+       {authMode==='register'&&<label>REPETIR CONTRASEÑA<input type="password" required minLength={8} autoComplete="new-password" value={passwordConfirm} onChange={e=>setPasswordConfirm(e.target.value)}/></label>}
+       <button type="submit" className="pb-social-gold" disabled={busy}>{busy?'UN MOMENTO…':authMode==='login'?'ENTRAR A MI CUENTA':'CREAR MI CUENTA'}</button>
+       <small>{authMode==='login'?'Tus luchadores locales se conservan y se sincronizan al entrar.':'Sin correo de confirmación durante las pruebas. Guarda tu contraseña: recuperarla requerirá configurar el servicio de correo.'}</small>
+    </form>:<div className="pb-social-form">
+      <p className="pb-social-user"><ShieldCheck size={17}/> {user.email}</p>
+      {securityOpen ? <>
+        <p>Establece una contraseña para entrar sin enlaces de correo, también si tu cuenta se creó antes con Magic Link.</p>
+        <div className="pb-social-fields">
+          <label>NUEVA CONTRASEÑA<input type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label>
+          <label>REPITE CONTRASEÑA<input type="password" autoComplete="new-password" minLength={8} value={newPasswordConfirm} onChange={e=>setNewPasswordConfirm(e.target.value)}/></label>
+        </div>
+        <div className="pb-social-buttons"><button type="button" className="pb-social-gold" disabled={busy} onClick={()=>void updatePassword()}><KeyRound size={15}/> GUARDAR CONTRASEÑA</button><button type="button" disabled={busy} onClick={()=>{setSecurityOpen(false);setNewPassword('');setNewPasswordConfirm('');}}>CANCELAR</button></div>
+      </> : <>
+        <div className="pb-account-record"><b>{rating} ELO</b><span>{wins} VICTORIAS · {losses} DERROTAS</span></div>
+        <div className="pb-social-fields"><label>NOMBRE PÚBLICO<input maxLength={32} value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label><label>USUARIO ÚNICO<input maxLength={24} value={handle} onChange={e=>setHandle(e.target.value.toLowerCase())}/></label></div>
+        <div className="pb-social-buttons"><button type="button" disabled={busy} onClick={()=>void saveProfile()}><Save size={15}/> GUARDAR PERFIL</button><button type="button" disabled={busy} onClick={()=>{setSecurityOpen(true);setNotice('');}}><KeyRound size={15}/> CONTRASEÑA</button></div>
+      </>}
       <button type="button" className="pb-social-danger" disabled={busy} onClick={()=>void supabase?.auth.signOut()}><LogOut size={14}/> CERRAR SESIÓN</button>
     </div>}
     {notice&&<p className="pb-social-status" role="status">{notice}</p>}
