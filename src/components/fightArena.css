@@ -216,6 +216,9 @@
 .arena-result-name .winner-p1 { color: #ffd65c; }
 .arena-result-name .winner-p2 { color: #78ddff; }
 .arena-result-wins { color: #fff; }
+.arena-ranked-result { margin: -12px 0 18px; padding: 8px 10px; color: #ffe19a; background: #081326; border: 1px solid #627b9a; font: 800 11px/1.45 'Barlow Condensed',sans-serif; letter-spacing: .8px; }
+.arena-ranked-result.is-success { color: #a9f0c7; border-color: #4d9d78; }
+.arena-ranked-result.is-error { color: #ffb6ad; border-color: #b66b70; }
 .arena-result-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
 
 /* Two-button mobile layout: a subtle touch zone + thumb-sized controls. */

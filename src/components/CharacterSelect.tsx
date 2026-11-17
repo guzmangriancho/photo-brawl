@@ -146,7 +146,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       onlineSession.on('error',(msg:string)=>setOnlineError(msg)),
       onlineSession.on('ranked_result',(result:{recorded:boolean;reason?:string})=>{
         if(result.recorded)setOnlineError('Resultado clasificado guardado en el ranking de Supabase.');
-        else setOnlineError(result.reason==='same_opponent_cooldown'?'Ya se registró una clasificatoria entre estas cuentas en las últimas 24 horas.':'El resultado no se ha registrado; consulta los logs de Render.');
+        else setOnlineError(result.reason==='same_opponent_cooldown'?'Tu Supabase aún aplica el límite antiguo. Ejecuta supabase/migrations/202611180001_ranked_rematches.sql en SQL Editor.':result.reason==='duplicate'?'Esta partida ya estaba registrada; no se ha duplicado.':'El resultado no se ha registrado; consulta los logs de Render.');
       }),
       onlineSession.on('start',(match:OnlineStart)=>onOnlineMatch(match,onlineSession)),
       onlineSession.on('opponent_left',()=>{setOnlineRoom(null);setOnlineError('El rival ha abandonado la sala.');}),

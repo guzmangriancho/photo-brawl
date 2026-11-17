@@ -115,6 +115,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [rematchRequested,setRematchRequested]=useState(false);
   const [otherWantsRematch,setOtherWantsRematch]=useState(false);
   const [onlineLatency,setOnlineLatency]=useState<number|null>(null);
+  const [rankedResult,setRankedResult]=useState<{recorded:boolean;reason?:string;host_rating?:number;guest_rating?:number}|null>(null);
   const engineRef = useRef<FightEngine | null>(null);
   const pausedRef = useRef(false);
   const labRef = useRef(false);
@@ -193,7 +194,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
         setOnlineIssue(event.reconnecting?(event.opponent?'opponent':'reconnecting'):null);
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
-      online.on('rematch',()=>{engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setPaused(false);}),
+      online.on('rematch',()=>{engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);}),
+      online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
       online.on('rematch_vote',(votes:{host:boolean;guest:boolean})=>{
         setOtherWantsRematch(online.role==='host'?votes.guest:votes.host);
       }),
@@ -435,6 +437,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
     : mode === '1P_VS_2P' ? 'P1 VS P2'
     : mode === 'CPU_VS_CPU' ? 'CPU VS CPU' : 'P1 VS CPU';
   const winnerIsP1 = snapshot.winnerName === p1Profile.fighterName;
+  const rankedOnline = onlineMode && online?.room?.ranked === true;
+  const rankedRating = online?.role === 'host' ? rankedResult?.host_rating : rankedResult?.guest_rating;
 
   return (
     <main className="arena-screen">
@@ -497,6 +501,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 <span className="arena-result-eyebrow">FIN DEL COMBATE</span>
                 <div className="arena-result-headline">K.O.</div>
                 <p className="arena-result-name"><span className={winnerIsP1 ? 'winner-p1' : 'winner-p2'}>{snapshot.winnerName ?? 'EMPATE'}</span><span className="arena-result-wins">{snapshot.winnerName ? 'GANA' : ''}</span></p>
+                {rankedOnline && <p className={`arena-ranked-result ${rankedResult?.recorded?'is-success':rankedResult?'is-error':''}`} role="status">{!rankedResult?'REGISTRANDO RESULTADO…':rankedResult.recorded?`CLASIFICATORIA REGISTRADA${typeof rankedRating==='number'?` · ELO ${rankedRating}`:''}`:rankedResult.reason==='same_opponent_cooldown'?'SUPABASE AÚN TIENE EL LÍMITE ANTIGUO. EJECUTA LA MIGRACIÓN V21.':rankedResult.reason==='duplicate'?'ESTA PARTIDA YA ESTABA REGISTRADA.':'NO SE PUDO REGISTRAR. REVISA LOS LOGS DE RENDER.'}</p>}
                 {otherWantsRematch && onlineMode && <p className="arena-online-invite">TU RIVAL QUIERE REVANCHA</p>}<div className="arena-result-actions"><button className="arena-primary-button" type="button" disabled={rematchRequested} onClick={handleRematch}><RotateCcw size={16}/> {rematchRequested?'ESPERANDO RIVAL':onlineMode?'PEDIR REVANCHA':'REVANCHA'}</button><button className="arena-secondary-button" type="button" onClick={onExit}>{onlineMode?'SALIR DEL ONLINE':'CAMBIAR LUCHADOR'}</button></div>
               </div>
             </div>

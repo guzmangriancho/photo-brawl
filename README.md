@@ -1,3 +1,7 @@
+## V21 — Corregido el registro de revanchas clasificatorias
+
+Ahora cada partida clasificatoria terminada cuenta para el historial y el ELO, aunque se juegue contra el mismo rival varias veces seguidas. Se conserva la protección para que un mismo resultado no pueda contabilizarse dos veces. **Importante:** ejecuta `supabase/migrations/202611180001_ranked_rematches.sql` en Supabase → SQL Editor; desplegar solo el frontend no actualiza la función de base de datos. Guía: [`docs/CLASIFICATORIAS_REVANCHAS_V21.md`](docs/CLASIFICATORIAS_REVANCHAS_V21.md).
+
 ## V19.6 — Registro y acceso con contraseña (sin Google ni emails de confirmación durante desarrollo)
 
 El login principal utiliza **correo + contraseña** y el registro se realiza en la misma pantalla. Configura Supabase → Authentication → Providers → Email → **Confirm Email DESACTIVADO** para que no envíe emails de confirmación. Las cuentas antiguas que siguen autenticadas pueden establecer una contraseña en Cuenta → CONTRASEÑA sin perder su ID ni luchadores. **Esta configuración es solo para pruebas: sin verificar el correo, cualquiera podría registrar una dirección ajena.** Consulta `docs/AUTH_CONTRASENA_V19_6.md` antes de desplegar.

@@ -47,4 +47,9 @@ Después de cambiar variables de Vercel, haz **Redeploy** para que entren en la 
 
 ## Limitaciones importantes
 
-La inscripción y la RPC de Supabase deben estar realmente configuradas. Las pruebas locales verifican la lógica y el protocolo, pero **no sustituyen la prueba end-to-end con tu proyecto Supabase**. Las partidas clasificatorias en salas privadas todavía son susceptibles a partidas pactadas, aunque la SQL limita a un resultado puntuable por pareja y 24 horas. La moderación de la comunidad, la denuncia de contenido y un emparejamiento competitivo público requieren futuras iteraciones.
+La inscripción y la RPC de Supabase deben estar realmente configuradas. Las pruebas locales verifican la lógica y el protocolo, pero **no sustituyen la prueba end-to-end con tu proyecto Supabase**. Las partidas clasificatorias en salas privadas todavía son susceptibles a partidas pactadas. Desde V21 se contabilizan todas las revanchas entre la misma pareja, por lo que dos cuentas podrían intentar alterar su ELO pactando resultados. La protección por UUID evita duplicar una misma partida. La moderación de la comunidad, la denuncia de contenido y un emparejamiento competitivo público requieren futuras iteraciones.
+
+
+## Actualización V21
+
+La limitación de una partida puntuable por pareja cada 24 horas se retiró porque impedía guardar las revanchas tanto en el ELO como en `ranked_matches`. Ejecuta `supabase/migrations/202611180001_ranked_rematches.sql` en SQL Editor para sustituir la RPC. Consulta [`CLASIFICATORIAS_REVANCHAS_V21.md`](CLASIFICATORIAS_REVANCHAS_V21.md).
