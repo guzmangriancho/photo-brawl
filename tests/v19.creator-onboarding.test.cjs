@@ -10,7 +10,7 @@ const css = load('src/components/fighterCreator.css');
 const prompts = load('src/services/fighterPrompts.ts');
 const tests = [
   ['El modo guiado es el predeterminado',()=>assert.match(creator,/useState<CreatorMode>\('guided'\)/)],
-  ['Sin key se puede copiar el prompt de análisis y pegar JSON',()=>{assert.match(creator,/COPIAR PROMPT DE FICHA/);assert.match(creator,/PEGAR JSON Y VALIDAR/);assert.match(creator,/parseFighterDesignJson\(json/)}],
+  ['Sin key se puede copiar el prompt de análisis y pegar JSON',()=>{assert.match(creator,/Copiar prompt de ficha/i);assert.match(creator,/PEGAR JSON Y VALIDAR/);assert.match(creator,/parseFighterDesignJson\(value/)}],
   ['Hay dos proveedores oficiales y ambos abren en nueva pestaña',()=>{assert.match(creator,/https:\/\/gemini\.google\.com\/app/);assert.match(creator,/https:\/\/chatgpt\.com\//);assert.match(creator,/target="_blank" rel="noopener noreferrer"/)}],
   ['La API key es opcional, solo visible en modo automático',()=>{assert.match(creator,/mode==='guided'\s*\?/);assert.match(creator,/TENGO API KEY/);assert.match(creator,/GENERAR PERSONAJE COMPLETO/)}],
   ['Spritesheet y retrato tienen prompt e importación independiente',()=>{assert.match(creator,/showPrompt\(artStep\)/);assert.match(creator,/importImage\(artStep/);assert.match(creator,/SUBIR SPRITESHEET/);assert.match(creator,/SUBIR RETRATO/)}],
