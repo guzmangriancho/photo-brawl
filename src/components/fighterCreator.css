@@ -435,3 +435,10 @@
   .pb-creator-manual-actions{--pb-manual-action-height:28px}
   .pb-creator-manual-layout:has(.pb-creator-choose-chat[aria-expanded="true"]) {grid-template-rows:minmax(0,36%) minmax(0,64%)}
 }
+
+/* V19.5: photograph is attached to the AI chat, not to this form. */
+.pb-creator-photo-reminder{padding:clamp(4px,.6vh,7px);background:linear-gradient(90deg,#1d3851,#102640);border:1px solid #79b8d4;border-radius:4px}
+.pb-creator-photo-reminder>span{background:#1b5068;border-color:#76d9e6}
+.pb-creator-photo-reminder strong{color:#fff0b6}
+.pb-creator-photo-reminder small{color:#c7e6f4}
+@media (orientation:landscape) and (max-height:430px){.pb-creator-photo-reminder{padding:3px 5px}}

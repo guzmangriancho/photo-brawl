@@ -21,7 +21,7 @@ const CHAT_SERVICES = [
   {label:'CHATGPT',url:'https://chatgpt.com/'},
 ] as const;
 const GUIDE_STEPS = [
-  {title:'1 · CREA LA FICHA', intro:'No necesitas API key ni subir una foto dentro del juego.', details:'Copia el prompt y abre Gemini, ChatGPT u otra IA. Pega el prompt y adjunta tu foto original directamente en ese chat. Cuando la IA responda, copia su respuesta, vuelve al juego y pulsa PEGAR RESPUESTA: PHOTO BRAWL validará la ficha automáticamente.'},
+  {title:'1 · CREA LA FICHA', intro:'IMPORTANTE: adjunta tu foto original en el chat de IA, junto al prompt.', details:'1. Pulsa COPIAR PROMPT. 2. Abre Gemini o ChatGPT, pega el prompt y adjunta tu foto original directamente en ese chat, en el mismo mensaje, antes de enviarlo. 3. Copia la respuesta de la IA, vuelve al juego y pulsa PEGAR RESPUESTA. La ficha se validará automáticamente. No hace falta subir la foto a PHOTO BRAWL en el modo guiado.'},
   {title:'2 · SPRITESHEET', intro:'La ficha define los ataques, por eso los sprites se hacen después.', details:'Copia el prompt del spritesheet 4×4. Continúa en el mismo chat de IA y adjunta de nuevo la foto si es necesario. Descarga la imagen cuadrada con fondo verde y súbela aquí.'},
   {title:'3 · RETRATO', intro:'Ahora crea un retrato para la selección de luchadores.', details:'Copia el prompt de retrato, envíalo en tu chat con la foto original, descarga la imagen y pulsa SUBIR RETRATO. No es necesario repetir el spritesheet.'},
   {title:'4 · REVISAR Y GUARDAR', intro:'Comprueba el resultado antes de incorporarlo a tu colección.', details:'Revisa el retrato, los movimientos y las estadísticas. Si algo falla, vuelve al paso correspondiente. Pulsa GUARDAR LUCHADOR cuando estén listas ambas imágenes.'},
@@ -296,9 +296,9 @@ export const FighterCreator: React.FC<Props> = ({onClose,onCreated}) => {
           <div className="pb-creator-manual-steps" aria-label="Pasos para crear la ficha">
             <div className="pb-creator-manual-heading"><span className="pb-creator-mode-tag">SIN API KEY</span><strong>CREAR FICHA</strong></div>
             <div className="pb-creator-manual-step"><span>01</span><p><strong>Copia el prompt</strong><small>Incluye las instrucciones del personaje.</small></p></div>
-            <div className="pb-creator-manual-step"><span>02</span><p><strong>Pégalo en tu IA</strong><small>Adjunta allí tu foto original.</small></p></div>
+            <div className="pb-creator-manual-step pb-creator-photo-reminder"><span>02</span><p><strong>PEGA EL PROMPT + ADJUNTA TU FOTO</strong><small>En Gemini o ChatGPT, antes de enviar el mensaje.</small></p></div>
             <div className="pb-creator-manual-step"><span>03</span><p><strong>Pega y continúa</strong><small>La ficha se valida automáticamente.</small></p></div>
-            <div className="pb-creator-manual-note"><Camera size={13}/> No tienes que subir la foto en esta pantalla.</div>
+            <div className="pb-creator-manual-note"><Camera size={13}/> La foto se sube EN EL CHAT DE IA, no aquí.</div>
           </div>
           <div className="pb-creator-details pb-creator-manual-controls">
             <label className="pb-creator-field">NOMBRE <small>(opcional)</small><input maxLength={16} value={name} disabled={busy||!!design} placeholder="La IA puede inventarlo" onChange={e=>setName(e.target.value)}/></label>

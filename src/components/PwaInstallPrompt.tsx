@@ -6,8 +6,30 @@ interface InstallEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{outcome:'accepted'|'dismissed'; platform:string}>;
 }
-const DISMISSED_KEY = 'pb-pwa-install-dismissed-v10';
-const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
+// One-time reset after the install-banner fix: previous versions could hide it
+// for 14 days even though the native install event was never available.
+const DISMISSED_KEY = 'pb-pwa-install-dismissed-v19-4';
+const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Subscribe as soon as the module loads, before React mounts the main menu.
+// Chromium may dispatch beforeinstallprompt while the roster is still loading.
+let pendingInstallEvent: InstallEvent | null = null;
+const installListeners = new Set<(event: InstallEvent | null) => void>();
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (event: Event) => {
+    event.preventDefault();
+    pendingInstallEvent = event as InstallEvent;
+    installListeners.forEach(listener => listener(pendingInstallEvent));
+  });
+  window.addEventListener('appinstalled', () => {
+    pendingInstallEvent = null;
+    installListeners.forEach(listener => listener(null));
+  });
+}
+function isMobileLike(): boolean {
+  return isIOS() || /Android|Mobile/i.test(navigator.userAgent) ||
+    window.matchMedia('(pointer: coarse)').matches;
+}
 function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches ||
     Boolean((navigator as Navigator & {standalone?:boolean}).standalone);
@@ -24,31 +46,33 @@ function dismissedRecently(): boolean {
 /** A small non-modal prompt. It never hijacks the user inside a fight or creator. */
 export function PwaInstallPrompt({visible,requestId}:{visible:boolean;requestId:number}) {
   const [open,setOpen] = useState(false);
-  const [installEvent,setInstallEvent] = useState<InstallEvent|null>(null);
+  const [installEvent,setInstallEvent] = useState<InstallEvent|null>(() => pendingInstallEvent);
   const [installed,setInstalled] = useState(isStandalone);
   const ios = isIOS();
   const iosOtherBrowser = ios && !(/Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent));
   const [notSupported,setNotSupported] = useState(false);
 
   useEffect(() => {
-    const before = (event: Event) => {
-      event.preventDefault();
-      setInstallEvent(event as InstallEvent);
-      if (!dismissedRecently() && !isStandalone()) setOpen(true);
+    const receive = (event: InstallEvent | null) => {
+      setInstallEvent(event);
+      if (event && !dismissedRecently() && !isStandalone()) setOpen(true);
+      if (!event && isStandalone()) { setInstalled(true); setOpen(false); }
     };
-    const after = () => { setInstalled(true); setOpen(false); setInstallEvent(null); };
-    window.addEventListener('beforeinstallprompt',before);
-    window.addEventListener('appinstalled',after);
-    // On iOS the user must install from the browser's Share menu; there is no native install prompt.
+    installListeners.add(receive);
+    // Show an informational in-game banner even if the browser does not offer
+    // beforeinstallprompt (Safari, some Android browsers, or installability delayed).
+    // The native prompt is only invoked if an event actually exists.
     const timer = window.setTimeout(() => {
-      if (ios && window.isSecureContext && !isStandalone() && !dismissedRecently()) setOpen(true);
-    }, 2600);
+      if (window.isSecureContext && isMobileLike() && !isStandalone() && !dismissedRecently()) {
+        setOpen(true);
+      }
+    }, 2500);
+    if (pendingInstallEvent) receive(pendingInstallEvent);
     return () => {
-      window.removeEventListener('beforeinstallprompt',before);
-      window.removeEventListener('appinstalled',after);
+      installListeners.delete(receive);
       window.clearTimeout(timer);
     };
-  }, [ios]);
+  }, []);
 
   useEffect(() => { if (requestId > 0 && !installed) { setOpen(true); setNotSupported(false); } },[requestId,installed]);
   function dismiss() {
@@ -59,6 +83,7 @@ export function PwaInstallPrompt({visible,requestId}:{visible:boolean;requestId:
     if (!installEvent) { setNotSupported(true); return; }
     const event = installEvent;
     setInstallEvent(null);
+    pendingInstallEvent = null;
     try {
       await event.prompt(); // only called from direct user interaction
       const result = await event.userChoice;
