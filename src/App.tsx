@@ -6,7 +6,8 @@ import {
   StageId,
 } from './types/fighter';
 import { getPresetFighters } from './data/presetFighters';
-import { getAllCustomFighters, saveCustomFighter } from './services/storageService';
+import { getAllCustomFighters } from './services/storageService';
+import { startAutomaticFighterMigration,requestAutomaticMigration } from './services/automaticFighterMigration';
 import { repairSavedSpriteChroma } from './engine/SpriteProcessor';
 import { CharacterSelect } from './components/CharacterSelect';
 import { FightArena } from './components/FightArena';
@@ -17,6 +18,7 @@ export function App() {
   // Presets are free tutorial actors only; never mix them into the personal roster.
   const [fighters, setFighters] = useState<FighterProfile[]>([]);
   const [rosterLoaded,setRosterLoaded] = useState(false);
+  const [rosterError,setRosterError] = useState('');
   const [screen, setScreen] = useState<'SELECT' | 'FIGHT'>('SELECT');
 
   const [matchConfig, setMatchConfig] = useState<{
@@ -29,30 +31,37 @@ export function App() {
     tutorial?: boolean;
   } | null>(null);
 
+  // Start migration at app boot, independently of what menu the user opens.
+  useEffect(() => startAutomaticFighterMigration(), []);
+
   useEffect(() => {
     let active=true;
     getAllCustomFighters().then(async customs=>{
       if(!active)return;
       setFighters(customs.filter(f => !f.isPreset && !f.id.startsWith("preset_")));
       setRosterLoaded(true); // Show the collection immediately; repairs can update it incrementally.
-      // Repair existing custom characters in-place, preserving poses, stats and name.
-      // Keep them playable even if storage is full or an image is malformed.
+      // Repair only in memory: retain the original sheet in IndexedDB so a
+      // migration cannot irreversibly replace a fighter's saved artwork.
       for(const existing of customs){
         if(!active)break;
         if(existing.isPreset || existing.id.startsWith("preset_") || existing.spriteSheetKeyVersion===3)continue;
         try{
           const repaired={...existing,spriteSheetDataUrl:await repairSavedSpriteChroma(existing.spriteSheetDataUrl),spriteSheetKeyVersion:3 as const};
-          await saveCustomFighter(repaired);
           if(active)setFighters(list=>list.map(f=>f.id===repaired.id?repaired:f));
         }catch(error){console.warn('No se pudo reparar la transparencia del luchador',existing.id,error);}
       }
-    }).catch(error => console.warn('No se pudo cargar la colección',error)).finally(()=>{if(active)setRosterLoaded(true);});
+    }).catch(error => {
+      console.error('No se pudo cargar la colección',error);
+      if(active)setRosterError(error instanceof Error?error.message:'No se pudo leer el almacenamiento del dispositivo.');
+    }).finally(()=>{if(active)setRosterLoaded(true);});
     return()=>{active=false;};
   }, []);
 
   const handleFighterCreated = (newFighter: FighterProfile) => {
     if(newFighter.isPreset || newFighter.id.startsWith("preset_")) return;
     setFighters((prev) => [newFighter, ...prev.filter(f=>f.id!==newFighter.id)]);
+    // The creator saves to IndexedDB first. Give that transaction time to finish.
+    requestAutomaticMigration();
   };
 
   const handleFighterDeleted = (id: string) => {
@@ -103,6 +112,8 @@ export function App() {
       />
     );
   }
+
+  if (rosterError) return <div className="pb-app pb-loading-roster" role="alert"><div className="pb-loading-plaque">COLECCIÓN NO DISPONIBLE<small>{rosterError}</small><small>Tus luchadores no se han borrado. No limpies los datos del navegador ni desinstales la PWA.</small><button type="button" onClick={()=>location.reload()}>REINTENTAR</button></div></div>;
 
   if (!rosterLoaded) return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>CARGANDO TUS LUCHADORES…</small></div></div>;
 

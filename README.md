@@ -1,3 +1,30 @@
+## V16.2 · SQL corregido y migración automática de luchadores locales
+
+- Corrige el `ERROR 42601` de la línea 57 en la restricción `public_asset_ownership`.
+- **Ejecuta todo `supabase/migrations/202611170001_photo_brawl_community.sql` en SQL Editor**. El script no borra tablas ni personajes y se puede repetir: las políticas se recrean.
+- Al abrir PHOTO BRAWL se comprueba la colección anterior en **IndexedDB `PhotoBrawl16BitDB`, versión 2, `custom_fighters`**, sin cambiarla. Si existe una sesión de Supabase válida, la copia privada se inicia de forma automática; si no, espera al primer inicio de sesión.
+- Nuevos luchadores guardados en el mismo dispositivo también se sincronizan automáticamente tras crearse. No se suben fotos originales ni luchadores tutorial; las copias NO se publican en Comunidad.
+- Tras iniciar sesión, `Mi cuenta → Mis copias` muestra el estado y permite reintentar errores; Exportar/Importar JSON sigue disponible como salvaguarda independiente.
+- **No cambies el dominio de Vercel ni borres los datos del navegador** durante la migración. PWA/Safari/localhost son almacenes distintos y Supabase no puede leer el almacén de otro origen.
+- No se borran ni reemplazan personajes locales ante errores de conexión, sesión, espacio o permisos.
+- `docs/MIGRACION_AUTOMATICA_V16_2.md` explica configuración, verificación y límites.
+
+---
+
+# PHOTO BRAWL V16.1 — Migración segura de luchadores
+
+**Antes de borrar datos o reinstalar una PWA, exporta tus luchadores en Ajustes → Mi cuenta / Sincronizar → MIS COPIAS → EXPORTAR ARCHIVO.** V15 y V16 comparten el mismo IndexedDB y se conserva la colección local; Supabase no la reemplaza ni la borra al iniciar sesión. La subida privada a la nube es voluntaria. La importación y recuperación cloud nunca pisan un luchador anterior: ante IDs duplicados conservan las dos versiones. Guía: [`docs/MIGRACION_SIN_PERDER_LUCHADORES_V16_1.md`](docs/MIGRACION_SIN_PERDER_LUCHADORES_V16_1.md).
+
+---
+
+# PHOTO BRAWL V16 — Supabase
+
+**NUEVO:** cuentas Auth, guardado privado de personajes, publicación opcional, comunidad, corazones, perfiles públicos y ranking ELO verificado por Render.
+
+**Empieza por [`docs/SUPABASE_V16_PASO_A_PASO.md`](docs/SUPABASE_V16_PASO_A_PASO.md) y la migración [`supabase/migrations/202611170001_photo_brawl_community.sql`](supabase/migrations/202611170001_photo_brawl_community.sql).** Las partidas casuales, el tutorial y el modo CPU siguen disponibles sin cuenta. El ranking solo acepta resultados validados por el servidor (mejor de 3). Supabase no almacena la foto original (la generación por Gemini sí requiere enviarla a ese servicio).
+
+---
+
 ## V15 — Inicio sin repeticiones y navegación segura
 
 - Sin luchadores, **Inicio** presenta un único botón **CREAR CON FOTO**, que abre directamente el asistente (sin pasar por una selección vacía). Los modos 1v1, Training y Online se pueden ver y seleccionar, pero sus acciones de configuración/inicio no aparecen hasta tener un luchador propio. El tutorial gratuito sigue accesible.
