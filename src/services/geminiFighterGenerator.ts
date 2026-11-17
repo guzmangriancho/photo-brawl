@@ -311,7 +311,7 @@ export async function generateCreatorPortrait(apiKey: string, photo: CreatorPhot
 
 export function buildCreatedProfile(design: FighterDesignSchema, spriteSheetDataUrl: string, portraitDataUrl: string): FighterProfile {
   if (!spriteSheetDataUrl || !portraitDataUrl) throw new Error('Debes añadir el spritesheet y el retrato.');
-  return { ...design, id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, isPreset: false, createdAt: Date.now(), spriteSheetDataUrl, portraitDataUrl,
+  return { ...design, id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, isPreset: false, createdAt: Date.now(), spriteSheetDataUrl, portraitDataUrl, spriteSheetKeyVersion: 2,
     spriteSheetLayoutVersion: 2,
     spriteSheetLastCell: needsProjectileSprite(design.moveset.specialNeutral.mechanic) ? 'PROJECTILE' : 'KO',
     scaleMultiplier: design.archetype === 'GRAPPLER_TANK' ? 1.14 : design.archetype === 'RUSHDOWN' ? 0.96 : 1,

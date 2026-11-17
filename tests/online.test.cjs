@@ -51,7 +51,7 @@ async function connect(){
 }
 let server;
 test.before(async()=>{
-  server=spawn(process.execPath,['server/index.cjs'],{cwd:root,env:{...process.env,ONLINE_PORT:String(PORT)},stdio:['ignore','pipe','pipe']});
+  server=spawn(process.execPath,['server/index.cjs'],{cwd:root,env:{...process.env,ONLINE_PORT:String(PORT),ONLINE_START_COUNTDOWN_MS:"450"},stdio:['ignore','pipe','pipe']});
   for(let i=0;i<50;i++){
     try{const res=await fetch(`http://127.0.0.1:${PORT}/health`);if(res.ok)return;}catch{}
     await new Promise(r=>setTimeout(r,40));
@@ -77,7 +77,8 @@ test('room code, ready-up, authoritative simulation, reconnect and leave',async(
   assert.equal(room.guest.name,'RETADOR');
   host.send({type:'ready',ready:true});guest.send({type:'ready',ready:true});
   await host.next('room',m=>m.room.host.ready&&m.room.guest?.ready);
-  host.send({type:'start'});
+  const countdown=await host.next('room',m=>m.room.status==='countdown');
+  assert.ok(countdown.room.countdownEndsAt>Date.now());
   const a=await host.next('start');const b=await guest.next('start');
   assert.equal(a.p1.fighterName,'PILOTO');assert.equal(b.p2.fighterName,'RETADOR');
   const start=await host.next('state');assert.equal(start.state.snapshot.timer,99);
@@ -106,7 +107,7 @@ test('invalid room and three-player joining cannot create extra player',async()=
   joiner.close();
 });
 
-test('private room enforces two-player capacity and only the host can start',async()=>{
+test('private room enforces two-player capacity and starts automatically after ready-up',async()=>{
   const host=await connect();
   host.send({type:'create',profile:profile('HOST'),stage:'SKI_RESORT'});
   const code=(await host.next('welcome')).code;
@@ -119,15 +120,28 @@ test('private room enforces two-player capacity and only the host can start',asy
   guest.send({type:'ready',ready:true});host.send({type:'ready',ready:true});
   const ready=await host.next('room',m=>m.room.guest?.ready&&m.room.host.ready);
   assert.equal(ready.room.stage,'SKI_RESORT');
-  guest.send({type:'start'});
-  await new Promise(r=>setTimeout(r,100));
-  assert.equal(guest.messages.some(m=>m.type==='start'),false,'guest cannot start the match');
-  host.send({type:'start'});
+  assert.ok((await guest.next('room',m=>m.room.status==='countdown')).room.countdownEndsAt);
   assert.equal((await guest.next('start')).stage,'SKI_RESORT');
   await host.next('start');
   third.close();guest.close();host.close();
 });
 
+test('unready cancels the start countdown and a fresh ready triggers a new one',async()=>{
+  const host=await connect();host.send({type:'create',profile:profile('H'),stage:'SKI_RESORT'});
+  const code=(await host.next('welcome')).code;await host.next('room');
+  const guest=await connect();guest.send({type:'join',code,profile:profile('G')});
+  await guest.next('welcome');await guest.next('room');
+  host.send({type:'ready',ready:true});guest.send({type:'ready',ready:true});
+  await host.next('room',m=>m.room.status==='countdown');
+  guest.send({type:'ready',ready:false});
+  await host.next('room',m=>m.room.status==='waiting'&&!m.room.guest.ready);
+  await new Promise(r=>setTimeout(r,550));
+  assert.equal(host.messages.some(m=>m.type==='start'),false,'cancelled countdown cannot start');
+  guest.send({type:'ready',ready:true});
+  await host.next('room',m=>m.room.status==='countdown');
+  await host.next('start');await guest.next('start');
+  host.close();guest.close();
+});
 test('invalid room resume token cannot impersonate a player',async()=>{
   const host=await connect();host.send({type:'create',profile:profile('OWNER'),stage:'SKI_RESORT'});
   const code=(await host.next('welcome')).code;

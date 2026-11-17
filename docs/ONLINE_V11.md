@@ -5,7 +5,7 @@
 - Partidas privadas 1 contra 1 por código de seis caracteres o enlace de invitación.
 - Ambos participantes escogen en su propio móvil el luchador que quieren llevar, incluidos luchadores hechos con IA y guardados localmente.
 - Pantalla de sala: anfitrión, invitado, selección de escenario (solo anfitrión), listo/no listo y compartir invitación.
-- **La partida solo se inicia desde la pantalla principal**, con ambos participantes listos. El anfitrión la inicia; no hay botón de comenzar en selección de personaje, configuración ni sala.
+- **El combate empieza automáticamente** tras una cuenta atrás de 3 s cuando ambos participantes están listos; la sala se abre desde Inicio.
 - Un único proceso Node.js simula el combate de forma **autoritativa a 60 pasos por segundo**, recibe únicamente controles/acciones y transmite estados a 30 Hz. El frontend dibuja estados recibidos, no calcula por su cuenta el daño del rival.
 - Combate táctil y teclado, resultado y revancha por voto de ambos jugadores.
 - Desconexión temporal: simulación detenida y reconexión con token (predeterminado 90 segundos); cuando pasa el plazo, se cierra la sala. Si el móvil pasa a segundo plano se sueltan los controles para evitar movimiento involuntario.
@@ -28,8 +28,8 @@ Esto **compila el motor del servidor**, arranca los WebSockets en `ws://<IP_DEL_
 2. Móvil A: elige luchador → vuelve a Inicio → modo **VERSUS ONLINE** → **SALA PRIVADA** → **CREAR SALA**.
 3. Copia el código o enlace de la sala.
 4. Móvil B: elige su luchador → Inicio → modo online → Sala privada → introduce código → **UNIRSE**. El enlace con `?room=XXXXXX` también precarga el código.
-5. Ambos pulsan **ESTOY LISTO**. El anfitrión cierra la hoja de sala y desde **INICIO** pulsa **¡COMENZAR ONLINE!**.
-6. Lucha. Tras el KO ambos pueden solicitar revancha; cuando ambos aceptan, comienza una ronda nueva.
+5. Ambos pulsan **ESTOY LISTO**. El servidor muestra la cuenta atrás 3–2–1 y comienza el combate automáticamente, sin botón del anfitrión.
+6. Lucha al mejor de 3 rondas; cada KO da una ronda y se reinicia el combate automáticamente. Tras la segunda ronda ganada, ambos pueden solicitar una revancha (nuevo mejor de 3).
 
 **Si falla:** comprueba que `:8787/health` responde desde el móvil, que el ordenador permite tráfico entrante TCP a los puertos **5173 y 8787**, y que la Wi-Fi no aísla clientes (redes de invitados suelen hacerlo). El servidor solo escucha conexiones si se arrancó con `npm run dev:online`; `npm run dev` en solitario ejecuta únicamente Vite. Una Wi-Fi local no prueba el acceso entre redes diferentes.
 

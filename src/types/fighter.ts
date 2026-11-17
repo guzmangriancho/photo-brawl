@@ -121,6 +121,8 @@ export interface FighterProfile extends FighterDesignSchema {
   portraitDataUrl: string;    // 512x512 PNG
   /** New character sheets use 16 cells with windup/impact pairs and a contextual final slot. */
   spriteSheetLayoutVersion?: 2;
+  /** Version 2 removes chroma holes between limbs. Old saved sheets are migrated once. */
+  spriteSheetKeyVersion?: 2;
   spriteSheetLastCell?: 'PROJECTILE' | 'KO';
   scaleMultiplier?: number;   // e.g. 1.15 for heavy tanks, 0.96 for nimble rushdown
 }

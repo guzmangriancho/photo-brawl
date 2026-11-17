@@ -39,3 +39,9 @@
 @media (orientation:landscape) and (max-height:420px){.pb-online-stages button{padding:2px}.pb-online-stages span{display:none}}
 
 @media (orientation:landscape) and (max-height:420px){.pb-online-code button{font-size:10px;padding:3px 5px}.pb-online-code>div{gap:5px}}
+
+/* Server-driven ready countdown, equally visible to host and guest. */
+.pb-online-countdown{display:flex;align-items:center;justify-content:center;gap:12px;border:2px solid #eac670;background:linear-gradient(90deg,#29204f,#243e65);padding:5px 12px;color:#ffe6a7;font:800 12px Oxanium,sans-serif;letter-spacing:1px;min-height:44px}
+.pb-online-countdown strong{font:900 clamp(25px,5vh,40px)/1 Oxanium,sans-serif;color:#fff;text-shadow:2px 3px #8e4865;min-width:30px;text-align:center}
+.pb-online-countdown small{font-size:9px;color:#a7d9ef}
+@media (max-width:680px){.pb-online-countdown{min-height:32px;gap:6px;padding:3px 6px;font-size:10px}.pb-online-countdown strong{font-size:24px}.pb-online-countdown small{font-size:8px}}

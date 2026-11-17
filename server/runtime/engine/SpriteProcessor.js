@@ -1,4 +1,12 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.loadImage = loadImage;
+exports.resizePhotoForGemini = resizePhotoForGemini;
+exports.processSpriteSheet = processSpriteSheet;
+exports.repairSavedSpriteChroma = repairSavedSpriteChroma;
+exports.processPortrait = processPortrait;
+exports.readArtFile = readArtFile;
+const chromaKey_1 = require("./chromaKey");
 /**
  * SpriteProcessor.ts
  * Processes raw 1024x1024 4x4 sprite sheets (on #00FF00 green background)
@@ -8,12 +16,6 @@
  * 3. Automatic Foot-Grounding so every character frame's lowest opaque pixel sits at Y = 242px
  * 4. Contextual cell 15: centered projectile or ground-aligned KO pose
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadImage = loadImage;
-exports.resizePhotoForGemini = resizePhotoForGemini;
-exports.processSpriteSheet = processSpriteSheet;
-exports.processPortrait = processPortrait;
-exports.readArtFile = readArtFile;
 const SHEET_SIZE = 1024;
 const GRID = 4;
 const CELL_SIZE = 256;
@@ -63,70 +65,7 @@ async function resizePhotoForGemini(file, maxDim = 768) {
  * Removes #00FF00 green screen and neutralizes green edge spill.
  */
 function applyChromaKeyAndDespill(imageData) {
-    const { width, height, data } = imageData;
-    // IMPORTANT: don't erase green football shirts, accessories or projectiles.
-    // Only pixels connected to the *outside of each cell* can be chroma background.
-    // Treat each 256px cell separately so a character in one cell never leaks into
-    // another when an AI-generated sheet uses slightly imperfect gutters.
-    const removed = new Uint8Array(width * height);
-    const queue = new Int32Array(CELL_SIZE * CELL_SIZE);
-    const isChroma = (index) => {
-        const offset = index * 4;
-        if (data[offset + 3] <= 24)
-            return true; // already transparent background
-        const r = data[offset], g = data[offset + 1], b = data[offset + 2];
-        return g > 145 && g - r > 67 && g - b > 67 && r < 150 && b < 150;
-    };
-    for (let cellY = 0; cellY < height; cellY += CELL_SIZE) {
-        for (let cellX = 0; cellX < width; cellX += CELL_SIZE) {
-            const xEnd = Math.min(width, cellX + CELL_SIZE);
-            const yEnd = Math.min(height, cellY + CELL_SIZE);
-            let read = 0, write = 0;
-            const enqueue = (x, y) => {
-                const idx = y * width + x;
-                if (removed[idx] || !isChroma(idx))
-                    return;
-                removed[idx] = 1;
-                queue[write++] = idx;
-            };
-            for (let x = cellX; x < xEnd; x++) {
-                enqueue(x, cellY);
-                enqueue(x, yEnd - 1);
-            }
-            for (let y = cellY + 1; y < yEnd - 1; y++) {
-                enqueue(cellX, y);
-                enqueue(xEnd - 1, y);
-            }
-            while (read < write) {
-                const idx = queue[read++];
-                const x = idx % width, y = (idx / width) | 0;
-                if (x > cellX)
-                    enqueue(x - 1, y);
-                if (x + 1 < xEnd)
-                    enqueue(x + 1, y);
-                if (y > cellY)
-                    enqueue(x, y - 1);
-                if (y + 1 < yEnd)
-                    enqueue(x, y + 1);
-            }
-        }
-    }
-    // Keep enclosed green details. Only soften green fringe adjacent to removed
-    // background; this avoids carving holes in brightly coloured outfits.
-    for (let i = 0; i < width * height; i++) {
-        const pos = i * 4;
-        if (removed[i]) {
-            data[pos + 3] = 0;
-            continue;
-        }
-        const r = data[pos], g = data[pos + 1], b = data[pos + 2];
-        const x = i % width, y = (i / width) | 0;
-        const neighborsBackground = (x > 0 && removed[i - 1]) || (x + 1 < width && removed[i + 1]) ||
-            (y > 0 && removed[i - width]) || (y + 1 < height && removed[i + width]);
-        if (neighborsBackground && g > 110 && g > Math.max(r, b) + 25 && g - Math.max(r, b) < 80) {
-            data[pos + 1] = Math.round(g * 0.7 + Math.max(r, b) * 0.3);
-        }
-    }
+    (0, chromaKey_1.removeChromaBackground)(imageData, CELL_SIZE);
 }
 /**
  * Finds opaque pixel bounding box within a 256x256 cell ImageData.
@@ -240,6 +179,22 @@ async function processSpriteSheet(rawDataUrl, lastCell = 'PROJECTILE') {
         }
     }
     return outCanvas.toDataURL('image/png');
+}
+/** Repair previously saved sprites without re-centering poses a second time. */
+async function repairSavedSpriteChroma(sheetUrl) {
+    const image = await loadImage(sheetUrl);
+    const canvas = document.createElement('canvas');
+    canvas.width = SHEET_SIZE;
+    canvas.height = SHEET_SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx)
+        throw new Error('Canvas no disponible para reparar transparencia.');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, 0, 0, SHEET_SIZE, SHEET_SIZE);
+    const pixels = ctx.getImageData(0, 0, SHEET_SIZE, SHEET_SIZE);
+    (0, chromaKey_1.removeChromaBackground)(pixels, CELL_SIZE);
+    ctx.putImageData(pixels, 0, 0);
+    return canvas.toDataURL('image/png');
 }
 /** Detects flat green/transparent cell backgrounds before a sheet becomes playable. */
 function verifySheetBackground(ctx) {

@@ -153,7 +153,6 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     if (page !== 'HOME' || !featured || !rival) return;
     soundFX.confirmBeep();
     if(mode==='ONLINE'){
-      if(onlineSession && onlineRoom?.role==='host' && onlineRoom.guest && onlineRoom.host.ready && onlineRoom.guest.ready && onlineRoom.guest.connected){onlineSession.start();return;}
       setShowOnlineLobby(true);return;
     }
     onStartMatch(featured,rival,mode,stage,difficulty);
@@ -201,7 +200,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
         </div>
         <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : mode === '1P_VS_2P' ? '2 JUGADORES' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
-        <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.role==='host'&&onlineRoom.guest?.ready&&onlineRoom.host.ready?'¡COMENZAR ONLINE!':onlineRoom?.role==='guest'?'SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
+        <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         <div className="pb-home-footer"><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING <small>DEMO</small></button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}

@@ -1,5 +1,5 @@
 /* PHOTO BRAWL: cache only the game's shell, never Gemini requests or user photos. */
-const CACHE_NAME = 'pb-shell-v11-3';
+const CACHE_NAME = 'pb-shell-v12-1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './arcade-gym.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

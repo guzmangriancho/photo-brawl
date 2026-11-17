@@ -3,7 +3,7 @@ import type { EngineSnapshot, InputState, MoveSlot, FighterState } from '../engi
 
 export const ONLINE_PROTOCOL = 1;
 export type PlayerRole = 'host' | 'guest';
-export type RoomStatus = 'waiting' | 'playing' | 'interrupted' | 'finished';
+export type RoomStatus = 'waiting' | 'countdown' | 'playing' | 'interrupted' | 'finished';
 export interface RoomView {
   code: string;
   role: PlayerRole;
@@ -11,6 +11,7 @@ export interface RoomView {
   host: { name: string; ready: boolean; connected: boolean };
   guest: { name: string; ready: boolean; connected: boolean } | null;
   stage: StageId;
+  countdownEndsAt?: number | null;
 }
 export interface NetworkFighter {
   x: number; y: number; vx: number; vy: number; facing: 1 | -1;

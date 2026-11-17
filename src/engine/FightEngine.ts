@@ -192,6 +192,11 @@ export interface EngineSnapshot {
   roundOver: boolean;
   winnerName: string | null;
   announceText: string | null;
+  roundNumber: number;
+  p1RoundWins: number;
+  p2RoundWins: number;
+  roundBreakFrames: number;
+  roundIntroFrames: number;
 }
 
 function createEmptyInput(): InputState {
@@ -227,7 +232,13 @@ export class FightEngine {
   public superFlashOwner: 0 | 1 = 0;
   public shakeIntensity: number = 0;
   public roundTimerFrames: number = 99 * 60;
+  /** roundOver means MATCH over; intermediate KOs trigger the next round automatically. */
   public roundOver: boolean = false;
+  public roundNumber = 1;
+  public p1RoundWins = 0;
+  public p2RoundWins = 0;
+  public roundBreakFrames = 0;
+  public roundIntroFrames = 0;
   public winnerName: string | null = null;
   public announceText: string | null = 'ROUND 1 - FIGHT!';
   public announceTimer: number = 75;
@@ -323,26 +334,50 @@ export class FightEngine {
     soundFX.roundStart();
   }
 
+  /** Reset the entire match (for rematches), retaining already decoded art. */
   public resetRound(): void {
-    this.p1 = this.createFighterRuntime(0, this.p1.profile, 260, 1);
-    this.p2 = this.createFighterRuntime(1, this.p2.profile, STAGE_WIDTH - 260, -1);
-    this.loadAssets();
-    this.projectiles = [];
-    this.particles = [];
-    this.callouts = [];
-    this.afterimages = [];
-    this.shockwaves = [];
-    this.meteors = [];
-    this.crossSlashes = [];
-    this.roundTimerFrames = 99 * 60;
-    this.hitstopFrames = 0;
-    this.superFlashFrames = 0;
-    this.p1Input = createEmptyInput();
-    this.p2Input = createEmptyInput();
-    this.roundOver = false;
-    this.winnerName = null;
-    this.announceText = 'FIGHT!';
-    this.announceTimer = 55;
+    this.roundNumber = 1;
+    this.p1RoundWins = 0;
+    this.p2RoundWins = 0;
+    this.roundBreakFrames = 0;
+    this.roundIntroFrames = 0;
+    this.resetFighters();
+    this.announceText = 'ROUND 1 · FIGHT!';
+    this.announceTimer = 75;
+  }
+
+  private resetFighters(): void {
+    const sprite1=this.p1.spriteSheet,sprite2=this.p2.spriteSheet;
+    this.p1=this.createFighterRuntime(0,this.p1.profile,260,1);
+    this.p2=this.createFighterRuntime(1,this.p2.profile,STAGE_WIDTH-260,-1);
+    // Node has no window/Image; sprites are loaded only once on the browser.
+    this.p1.spriteSheet=sprite1;
+    this.p2.spriteSheet=sprite2;
+    this.projectiles=[];this.particles=[];this.callouts=[];
+    this.afterimages=[];this.shockwaves=[];this.meteors=[];this.crossSlashes=[];
+    this.roundTimerFrames=99*60;
+    this.hitstopFrames=0;this.superFlashFrames=0;
+    this.p1Input=createEmptyInput();this.p2Input=createEmptyInput();
+    this.roundOver=false;this.winnerName=null;
+  }
+
+  private completeRound(winner: 0|1|null): void {
+    // A timeout tie replays the round; wins are never awarded twice.
+    if(this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0)return;
+    if(winner===0)this.p1RoundWins++;
+    if(winner===1)this.p2RoundWins++;
+    const roundWinner=winner===null?'EMPATE':winner===0?this.p1.profile.fighterName:this.p2.profile.fighterName;
+    const matchWinner=this.p1RoundWins===2?this.p1.profile.fighterName:this.p2RoundWins===2?this.p2.profile.fighterName:null;
+    if(matchWinner){
+      this.roundOver=true;
+      this.winnerName=matchWinner;
+      this.announceText=`${matchWinner} · ¡VICTORIA!`;
+      this.announceTimer=260;
+    } else {
+      this.roundBreakFrames=120; // 2 seconds to see the KO, then the next round.
+      this.announceText=winner===null?'¡EMPATE! REPETIR RONDA':`${roundWinner} · RONDA GANADA`;
+      this.announceTimer=120;
+    }
   }
 
   public setP1Mechanic(
@@ -395,6 +430,8 @@ export class FightEngine {
       roundOver: this.roundOver,
       winnerName: this.winnerName,
       announceText: this.announceTimer > 0 ? this.announceText : null,
+      roundNumber: this.roundNumber, p1RoundWins:this.p1RoundWins, p2RoundWins:this.p2RoundWins,
+      roundBreakFrames:this.roundBreakFrames,roundIntroFrames:this.roundIntroFrames,
     };
   }
 
@@ -426,7 +463,12 @@ export class FightEngine {
     this.frameCount=state.frame;
     Object.assign(this.p1,state.p1);
     Object.assign(this.p2,state.p2);
-    this.projectiles=state.projectiles.map((p) => ({...p,spriteSheet:null})) as unknown as ProjectileEntity[];
+    // Wire data only contains ownerIndex, never the Image object. Restore the
+    // actual projectile art from the *owner's* loaded sheet on each snapshot.
+    this.projectiles=state.projectiles.map((value) => {
+      const p=value as Omit<ProjectileEntity,'spriteSheet'>;
+      return {...p,spriteSheet:p.ownerIndex===0?this.p1.spriteSheet:this.p2.spriteSheet};
+    });
     this.particles=state.particles as unknown as Particle[];
     this.callouts=state.callouts as unknown as FloatingCallout[];
     this.afterimages=state.afterimages as unknown as Afterimage[];
@@ -442,19 +484,24 @@ export class FightEngine {
     this.roundOver=state.snapshot.roundOver;
     this.winnerName=state.snapshot.winnerName;
     this.announceText=state.snapshot.announceText;
+    this.roundNumber=state.snapshot.roundNumber;
+    this.p1RoundWins=state.snapshot.p1RoundWins;
+    this.p2RoundWins=state.snapshot.p2RoundWins;
+    this.roundBreakFrames=state.snapshot.roundBreakFrames;
+    this.roundIntroFrames=state.snapshot.roundIntroFrames;
   }
 
   public queueNetworkAction(index: 0 | 1, slot: MoveSlot): void {
     const f = index === 0 ? this.p1 : this.p2;
-    if (this.roundOver || (slot === 'SUPER' && f.meter < 100)) return;
+    if (this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && f.meter < 100)) return;
     f.bufferedActions.push({slot,frame:this.frameCount});
     if (f.bufferedActions.length > 4) f.bufferedActions.shift();
   }
   public queueNetworkJump(index: 0 | 1): void {
-    if (!this.roundOver) (index === 0 ? this.p1 : this.p2).bufferedJumpFrame=this.frameCount;
+    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedJumpFrame=this.frameCount;
   }
   public queueNetworkDash(index: 0 | 1, dir: -1 | 1): void {
-    if (!this.roundOver) (index === 0 ? this.p1 : this.p2).bufferedDash={dir,frame:this.frameCount};
+    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedDash={dir,frame:this.frameCount};
   }
 
   /** Captura pulsaciones incluso durante HITSTOP. La orden dura ~0,38 s,
@@ -472,7 +519,7 @@ export class FightEngine {
       slot = input.up ? 'SP_UP' : forward ? 'SP_FORWARD' : 'SP_NEUTRAL';
     } else if (pressed('heavy')) slot = 'HEAVY';
     else if (pressed('light')) slot = 'LIGHT';
-    if (slot !== null && !this.roundOver) {
+    if (slot !== null && !this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) {
       f.bufferedActions.push({ slot, frame: this.frameCount });
       if (f.bufferedActions.length > 4) f.bufferedActions.shift();
     }
@@ -485,18 +532,18 @@ export class FightEngine {
 
   /** Eventos desde pantalla táctil, capturados al tocar sin depender de RAF. */
   public queueTouchAction(slot: MoveSlot): void {
-    if (this.roundOver || (slot === 'SUPER' && this.p1.meter < 100)) return;
+    if (this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && this.p1.meter < 100)) return;
     this.p1.bufferedActions.push({ slot, frame: this.frameCount });
     if (this.p1.bufferedActions.length > 4) this.p1.bufferedActions.shift();
   }
 
   /** Independent jump press: reliably survives short taps between animation frames. */
   public queueTouchJump(): void {
-    if (!this.roundOver) this.p1.bufferedJumpFrame = this.frameCount;
+    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedJumpFrame = this.frameCount;
   }
 
   public queueTouchDash(dir: 1 | -1): void {
-    if (!this.roundOver) this.p1.bufferedDash = { dir, frame: this.frameCount };
+    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedDash = { dir, frame: this.frameCount };
   }
 
   /** Se usa al pausar: nunca debe ejecutarse un golpe almacenado al reanudar. */
@@ -520,6 +567,28 @@ export class FightEngine {
 
   public step(): void {
     this.frameCount++;
+    if(this.roundBreakFrames>0){
+      this.roundBreakFrames--;
+      if(this.roundBreakFrames===0){
+        this.roundNumber++;
+        this.resetFighters();
+        this.roundIntroFrames=180; // 3, 2, 1, FIGHT on server and local alike.
+        this.announceTimer=180;
+      }
+      return;
+    }
+    if(this.roundIntroFrames>0){
+      this.announceText=`RONDA ${this.roundNumber} · ${Math.ceil(this.roundIntroFrames/60)}`;
+      this.announceTimer=10;
+      this.roundIntroFrames--;
+      if(this.roundIntroFrames===0){
+        // Held buttons during the countdown must not become phantom attacks.
+        this.p1.actionPrevInput={...this.p1Input};this.p2.actionPrevInput={...this.p2Input};
+        this.announceText='¡FIGHT!';this.announceTimer=55;
+      }
+      return;
+    }
+    if(this.roundOver)return;
     if (this.announceTimer > 0) this.announceTimer--;
     if (this.shakeIntensity > 0) this.shakeIntensity = Math.max(0, this.shakeIntensity - 0.85);
 
@@ -579,18 +648,11 @@ export class FightEngine {
   }
 
   private finishRoundByTimeout(): void {
-    this.roundOver = true;
-    const p1Ratio = this.p1.hp / this.p1.maxHp;
-    const p2Ratio = this.p2.hp / this.p2.maxHp;
-    if (p1Ratio >= p2Ratio) {
-      this.winnerName = this.p1.profile.fighterName;
-      this.p1.state = 'VICTORY';
-    } else {
-      this.winnerName = this.p2.profile.fighterName;
-      this.p2.state = 'VICTORY';
-    }
-    this.announceText = `TIME OVER! ${this.winnerName} WINS!`;
-    this.announceTimer = 240;
+    const p1Ratio=this.p1.hp/this.p1.maxHp;
+    const p2Ratio=this.p2.hp/this.p2.maxHp;
+    const winner:0|1|null=Math.abs(p1Ratio-p2Ratio)<0.000001?null:p1Ratio>p2Ratio?0:1;
+    if(winner!==null)(winner===0?this.p1:this.p2).state='VICTORY';
+    this.completeRound(winner);
     soundFX.koFanfare();
   }
 
@@ -1832,8 +1894,7 @@ export class FightEngine {
   }
 
   private triggerKnockout(winner: FighterRuntime, loser: FighterRuntime): void {
-    this.roundOver = true;
-    this.winnerName = winner.profile.fighterName;
+    if(this.roundOver||this.roundBreakFrames>0)return;
     winner.state = 'VICTORY';
     winner.stateFrame = 0;
     loser.state = 'KO';
@@ -1842,8 +1903,9 @@ export class FightEngine {
     loser.vx = winner.facing * 9;
     this.hitstopFrames = 16;
     this.shakeIntensity = 18;
-    this.announceText = `K.O.! ${this.winnerName} WINS!`;
-    this.announceTimer = 260;
+    this.completeRound(winner.index);
+    // Keep an intermediate KO visible until the next-round countdown.
+    if(!this.roundOver){this.announceText=`K.O.! ${winner.profile.fighterName}`;this.announceTimer=120;}
     soundFX.koFanfare();
     this.spawnHitSparks(loser.x, loser.y - 70, '#facc15', 32);
   }

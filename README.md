@@ -1,3 +1,14 @@
+# PHOTO BRAWL V12 — Pulido visual y rounds best-of-three
+
+**Actualización de la V11 con el fix WebSocket fragmentado incluido:** transparencia de los huecos interiores del spritesheet, reparación automática de imágenes antiguas de luchadores personalizados, proyectiles personalizados visibles también online, proporciones correctas del personaje del menú, creador mejor adaptado a móvil, cuenta atrás automática tras dos jugadores listos y partidas al mejor de tres (gana quien logra dos rondas).
+
+- **Local:** `npm install` y `npm run dev:online` para probar también el online por Wi-Fi.
+- **Internet:** sube estos archivos a tu repositorio de GitHub; Render y Vercel deben desplegar ambos la misma V12. Se mantienen las variables `VITE_ONLINE_WS_URL` y `ONLINE_ALLOWED_ORIGINS` de V11.
+- **Pruebas:** `npm test` o `npm run test:online`.
+- **Detalles de cambios y despliegue:** [`docs/CAMBIOS_V12.md`](docs/CAMBIOS_V12.md).
+
+---
+
 # PHOTO BRAWL V11 — VERSUS ONLINE (salas privadas)
 
 **Nuevo:** modo 1v1 por WebSocket entre dos móviles, servidor Node.js autoritativo a 60 Hz, salas por código/invitación, listo, escenario, revancha, reconexión y partidas sin clasificación. La creación con IA, el modo local, los menús sin scroll y la PWA se mantienen.
@@ -9,7 +20,7 @@ npm install
 npm run dev:online
 ```
 
-Abre en ambos la URL `Network` de Vite, elige **VERSUS ONLINE** en Inicio, crea sala en un móvil y únete desde el otro con el código. Ambos marcan «LISTO» y el anfitrión inicia el combate **desde el menú principal**. Si solamente ejecutas `npm run dev`, NO arrancas el servidor online.
+Abre en ambos la URL `Network` de Vite, elige **VERSUS ONLINE** en Inicio, crea sala en un móvil y únete desde el otro con el código. Ambos marcan «LISTO» y comienza automáticamente una cuenta atrás de 3 segundos. Si solamente ejecutas `npm run dev`, NO arrancas el servidor online.
 
 **Pruebas:** `npm test` (incluye `test:online`) o solo `npm run test:online`.
 

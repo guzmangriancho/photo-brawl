@@ -107,6 +107,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     p1Hp: 1000, p1MaxHp: 1000, p1Meter: 0, p1Combo: 0, p1ChainStep: 0, p1ComboDamage: 0,
     p2Hp: 1000, p2MaxHp: 1000, p2Meter: 0, p2Combo: 0, p2ChainStep: 0, p2ComboDamage: 0,
     timer: 99, roundOver: false, winnerName: null, announceText: 'ROUND 1 - FIGHT!',
+    roundNumber:1,p1RoundWins:0,p2RoundWins:0,roundBreakFrames:0,roundIntroFrames:0,
   });
   const [paused, setPaused] = useState(false);
   const [fixedStick, setFixedStick] = useState(false);
@@ -431,7 +432,12 @@ export const FightArena: React.FC<FightArenaProps> = ({
               </div>
             </div>
             <div className="arena-time">
-              <span className="arena-round-label">ROUND 01</span>
+              <span className="arena-round-label">RONDA {snapshot.roundNumber} · MEJOR DE 3</span>
+              <div className="arena-round-score" aria-label={`Rondas: ${snapshot.p1RoundWins} a ${snapshot.p2RoundWins}`}>
+                <span className="arena-round-pips">{[0,1].map(i=><i key={i} className={i<snapshot.p1RoundWins?'is-won':''}/>)}</span>
+                <b>{snapshot.p1RoundWins} - {snapshot.p2RoundWins}</b>
+                <span className="arena-round-pips">{[0,1].map(i=><i key={i} className={i<snapshot.p2RoundWins?'is-won':''}/>)}</span>
+              </div>
               <div className={`arena-time-number ${snapshot.timer <= 10 && mode !== 'TRAINING' ? 'is-urgent' : ''}`} aria-label={`Tiempo restante: ${snapshot.timer}`}>
                 {mode === 'TRAINING' ? '∞' : String(snapshot.timer).padStart(2, '0')}
               </div>
@@ -506,7 +512,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
       </div>
 
-      {!paused && !showLab && !snapshot.roundOver && mode !== 'CPU_VS_CPU' && (
+      {!paused && !showLab && !snapshot.roundOver && !snapshot.roundBreakFrames && !snapshot.roundIntroFrames && mode !== 'CPU_VS_CPU' && (
         <div className="arena-mobile-guide" aria-hidden="true">
           <div className="arena-guide-panel">
             <span className="arena-guide-eyebrow">APRENDE EN 10 SEGUNDOS</span>
@@ -520,7 +526,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
           </div>
         </div>
       )}
-      {!paused && !showLab && !snapshot.roundOver && mode !== 'CPU_VS_CPU' && (
+      {!paused && !showLab && !snapshot.roundOver && !snapshot.roundBreakFrames && !snapshot.roundIntroFrames && mode !== 'CPU_VS_CPU' && (
         <MobileControls
           inputRef={p1TouchRef}
           superReady={(guestOnline?snapshot.p2Meter:snapshot.p1Meter) >= 100}

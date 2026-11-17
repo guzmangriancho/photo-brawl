@@ -9,6 +9,7 @@ const LETTERS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // The game is frozen when either player disconnects.
 const WAIT_GRACE=Math.max(15_000,Math.min(180_000,Number(process.env.ONLINE_RECONNECT_GRACE_MS)||90_000));
 const IDLE_EXPIRY=15*60_000;
+const COUNTDOWN_MS=Math.max(300,Math.min(10000,Number(process.env.ONLINE_START_COUNTDOWN_MS)||3000));
 const STAGES=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT'];
 const rooms=new Map();
 const token=()=>randomBytes(24).toString('hex');
@@ -22,11 +23,41 @@ function lobby(room){
   for(const player of [room.host,room.guest])if(player?.peer){
     send(player,{type:'room',room:{
       code:room.code,role:player.role,status:status(room),
-      stage:room.stage,
+      stage:room.stage,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
       host:{name:room.host.profile.fighterName,ready:room.host.ready,connected:Boolean(room.host.peer)},
       guest:room.guest?{name:room.guest.profile.fighterName,ready:room.guest.ready,connected:Boolean(room.guest.peer)}:null,
     }});
   }
+}
+function cancelCountdown(room){
+  if(room.countdownTimer)clearTimeout(room.countdownTimer);
+  room.countdownTimer=null;room.countdownEndsAt=null;
+  if(room.status==='countdown')room.status='waiting';
+}
+function startMatch(room){
+  if(room.status!=='countdown')return;
+  cancelCountdown(room);
+  if(!room.guest||!room.host.ready||!room.guest.ready||!room.host.peer||!room.guest.peer){lobby(room);return;}
+  room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
+  room.status='playing';room.host.vote=false;room.guest.vote=false;
+  room.host.mask=0;room.guest.mask=0;
+  each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage});
+  lobby(room);sendState(room);
+  room.tick=setInterval(()=>{
+    if(room.status!=='playing'||!room.engine||!room.host.peer||!room.guest?.peer)return;
+    room.engine.p1Input=unpackControls(room.host.mask);
+    room.engine.p2Input=unpackControls(room.guest.mask);
+    const previousRound=room.engine.roundNumber;
+    room.engine.step();
+    if(room.engine.roundNumber!==previousRound){room.host.mask=0;room.guest.mask=0;}
+    if(room.engine.frameCount%2===0)sendState(room);
+  },1000/60);
+}
+function beginCountdown(room){
+  if(room.status!=='waiting'||!room.guest||!room.host.ready||!room.guest.ready||!room.host.peer||!room.guest.peer)return;
+  room.status='countdown';room.countdownEndsAt=Date.now()+COUNTDOWN_MS;
+  room.countdownTimer=setTimeout(()=>startMatch(room),COUNTDOWN_MS);
+  lobby(room);
 }
 function fail(peer,message){peer.send({type:'error',message});}
 function newPlayer(peer,role,profile){return {peer,role,profile,token:token(),ready:false,mask:0,lastSeq:-1,msgCount:0,msgTick:Date.now(),actionCount:0,actionTick:Date.now(),lostAt:0,vote:false};}
@@ -46,7 +77,7 @@ function handle(peer,msg) {
     const profile=validateProfile(msg.profile);
     if(!profile)return fail(peer,'Luchador no válido; comprueba los recursos PNG.');
     if(rooms.size>=40)return fail(peer,'Servidor lleno; inténtalo después.');
-    const item={code:code(),host:newPlayer(peer,'host',profile),guest:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],engine:null,created:Date.now(),tick:null};
+    const item={code:code(),host:newPlayer(peer,'host',profile),guest:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
     rooms.set(item.code,item);bind(peer,item,item.host);lobby(item);return;
   }
   if(msg.type==='join') {
@@ -64,6 +95,7 @@ function handle(peer,msg) {
     const existing=rooms.get(String(msg.code||'').toUpperCase());
     const found=existing && [existing.host,existing.guest].find(p=>p?.token===msg.token);
     if(!found)return fail(peer,'No se pudo recuperar la sala.');
+    if(existing.status==='countdown'){cancelCountdown(existing);found.ready=false;}
     if(found.peer){ // Close previous connection but prevent stale close callback from removing the newly bound socket.
       const old=found.peer;found.peer=null;old.close();
     }
@@ -88,33 +120,19 @@ function handle(peer,msg) {
     lobby(room);return;
   }
   if(msg.type==='ready') {
-    if(room.status!=='waiting')return;
-    player.ready=msg.ready===true;lobby(room);return;
+    if(room.status!=='waiting'&&room.status!=='countdown')return;
+    if(room.status==='countdown'&&msg.ready!==true)cancelCountdown(room);
+    player.ready=msg.ready===true;
+    if(room.status==='waiting')beginCountdown(room);
+    lobby(room);return;
   }
   if(msg.type==='stage') {
     if(room.status!=='waiting'||player.role!=='host')return;
     if(STAGES.includes(msg.stage))room.stage=msg.stage;
     lobby(room);return;
   }
-  if(msg.type==='start') {
-    if(room.status!=='waiting'||player.role!=='host')return;
-    if(!room.guest||!room.host.ready||!room.guest.ready || !room.host.peer || !room.guest.peer)
-      return fail(peer,'Los dos jugadores deben estar conectados y listos.');
-    room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
-    room.status='playing';room.host.vote=false;room.guest.vote=false;
-    each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage});
-    lobby(room);
-    sendState(room);
-    room.tick=setInterval(()=>{
-      if(room.status!=='playing'||!room.engine || !room.host.peer||!room.guest?.peer)return;
-      room.engine.p1Input=unpackControls(room.host.mask);
-      room.engine.p2Input=unpackControls(room.guest.mask);
-      room.engine.step();
-      if(room.engine.frameCount%2===0)sendState(room); // 30 state snapshots/s; 60 Hz physics.
-      if(room.engine.roundOver && room.engine.frameCount%60===0)lobby(room);
-    },1000/60);
-    return;
-  }
+  // Start is exclusively server-controlled once both users ready up.
+  if(msg.type==='start')return fail(peer,'La partida empieza automáticamente cuando ambos estén listos.');
   if(msg.type==='input') {
     if(room.status!=='playing'||!room.engine || !player.peer)return;
     const now=Date.now();
@@ -161,6 +179,7 @@ function sendState(room){
 function remove(room){
   if(!rooms.has(room.code))return;
   rooms.delete(room.code);
+  cancelCountdown(room);
   if(room.tick)clearInterval(room.tick);
   for(const p of [room.host,room.guest]) if(p?.peer){const peer=p.peer;p.peer=null;peer.room=null;peer.player=null;peer.send({type:'closed'});}
 }
@@ -170,6 +189,7 @@ function leave(peer,explicit=false){
   peer.room=null;peer.player=null;
   if(player.peer!==peer)return;
   player.peer=null;player.mask=0;player.lostAt=Date.now();
+  if(room.status==='countdown'){cancelCountdown(room);player.ready=false;}
   if(explicit) {
     send(player,{type:'left'});
     if(room.status==='playing'){

@@ -702,3 +702,11 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
   .mobile-action small { font-size: 9px; }
   .mobile-jump strong { font-size: 12px; }
 }
+
+/* V12: compact best-of-three scoreboard under the round label. */
+.arena-round-score{display:flex;align-items:center;justify-content:center;gap:5px;line-height:1;color:#ffe3a1;text-shadow:1px 2px #16162a}
+.arena-round-score b{font:900 clamp(10px,1.5vw,15px)/1 Oxanium,sans-serif;white-space:nowrap}
+.arena-round-pips{display:flex;gap:3px}
+.arena-round-pips i{width:clamp(6px,.9vw,10px);height:clamp(6px,.9vw,10px);border:1px solid #7f88a0;background:#18223a;transform:rotate(45deg)}
+.arena-round-pips i.is-won{background:#ffbd52;border-color:#ffe2a3;box-shadow:0 0 4px #ffb13b}
+@media (max-width:700px){.arena-round-score{gap:3px}.arena-round-pips{gap:2px}.arena-round-label{font-size:clamp(7px,1.4vw,10px)}}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X } from 'lucide-react';
 import type { FighterProfile, StageId } from '../types/fighter';
 import type { RoomView } from '../network/protocol';
@@ -15,6 +15,12 @@ export function OnlineLobby({fighter,stage,session,room,externalError,onSession,
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [copied,setCopied]=useState(false);
+  const [remaining,setRemaining]=useState(3);
+  useEffect(()=>{
+    if(room?.status!=='countdown'||!room.countdownEndsAt)return;
+    const update=()=>setRemaining(Math.max(1,Math.ceil((room.countdownEndsAt!-Date.now())/1000)));
+    update();const timer=setInterval(update,90);return()=>clearInterval(timer);
+  },[room?.status,room?.countdownEndsAt]);
   const creating=async(isHost:boolean)=>{
     if(busy)return;
     if(!isHost&&code.replace(/[^A-Za-z0-9]/g,'').length!==6){setError('Introduce un código de 6 caracteres.');return;}
@@ -49,9 +55,10 @@ export function OnlineLobby({fighter,stage,session,room,externalError,onSession,
       </div> : <div className="pb-online-ready">
         <div className="pb-online-code"><small>CÓDIGO DE SALA</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> INVITAR</button></div></div>
         <div className="pb-online-players"><div><ShieldCheck size={18}/><strong>{room.host.name}</strong><small>{room.host.connected?(room.host.ready?'LISTO':'PREPARANDO'):'RECONECTANDO'}</small></div><b>VS</b><div><Gamepad2 size={18}/><strong>{room.guest?.name||'ESPERANDO RIVAL'}</strong><small>{!room.guest?'COMPARTE EL CÓDIGO':!room.guest.connected?'RECONECTANDO':room.guest.ready?'LISTO':'PREPARANDO'}</small></div></div>
-        {room.role==='host' && <div className="pb-online-stages"><span>ESCENARIO</span><div>{([['SKI_RESORT','NIEVE'],['NIGHT_PLAZA','CIUDAD'],['SUMMER_SUMMIT','CUMBRE']] as [StageId,string][]).map(([id,label])=><button key={id} type="button" className={room.stage===id?'is-active':''} onClick={()=>session?.stage(id)}>{label}</button>)}</div></div>}
-        <div className="pb-online-ready-actions"><button type="button" className={myReady?'is-ready':''} onClick={()=>session?.ready(!myReady)}><Check size={17}/> {myReady?'ESTOY LISTO ✓':'ESTOY LISTO'}</button><button type="button" onClick={onClose}><ArrowLeft size={16}/> VOLVER AL MENÚ</button></div>
-        <p className="pb-online-hint">{room.role==='host'?'Cuando ambos estéis listos, inicia el combate desde el botón principal del menú.':'El anfitrión iniciará el combate cuando los dos estéis listos.'}</p>
+        {room.role==='host' && room.status==='waiting' && <div className="pb-online-stages"><span>ESCENARIO</span><div>{([['SKI_RESORT','NIEVE'],['NIGHT_PLAZA','CIUDAD'],['SUMMER_SUMMIT','CUMBRE']] as [StageId,string][]).map(([id,label])=><button key={id} type="button" className={room.stage===id?'is-active':''} onClick={()=>session?.stage(id)}>{label}</button>)}</div></div>}
+        {room.status==='countdown' && <div className="pb-online-countdown" role="status" aria-live="off"><span>PREPARADOS · A COMBATIR</span><strong>{remaining}</strong><small>INICIO AUTOMÁTICO</small></div>}
+        <div className="pb-online-ready-actions"><button type="button" className={myReady?'is-ready':''} onClick={()=>session?.ready(!myReady)}><Check size={17}/> {room.status==='countdown'?'CANCELAR':myReady?'ESTOY LISTO ✓':'ESTOY LISTO'}</button><button type="button" onClick={onClose}><ArrowLeft size={16}/> VOLVER AL MENÚ</button></div>
+        <p className="pb-online-hint">{room.status==='countdown'?'¡La partida comienza sola al terminar la cuenta atrás!':'Cuando ambos estéis listos, comenzará una cuenta atrás de 3 segundos.'}</p>
         <button className="pb-online-leave" type="button" onClick={()=>{session?.close();onSession(null);}}>ABANDONAR SALA</button>
       </div>}
       {(error||externalError)&&<p className="pb-online-error" role="alert">{error||externalError}</p>}
