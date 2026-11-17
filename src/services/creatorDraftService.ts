@@ -18,6 +18,7 @@ export interface CreatorDraft {
   id: typeof MAIN_ID;
   updatedAt: number;
   step: CreatorDraftStep;
+  mode?: 'guided' | 'automatic'; // V19: backwards-compatible; old drafts default to guided
   photoFile: File | null;
   prepared: CreatorPhoto | null;
   name: string;
