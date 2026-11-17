@@ -113,3 +113,32 @@
 .pb-login-form>button[type=submit]{width:100%;min-height:37px}
 @media(max-width:490px){.pb-login-fields{grid-template-columns:1fr}.pb-login-switch button{min-height:30px}}
 @media(max-height:410px){.pb-login-form{gap:5px}.pb-login-form .pb-social-fields input{min-height:27px;padding:3px}.pb-login-form>button[type=submit]{min-height:30px}.pb-login-switch button{min-height:26px}.pb-login-form small{font-size:9px;line-height:1.15}}
+
+/* V20 · Invitaciones 1v1 de luchadores; 3 registros por página, sin scroll de documento. */
+.pb-account-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pb-transfer-dialog{width:min(94vw,540px)}
+.pb-transfer-hero{display:flex;gap:12px;align-items:center;min-height:0;padding:5px 8px;background:#112a4c;border:1px solid #5d83ad}
+.pb-transfer-hero img{height:clamp(44px,12vh,78px);width:clamp(44px,12vh,78px);object-fit:cover;image-rendering:pixelated}
+.pb-transfer-hero>div{min-width:0;display:grid;gap:4px}
+.pb-transfer-hero strong{font:900 clamp(15px,2.3vw,21px) Oxanium,system-ui;color:#ffe097}
+.pb-transfer-hero small,.pb-transfer-footnote{font:700 clamp(9px,1vw,12px)/1.25 Oxanium,system-ui;color:#bbd6f2}
+.pb-transfer-warning{font:800 12px/1.3 Oxanium,system-ui;color:#ffe7ac;border:1px solid #d6a869;background:#493526;padding:9px}
+.pb-transfer-inbox{display:flex;flex-direction:column;flex:1;min-height:0;gap:clamp(4px,1vh,9px)}
+.pb-transfer-subtabs{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;flex-shrink:0}
+.pb-transfer-subtabs button{font:900 clamp(10px,1.3vw,14px) Oxanium,system-ui;min-height:28px;color:#d6eaff;background:#14355a;border:2px solid #557eb0;padding:3px 7px}
+.pb-transfer-subtabs button.active{color:#ffdd95;background:#3d4275;border-color:#ffdb92}
+.pb-transfer-list{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:5px;flex:1;min-height:0}
+.pb-transfer-list>.pb-social-blank{grid-row:1/4}
+.pb-transfer-card{display:flex;align-items:center;justify-content:space-between;min-height:0;min-width:0;gap:6px;padding:clamp(4px,.7vh,7px) 7px;background:#0c2445;border:1px solid #466e98}
+.pb-transfer-card-copy{display:flex;flex-direction:column;min-width:0;gap:2px}
+.pb-transfer-card-copy strong{font:900 clamp(11px,1.7vw,16px) Oxanium,system-ui;color:#ffdf94;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-transfer-card-copy span,.pb-transfer-card-copy small{font:750 clamp(9px,1.2vw,12px) Oxanium,system-ui;color:#b5d6ef}
+.pb-transfer-card-copy small{color:#8de6c3}
+.pb-transfer-card-actions{display:flex;flex-shrink:0;gap:5px}
+.pb-transfer-card-actions button,.pb-transfer-pages button{font:900 clamp(9px,1.1vw,12px) Oxanium,system-ui;color:#fff;background:#344b6b;border:1px solid #7396b8;padding:5px 8px;display:flex;gap:4px;align-items:center;justify-content:center;min-height:28px}
+.pb-transfer-card-actions button.pb-transfer-accept{background:#356a61;color:#d7fff0;border-color:#83debd}
+.pb-transfer-card-actions button:disabled,.pb-transfer-pages button:disabled{opacity:.4}
+.pb-transfer-pages{display:flex;align-items:center;justify-content:center;gap:9px;color:#e6d59f;font:900 12px Oxanium,system-ui}
+.pb-transfer-footnote{font-size:clamp(9px,1.1vw,11px)}
+@media(max-height:430px){.pb-transfer-hero{padding:3px 6px}.pb-transfer-hero img{width:40px;height:40px}.pb-transfer-card{padding:2px 6px}.pb-transfer-card-actions button{padding:2px 5px;min-height:23px}.pb-transfer-inbox{gap:3px}.pb-transfer-card-copy{gap:0}.pb-transfer-footnote{font-size:9px}}
+@media(max-width:510px){.pb-transfer-card-actions{gap:3px}.pb-transfer-card-actions button{padding:3px 5px;font-size:9px}.pb-transfer-card-copy span{font-size:9px}}

@@ -1,3 +1,11 @@
+## V19.6 — Registro y acceso con contraseña (sin Google ni emails de confirmación durante desarrollo)
+
+El login principal utiliza **correo + contraseña** y el registro se realiza en la misma pantalla. Configura Supabase → Authentication → Providers → Email → **Confirm Email DESACTIVADO** para que no envíe emails de confirmación. Las cuentas antiguas que siguen autenticadas pueden establecer una contraseña en Cuenta → CONTRASEÑA sin perder su ID ni luchadores. **Esta configuración es solo para pruebas: sin verificar el correo, cualquiera podría registrar una dirección ajena.** Consulta `docs/AUTH_CONTRASENA_V19_6.md` antes de desplegar.
+
+## V19 — Creador guiado sin API key
+
+La ruta principal de creación ahora es manual: fotografía → prompt de ficha → JSON validado → prompt de spritesheet e importación → prompt de retrato e importación → revisión. Incluye un tutorial paso a paso, enlaces a Gemini y ChatGPT y un botón secundario «Tengo API key» para el modo automático. El borrador sigue guardándose en IndexedDB y se recupera al regresar de otra app. La generación automática mantiene su funcionamiento y se usa únicamente si la elige el usuario.
+
 > **V16.4:** Ya puedes renombrar tus luchadores existentes desde ELEGIR LUCHADOR → CAMBIAR NOMBRE, sin perder sprites ni estadísticas. Consulta `docs/RENOMBRAR_LUCHADORES_V16_4.md`.
 
 ## Novedades V16.3 — Cuentas, comunidad y ranking accesibles
@@ -161,3 +169,16 @@ El modo **manual funciona sin clave**: copia primero el prompt JSON, pega la res
 - **No se pudo compilar Vite en este entorno** porque faltaban dependencias npm descargables; ejecuta `npm install && npm run build` en tu equipo.
 
 El ranking continúa siendo **DEMO** y no hay historial de combates locales.
+
+
+## V19.2 — portapapeles directo
+
+Copiar prompt confirma en el botón sin diálogo; pegar respuesta valida y avanza automáticamente. Fallback compatible con navegadores que no permiten leer portapapeles. Botón ABRIR MI IA del mismo tamaño que las acciones del creador. Más detalles en `docs/CREADOR_RAPIDO_V19_2.md`.
+
+
+## V20 — Transferir luchadores entre cuentas
+
+**Supabase → SQL Editor:** ejecuta `supabase/migrations/202611170002_fighter_transfers.sql` sobre la base V16.
+Desde **Elegir luchador → Transferir**, envía una invitación al nombre único de otro usuario.
+El destinatario entra en **Cuenta → Regalos** para aceptar o rechazar. Solo al aceptar cambia el propietario de la misma ficha y de los recursos privados, conservando las estadísticas y los ataques del luchador.
+Documentación en `docs/TRANSFERENCIAS_LUCHADORES_V20.md`.

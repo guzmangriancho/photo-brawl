@@ -1,16 +1,17 @@
 {
   "name": "photo-brawl-16bit",
   "private": true,
-  "version": "1.9.3",
+  "version": "1.9.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test:transfers": "node --test tests/v20.fighter-transfers.test.cjs",
     "test:engine": "node tests/fightEngine.test.cjs",
     "test:creator": "node tests/creatorDesign.test.cjs",
     "test:pwa": "node tests/pwaDraft.test.cjs",
-    "test": "npm run test:engine && npm run test:creator && npm run test:pwa && npm run test:v14 && npm run test:v15 && npm run test:online && npm run test:v16 && npm run test:rename && npm run test:vfx && npm run test:v18 && npm run test:v19 && npm run test:v19-1 && npm run test:v19-2",
+    "test": "npm run test:engine && npm run test:creator && npm run test:pwa && npm run test:v14 && npm run test:v15 && npm run test:online && npm run test:v16 && npm run test:rename && npm run test:vfx && npm run test:v18 && npm run test:v19 && npm run test:v19-1 && npm run test:v19-2 && npm run test:v19-6 && npm run test:transfers",
     "build:server-engine": "tsc -p server/tsconfig.json && node server/prepare.cjs",
     "dev:server": "npm run build:server-engine && node server/index.cjs",
     "dev:online": "node server/dev-online.cjs",
@@ -23,7 +24,8 @@
     "test:v18": "npm run build:server-engine && node --test tests/v18.visual-improvements.test.cjs",
     "test:v19": "node tests/v19.creator-onboarding.test.cjs",
     "test:v19-1": "node tests/v19_1.manual-flow.test.cjs",
-    "test:v19-2": "node tests/v19_2.clipboard-flow.test.cjs"
+    "test:v19-2": "node tests/v19_2.clipboard-flow.test.cjs",
+    "test:v19-6": "node --test tests/v19_6.password-auth.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

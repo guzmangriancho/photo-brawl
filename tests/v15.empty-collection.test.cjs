@@ -22,6 +22,7 @@ function harness(initialFighters){
   const OnlineLobby=stubComponent('OnlineLobby');
   const CommunityPage=stubComponent('CommunityPage');
   const AccountPanel=stubComponent('AccountPanel');
+  const FighterTransfers=stubComponent('FighterTransfers');
   const PwaInstallPrompt=stubComponent('PwaInstallPrompt');
   const jsx=(type,props,key)=>({type,props:props||{},key});
   const stages=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE','ROOFTOP'];
@@ -30,11 +31,13 @@ function harness(initialFighters){
     'react/jsx-runtime':{jsx,jsxs:jsx,Fragment:Symbol('fragment')},
     'lucide-react':new Proxy({}, {get:(target,key)=>String(key)}),
     '../data/presetFighters':{getPresetFighters:()=>[{...prototype,id:'preset_1',fighterName:'DEMO',isPreset:true}]},
-    './FighterCreator':{FighterCreator},'./OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./PwaInstallPrompt':{PwaInstallPrompt},
+    './FighterCreator':{FighterCreator},'./OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./FighterTransfers':{FighterTransfers},'./PwaInstallPrompt':{PwaInstallPrompt},
     '../network/OnlineSession':{OnlineSession:{restore:async()=>null}},
     '../services/creatorDraftService':{markCreatorOpen:()=>{},wasCreatorOpen:()=>false},
     '../services/storageService':{deleteCustomFighter:async()=>{},renameCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},
     '../services/communityService':{syncRenamedFighter:async()=> 'pending'},
+    '../services/fighterTransferService':{listFighterTransfers:async()=>({incoming:[],outgoing:[]})},
+    '../services/supabaseClient':{supabase:null},
     '../services/automaticFighterMigration':{requestAutomaticMigration:()=>{}},
     '../engine/SoundFX':{soundFX:{muted:false,selectBeep:()=>{},confirmBeep:()=>{}}},
     '../data/stages':{STAGE_IDS:stages,STAGE_ART:Object.fromEntries(stages.map(id=>[id,{name:id,short:id,image:'/backgrounds/snow.jpg'}]))},

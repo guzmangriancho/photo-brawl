@@ -7,12 +7,13 @@ import {getAutomaticMigrationStatus,subscribeAutomaticMigration,requestAutomatic
 import type {MigrationStatus} from '../services/automaticFighterMigration';
 import {exportLocalFightersBackup,getAllCustomFighters,mergeCustomFighters,readLocalFightersBackup} from '../services/storageService';
 import {usePlayerAccount} from '../services/usePlayerAccount';
+import {FighterTransfers} from './FighterTransfers';
 import './community.css';
 
 interface Props {onClose:()=>void;onRestored:(fighter:FighterProfile)=>void}
 export function AccountPanel({onClose,onRestored}:Props){
  const {user,loading}=usePlayerAccount();
- const [tab,setTab]=useState<'account'|'backup'>('account');
+ const [tab,setTab]=useState<'account'|'backup'|'transfers'>('account');
  const [email,setEmail]=useState('');
  const [authMode,setAuthMode]=useState<'login'|'register'>('login');
  const [password,setPassword]=useState(''),[passwordConfirm,setPasswordConfirm]=useState('');
@@ -158,8 +159,9 @@ export function AccountPanel({onClose,onRestored}:Props){
     <nav className="pb-account-tabs" aria-label="Cuenta y copias de seguridad">
       <button type="button" className={tab==='account'?'on':''} onClick={()=>{setTab('account');setNotice('');}}>CUENTA</button>
       <button type="button" className={tab==='backup'?'on':''} onClick={()=>{setTab('backup');setNotice('');}}>MIS COPIAS</button>
+      <button type="button" className={tab==='transfers'?'on':''} onClick={()=>{setTab('transfers');setNotice('');}}>REGALOS</button>
     </nav>
-    {tab==='backup' ? <div className="pb-social-form pb-account-backup">
+    {tab==='transfers' ? <FighterTransfers onImported={onRestored}/> : tab==='backup' ? <div className="pb-social-form pb-account-backup">
       <div className="pb-account-local"><HardDriveDownload size={19}/><span><b>{localCount===null?'…':localCount} LUCHADORES LOCALES</b><small>Tu colección permanece en este dispositivo incluso sin cuenta.</small></span></div>
       <div className="pb-social-buttons">
         <button type="button" disabled={busy} onClick={()=>void exportBackup()}><Download size={15}/> EXPORTAR ARCHIVO</button>

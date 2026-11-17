@@ -54,7 +54,7 @@ test('Install shortcuts and icons have correct manifest metadata',()=>{
  assert.equal(manifest.display,'standalone');
  assert.ok(manifest.icons.some(i=>i.sizes==='192x192'));
  assert.ok(manifest.icons.some(i=>i.sizes==='512x512' && i.purpose==='maskable'));
- for(const icon of manifest.icons)assert.ok(fs.existsSync(path.join(root,'public',icon.src)),icon.src);
+ for(const icon of manifest.icons)assert.ok(fs.existsSync(path.join(root,'public',icon.src.split('?')[0])),icon.src);
  assert.match(html,/rel="manifest"/);assert.match(html,/apple-touch-icon/);
 });
 test('SW caches same-origin shell only; never Gemini requests',()=>{

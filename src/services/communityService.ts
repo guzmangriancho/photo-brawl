@@ -155,10 +155,18 @@ export async function restoreCloudFighters():Promise<FighterProfile[]> {
 export async function backupMissingLocalFighters(fighters:FighterProfile[],onProgress?:(done:number,total:number)=>void,expectedUserId?:string):Promise<{uploaded:number;existing:number;failed:string[]}> {
   const initialUser=await currentUserId();
   if(expectedUserId && initialUser!==expectedUserId)throw new Error('La cuenta cambió; no se ha subido ningún luchador.');
+  // Never resurrect a fighter after it has been accepted by another user.
+  const {data:sent,error:sentError}=await needDb().from('fighter_transfers')
+    .select('original_local_id').eq('sender_id',initialUser).eq('status','accepted');
+  if(sentError)throw sentError;
+  const transferred=new Set((sent||[]).map(t=>t.original_local_id));
   let uploaded=0,existing=0;
   const failed:string[]=[];
   for(let i=0;i<fighters.length;i++){
     const fighter=fighters[i];
+    if(transferred.has(fighter.id)){
+      existing++;onProgress?.(i+1,fighters.length);continue;
+    }
     try{
       if(expectedUserId && await currentUserId()!==expectedUserId)throw new Error('La sesión cambió durante la copia.');
       const remote=await cloudEntry(fighter.id);

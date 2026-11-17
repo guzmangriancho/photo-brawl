@@ -9,6 +9,8 @@ import { getPresetFighters } from './data/presetFighters';
 import { getAllCustomFighters } from './services/storageService';
 import { startAutomaticFighterMigration,requestAutomaticMigration } from './services/automaticFighterMigration';
 import { repairSavedSpriteChroma } from './engine/SpriteProcessor';
+import { reconcileSentFighterTransfers } from './services/fighterTransferService';
+import { supabase } from './services/supabaseClient';
 import { CharacterSelect } from './components/CharacterSelect';
 import { FightArena } from './components/FightArena';
 import type { OnlineSession } from './network/OnlineSession';
@@ -33,6 +35,24 @@ export function App() {
 
   // Start migration at app boot, independently of what menu the user opens.
   useEffect(() => startAutomaticFighterMigration(), []);
+  // Transfer receipts: when the receiver accepts, the canonical cloud fighter
+  // changes owner. Reconcile the sender's local collection on focus/interval,
+  // never deleting a fighter from another user's device.
+  useEffect(() => {
+    if(!supabase)return;
+    let active=true;
+    const reconcile=()=>{if(active)void reconcileSentFighterTransfers().catch(error=>console.warn('Transferencias pendientes de reconciliar',error));};
+    const refresh=()=>{if(active)void getAllCustomFighters().then(rows=>{
+      if(active)setFighters(rows.filter(f=>!f.isPreset&&!f.id.startsWith('preset_')));
+    }).catch(error=>console.warn('No se pudo actualizar colección',error));};
+    const auth=supabase.auth.onAuthStateChange(()=>{window.setTimeout(reconcile,700);});
+    const timer=setInterval(reconcile,30000);
+    window.addEventListener('focus',reconcile);
+    window.addEventListener('pb-roster-refresh',refresh);
+    window.setTimeout(reconcile,1700);
+    return ()=>{active=false;auth.data.subscription.unsubscribe();clearInterval(timer);
+      window.removeEventListener('focus',reconcile);window.removeEventListener('pb-roster-refresh',refresh);};
+  },[]);
 
   useEffect(() => {
     let active=true;

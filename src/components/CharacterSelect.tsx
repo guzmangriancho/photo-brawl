@@ -3,7 +3,7 @@ import {
   ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
-  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi,
+  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift,
 } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
@@ -11,12 +11,15 @@ import { FighterCreator } from './FighterCreator';
 import { OnlineLobby } from './OnlineLobby';
 import { CommunityPage } from './CommunityPage';
 import { AccountPanel } from './AccountPanel';
+import { FighterTransfers } from './FighterTransfers';
 import { OnlineSession } from '../network/OnlineSession';
 import type { OnlineStart, RoomView } from '../network/protocol';
 import { PwaInstallPrompt } from './PwaInstallPrompt';
 import { markCreatorOpen, wasCreatorOpen } from '../services/creatorDraftService';
 import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter } from '../services/storageService';
 import { syncRenamedFighter } from '../services/communityService';
+import {listFighterTransfers} from '../services/fighterTransferService';
+import {supabase} from '../services/supabaseClient';
 import { requestAutomaticMigration } from '../services/automaticFighterMigration';
 import { soundFX } from '../engine/SoundFX';
 import { STAGE_ART, STAGE_IDS } from '../data/stages';
@@ -76,6 +79,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [p2Id, setP2Id] = useState('');
   const [showTutorial, setShowTutorial] = useState(false);
   const [showAccount,setShowAccount]=useState(false);
+  const [transferring,setTransferring]=useState<FighterProfile|null>(null);
+  const [giftCount,setGiftCount]=useState(0);
   const [tutorialId, setTutorialId] = useState(TUTORIAL_FIGHTERS[0].id);
   const [mode, setMode] = useState<GameMode>(()=>new URLSearchParams(location.search).has('room')?'ONLINE':'1P_VS_CPU');
   const [onlineSession,setOnlineSession]=useState<OnlineSession|null>(null);
@@ -114,6 +119,19 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   useEffect(() => { try { localStorage.setItem('pb-southpaw', String(southpaw)); } catch {} }, [southpaw]);
   useEffect(() => { try { localStorage.setItem('pb-haptics', String(haptics)); } catch {} }, [haptics]);
   useEffect(() => { if (featured) try { localStorage.setItem('pb-menu-fighter', featured.id); } catch {} }, [featured?.id]);
+  useEffect(()=>{
+    if(!supabase)return;
+    let active=true;
+    const update=()=>{void listFighterTransfers().then(({incoming})=>{
+      if(active)setGiftCount(incoming.filter(t=>t.status==='pending'&&new Date(t.expires_at).getTime()>Date.now()).length);
+    }).catch(()=>{if(active)setGiftCount(0);});};
+    const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>window.setTimeout(update,600));
+    const timer=setInterval(update,45000);
+    window.addEventListener('focus',update);window.addEventListener('pb-transfer-changed',update);
+    window.setTimeout(update,900);
+    return()=>{active=false;subscription.unsubscribe();clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('pb-transfer-changed',update);};
+  },[]);
+
   // Migrate any previously selected preset to the first *owned* character.
   useEffect(() => {
     if(fighters.length && !fighters.some(f=>f.id===p1Id))setP1Id(fighters[0].id);
@@ -166,6 +184,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (transferring) { setTransferring(null); return; }
       if (showAccount) { setShowAccount(false); return; }
       if (showTutorial) { setShowTutorial(false); return; }
       if (confirmDelete) { setConfirmDelete(null); return; }
@@ -176,7 +195,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmDelete, renamingId, renamingBusy, showCreator, showApiKey, showTutorial, showAccount]);
+  }, [confirmDelete, renamingId, renamingBusy, showCreator, showApiKey, showTutorial, showAccount, transferring]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
     if (!featured) { openCreator(); return; }
@@ -264,7 +283,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
-        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" onClick={() => setShowAccount(true)}><UserRound size={16}/> CUENTA</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
+        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" onClick={() => setShowAccount(true)}><UserRound size={16}/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
 
@@ -275,7 +294,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><FighterPortrait fighter={f}/><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button>)}</div>
         <div className="pb-panel-bottom"><div className="pb-pagination"><button type="button" disabled={rosterPage === 0} onClick={() => setRosterPage(rosterPage - 1)} aria-label="Página anterior"><ChevronLeft size={16}/></button><span>{rosterPage + 1} / {rosterPages}</span><button type="button" disabled={rosterPage >= rosterPages - 1} onClick={() => setRosterPage(rosterPage + 1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div><button type="button" className="pb-mini-button pb-purple" onClick={openCreator}><Camera size={15}/> CREAR CON FOTO</button></div>
       </section>
-      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><FighterPortrait fighter={featured}/><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> CAMBIAR NOMBRE</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
+      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><FighterPortrait fighter={featured}/><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> CAMBIAR NOMBRE</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
     </div>}
 
     {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><FighterPortrait fighter={featured}/><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
@@ -305,8 +324,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   </form></div>}
   {showApiKey && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e => { if (e.target === e.currentTarget) setShowApiKey(false); }}><section className="pb-modal pb-frame" role="dialog" aria-modal="true" aria-label="Configurar Gemini"><button type="button" className="pb-modal-close" onClick={() => setShowApiKey(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="PERSONALIZACIÓN">CLAVE GEMINI</PanelTitle><label className="pb-field-label">API KEY<input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Introduce tu API key" autoComplete="off"/></label><p className="pb-modal-note">Se guarda en el navegador de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setShowApiKey(false)}>CANCELAR</button><button type="button" className="pb-mini-button pb-gold" onClick={() => { setGeminiApiKey(apiKeyInput); setShowApiKey(false); soundFX.confirmBeep(); }}>GUARDAR</button></div></section></div>}
   {showAccount && <AccountPanel onClose={()=>setShowAccount(false)} onRestored={onFighterCreated}/>}
+  {transferring&&<FighterTransfers fighter={transferring} onClose={()=>setTransferring(null)}/>}
   {showCreator && <FighterCreator onClose={closeCreator} onCreated={handleCreated} />}
-  <PwaInstallPrompt visible={page === 'HOME' && !showCreator && !showApiKey && !confirmDelete && !showTutorial && !showAccount} requestId={installRequest}/>
+  <PwaInstallPrompt visible={page === 'HOME' && !showCreator && !showApiKey && !confirmDelete && !showTutorial && !showAccount && !transferring} requestId={installRequest}/>
   {confirmDelete && <div className="pb-modal-backdrop"><section className="pb-modal pb-frame" role="alertdialog" aria-modal="true" aria-label="Borrar luchador"><PanelTitle label="CONFIRMACIÓN">¿BORRAR LUCHADOR?</PanelTitle><p className="pb-modal-note">Se eliminará permanentemente de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setConfirmDelete(null)}>CANCELAR</button><button type="button" className="pb-mini-button pb-red" onClick={() => removeCustom(confirmDelete)}><Trash2 size={15}/> BORRAR</button></div></section></div>}
   </main>;
 };
