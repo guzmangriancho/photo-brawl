@@ -459,3 +459,18 @@
 .pb-rename-input{width:100%;padding:clamp(8px,1.5vh,13px) 12px;border:2px solid #71bde0;border-radius:4px;background:#081b36;color:#ffe39b;font:900 clamp(17px,2.6vw,26px) 'Pixelify Sans','Oxanium',sans-serif;text-transform:uppercase;letter-spacing:.4px;min-width:0}
 .pb-rename-error{font:700 12px 'Oxanium',sans-serif;color:#ff9ca6}
 @media(max-height:410px){.pb-rename-modal{gap:5px;padding:9px 12px}.pb-rename-input{padding:6px 10px}.pb-rename-modal .pb-panel-title h2{font-size:20px}.pb-rename-modal .pb-modal-note{font-size:10px}}
+
+/* V18 · Animated idle: cells 0 and 1 (row 0) of each 4x4 sheet.
+   The 256x256 frame always remains square and scales with its card. */
+@keyframes pb-character-idle {
+  0%, 49.99% { background-position: 0% 0%; }
+  50%, 100% { background-position: 33.333333% 0%; }
+}
+.pb-fighter-idle {
+  background-size: 400% 400%;
+  animation: pb-character-idle 466.666ms linear infinite;
+  will-change: background-position;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-fighter-idle { animation: none; background-position: 0% 0%; }
+}

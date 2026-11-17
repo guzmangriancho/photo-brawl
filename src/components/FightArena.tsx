@@ -446,7 +446,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
           {onlineMode && onlineIssue && <div className="arena-online-scrim"><section className="pb-frame arena-online-dialog" role="status"><h2>{onlineIssue==='closed'?'RIVAL DESCONECTADO':onlineIssue==='opponent'?'ESPERANDO AL RIVAL':'RECONECTANDO…'}</h2><p>{onlineIssue==='closed'?'La partida ha terminado. Vuelve al menú.':onlineIssue==='opponent'?'El combate se detiene temporalmente mientras se recupera la conexión.':'Estamos recuperando tu sesión online…'}</p>{onlineIssue==='closed'&&<button type="button" onClick={onExit}>VOLVER AL MENÚ</button>}</section></div>}
           <div className="arena-hud" aria-label="Estado del combate">
             <div className="arena-fighter-hud arena-player-one">
-              <img src={p1Profile.portraitDataUrl} alt="" className="arena-portrait pixel-canvas" />
+              <div className="arena-portrait-slot"><img src={p1Profile.portraitDataUrl} alt="" className="arena-portrait pixel-canvas" /></div>
               <div className="arena-fighter-stats">
                 <div className="arena-player-title"><span className="arena-player-tag">{onlineMode?(guestOnline?'RIVAL':'TÚ'):'P1'}</span><span className="arena-fighter-name" title={p1Profile.fighterName}>{p1Profile.fighterName}</span></div>
                 <div className="arena-health-track" role="progressbar" aria-label={`Vida de ${p1Profile.fighterName}`} aria-valuemin={0} aria-valuemax={snapshot.p1MaxHp} aria-valuenow={Math.max(0, snapshot.p1Hp)}><div className={`arena-health-fill ${p1HpPct < 30 ? 'is-critical' : ''}`} style={{width:`${p1HpPct}%`}} /></div>
@@ -472,7 +472,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
               <button type="button" className="arena-pause-shortcut" onClick={() => setPaused(true)} aria-label="Abrir menú de pausa" title="Pausa / opciones (Esc)"><Pause size={15} fill="currentColor" /></button>
             </div>
             <div className="arena-fighter-hud arena-player-two">
-              <img src={p2Profile.portraitDataUrl} alt="" className="arena-portrait pixel-canvas" />
+              <div className="arena-portrait-slot"><img src={p2Profile.portraitDataUrl} alt="" className="arena-portrait pixel-canvas" /></div>
               <div className="arena-fighter-stats">
                 <div className="arena-player-title"><span className="arena-player-tag">{onlineMode?(guestOnline?'TÚ':'RIVAL'):mode === '1P_VS_2P' ? 'P2' : 'CPU'}</span><span className="arena-fighter-name" title={p2Profile.fighterName}>{p2Profile.fighterName}</span></div>
                 <div className="arena-health-track" role="progressbar" aria-label={`Vida de ${p2Profile.fighterName}`} aria-valuemin={0} aria-valuemax={snapshot.p2MaxHp} aria-valuenow={Math.max(0, snapshot.p2Hp)}><div className={`arena-health-fill ${p2HpPct < 30 ? 'is-critical' : ''}`} style={{width:`${p2HpPct}%`}} /></div>

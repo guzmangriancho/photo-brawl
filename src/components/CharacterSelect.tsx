@@ -249,7 +249,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-featured-kicker">TU LUCHADOR</div>
         {featured ? <>
           <h1 className="pb-featured-name">{featured.fighterName}</h1>
-          <div className="pb-featured-art"><div className="pb-halo"/><div className="pb-fighter-stand" style={{ backgroundImage: `url("${featured.spriteSheetDataUrl}")` }}/></div>
+          <div className="pb-featured-art"><div className="pb-halo"/><div className="pb-fighter-stand pb-fighter-idle" role="img" aria-label={`Animación idle de ${featured.fighterName}`} style={{ backgroundImage: `url("${featured.spriteSheetDataUrl}")` }}/></div>
           <div className="pb-featured-info"><StatGrid fighter={featured}/><div className="pb-featured-passive"><ShieldCheck size={14}/>{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</div></div>
         </> : <div className="pb-empty-hero"><div className="pb-empty-avatar"><Camera size={38}/></div><strong>TU HISTORIA EMPIEZA AQUÍ</strong><p>Convierte una foto en un luchador único, con ataques y habilidades propios.</p></div>}
         <button type="button" className={`pb-arcade-button pb-gold pb-select-button ${!featured ? 'pb-create-first' : ''}`} onClick={featured ? () => go('FIGHTERS') : openCreator}><Camera size={18}/>{featured ? 'ELEGIR LUCHADOR' : 'CREAR CON FOTO'}<ChevronRight size={17}/></button>

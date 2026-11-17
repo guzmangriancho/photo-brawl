@@ -721,3 +721,54 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .pb-tutorial-in-fight button:first-child{border-color:#c2a15c;color:#ffe09c}
 @media(orientation:portrait){.pb-tutorial-in-fight{top:clamp(90px,16vh,140px);width:min(94vw,355px);padding:6px 9px}}
 @media(orientation:landscape) and (max-height:410px){.pb-tutorial-in-fight{top:54px;width:min(310px,43vw);padding:4px 8px;gap:2px}.pb-tutorial-in-fight small{font-size:9px}.pb-tutorial-in-fight button{padding:2px 7px}}
+
+/* V18 · Portraits span from the P1/P2 label to the bottom of the Super meter.
+   Their parent row is sized by the stats, not by the source image: no overflow. */
+.arena-fighter-hud {
+  --arena-face-width: clamp(53px, 6vw, 76px);
+  display: grid;
+  grid-template-columns: var(--arena-face-width) minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: stretch;
+  column-gap: clamp(6px, .9vw, 12px);
+  min-width: 0;
+}
+.arena-portrait-slot {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  align-self: stretch;
+  isolation: isolate;
+}
+.arena-portrait-slot .arena-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center 36%;
+  display: block;
+  box-sizing: border-box;
+}
+.arena-fighter-stats { grid-column: 2; grid-row: 1; padding-top: 0; min-width: 0; }
+.arena-player-two { grid-template-columns: minmax(0, 1fr) var(--arena-face-width); }
+.arena-player-two .arena-portrait-slot { grid-column: 2; }
+.arena-player-two .arena-fighter-stats { grid-column: 1; }
+@media (orientation: landscape) and (max-height: 700px),
+       (orientation: landscape) and (pointer: coarse) {
+  .arena-fighter-hud { --arena-face-width: clamp(42px, 14.4dvh, 74px); column-gap: clamp(5px, .8vw, 9px); }
+}
+@media (orientation: landscape) and (max-height: 365px) {
+  .arena-fighter-hud { --arena-face-width: clamp(35px, 13dvh, 47px); column-gap: 5px; }
+}
+@media (orientation: portrait) and (max-width: 750px),
+       (orientation: portrait) and (pointer: coarse) {
+  .arena-fighter-hud { --arena-face-width: clamp(31px, 8.8vw, 44px); column-gap: 4px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .arena-fighter-hud { --arena-face-width: 30px; column-gap: 3px; }
+}
