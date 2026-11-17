@@ -1,3 +1,14 @@
+## V15 — Inicio sin repeticiones y navegación segura
+
+- Sin luchadores, **Inicio** presenta un único botón **CREAR CON FOTO**, que abre directamente el asistente (sin pasar por una selección vacía). Los modos 1v1, Training y Online se pueden ver y seleccionar, pero sus acciones de configuración/inicio no aparecen hasta tener un luchador propio. El tutorial gratuito sigue accesible.
+- **Opciones de partida** ya no puede navegar a una pantalla vacía: el acceso depende de que exista un luchador y se protege también la navegación interna. Si se elimina el último luchador, la colección muestra una única tarjeta para crear otro.
+- Al guardar un nuevo luchador, queda seleccionado y se vuelve directamente a Inicio. Se conserva la recuperación de borradores del creador, sin alterar el motor, los personajes ni el servidor online.
+- Cambia la versión de caché de la PWA para facilitar que los cambios lleguen al móvil tras el despliegue.
+
+## V14 — Colección personal, tutorial y antialias verde
+
+Los cuatro personajes originales ahora están reservados al tutorial gratuito. La selección normal solo incluye los luchadores creados por el usuario. Los tres modos principales son 1v1 contra CPU, Training y Versus Online; se ha retirado el versus local del menú. La limpieza del borde verde de los sprites se actualiza automáticamente para los personajes guardados. Detalles: `docs/COLECCION_Y_TUTORIAL_V14.md`.
+
 ## V13 — Fondos personalizados
 
 Se han instalado los seis fondos pixel art enviados (uno para el menú y cinco escenarios). Ver `docs/ESCENARIOS_V13.md` para los detalles de selección y despliegue.

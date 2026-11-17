@@ -2,7 +2,7 @@
 
 ## Objetivo y flujo de navegación
 
-`INICIO → ELEGIR LUCHADOR → CREAR CON FOTO → [FOTO Y FICHA → SPRITES → RETRATO → GUARDAR] → ELEGIR LUCHADOR → INICIO → JUGAR AHORA`.
+`INICIO → CREAR CON FOTO → [FOTO Y FICHA → SPRITES → RETRATO → GUARDAR] → INICIO (personaje seleccionado) → JUGAR AHORA` para una colección vacía. Si ya tienes personajes, el creador también está accesible desde «Elegir luchador».
 
 El creador no inicia combates. Tampoco añade botones de jugar a ninguna pantalla secundaria. Los cuatro pasos se presentan en un modal adaptado a móviles sin hacer scroll. Se puede regresar a cualquier paso anterior conservando los recursos correctos. Se separan **diseño / spritesheet / retrato** para poder reintentar o sustituir cualquier fase por un archivo manual.
 

@@ -710,3 +710,14 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .arena-round-pips i{width:clamp(6px,.9vw,10px);height:clamp(6px,.9vw,10px);border:1px solid #7f88a0;background:#18223a;transform:rotate(45deg)}
 .arena-round-pips i.is-won{background:#ffbd52;border-color:#ffe2a3;box-shadow:0 0 4px #ffb13b}
 @media (max-width:700px){.arena-round-score{gap:3px}.arena-round-pips{gap:2px}.arena-round-label{font-size:clamp(7px,1.4vw,10px)}}
+
+/* V14: compact, interactive tutorial prompt. Never captures arena controls. */
+.pb-tutorial-in-fight{position:absolute;z-index:9;top:clamp(64px,13vh,90px);left:50%;transform:translateX(-50%);width:min(360px,55vw);display:flex;flex-direction:column;gap:4px;padding:7px 11px;border:2px solid #80b5d9;background:linear-gradient(145deg,#0d2249ed,#06142ae9);box-shadow:0 5px 12px #0009, inset 0 1px #fff4;border-radius:6px;pointer-events:none;text-align:center;line-height:1.08}
+.pb-tutorial-in-fight>span{color:#80e6ff;font:900 9px 'Oxanium',sans-serif;letter-spacing:1px}
+.pb-tutorial-in-fight strong{font:900 clamp(13px,1.9vw,19px) 'Pixelify Sans',sans-serif;color:#ffdf8d}
+.pb-tutorial-in-fight small{color:#deebfa;font:700 clamp(9px,1.2vw,12px)/1.12 'Oxanium',sans-serif}
+.pb-tutorial-in-fight>div{display:flex;justify-content:center;gap:8px;pointer-events:auto;margin-top:2px}
+.pb-tutorial-in-fight button{border:1px solid #649cc6;background:#244b77;color:#fff;font:900 10px 'Pixelify Sans',sans-serif;padding:4px 10px;border-radius:3px;touch-action:manipulation}
+.pb-tutorial-in-fight button:first-child{border-color:#c2a15c;color:#ffe09c}
+@media(orientation:portrait){.pb-tutorial-in-fight{top:clamp(90px,16vh,140px);width:min(94vw,355px);padding:6px 9px}}
+@media(orientation:landscape) and (max-height:410px){.pb-tutorial-in-fight{top:54px;width:min(310px,43vw);padding:4px 8px;gap:2px}.pb-tutorial-in-fight small{font-size:9px}.pb-tutorial-in-fight button{padding:2px 7px}}

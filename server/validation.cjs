@@ -15,6 +15,8 @@ function art(v,max) {
 }
 function validateProfile(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data))return null;
+  // The four bundled actors belong exclusively to the offline tutorial.
+  if (data.isPreset === true || (typeof data.id === 'string' && data.id.startsWith('preset_')))return null;
   const s=data.stats,m=data.moveset;
   if(!s || !m || !AR.includes(data.archetype) || !PASS.includes(data.passiveTrait))return null;
   const vals=['hp','speed','power','technique'].map(k=>s[k]);

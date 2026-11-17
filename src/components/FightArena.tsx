@@ -26,6 +26,7 @@ interface FightArenaProps {
   stage: StageId;
   difficulty: CpuDifficulty;
   online?: OnlineSession;
+  tutorial?: boolean;
   onExit: () => void;
 }
 
@@ -88,9 +89,26 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, onExit,
+  p1Profile, p2Profile, mode, stage, difficulty, online, tutorial = false, onExit,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
+  const [tutorialStep,setTutorialStep]=useState(0);
+  const tutorialStepRef=useRef(0);
+  const tutorialLightRef=useRef(0);
+  const tutorialOriginRef=useRef<number|null>(null);
+  const advanceTutorial = () => {
+    if(!tutorial)return;
+    tutorialStepRef.current=Math.min(4,tutorialStepRef.current+1);
+    setTutorialStep(tutorialStepRef.current);
+  };
+  const noteTutorialAction=(slot:string)=>{
+    if(!tutorial)return;
+    if(tutorialStepRef.current===2 && (slot==='LIGHT'||slot==='HEAVY')){
+      tutorialLightRef.current++;
+      if(tutorialLightRef.current>=3)advanceTutorial();
+    }else if(tutorialStepRef.current===3 && slot.startsWith('SP_'))advanceTutorial();
+  };
+
   const guestOnline = onlineMode && online?.role === 'guest';
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [onlineIssue,setOnlineIssue]=useState<'reconnecting'|'opponent'|'closed'|null>(null);
@@ -125,7 +143,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
       navigator.vibrate(duration);
     }
   };
-  const [showHitboxes, setShowHitboxes] = useState(mode === 'TRAINING');
+  const [showHitboxes, setShowHitboxes] = useState(mode === 'TRAINING' && !tutorial);
   const [muted, setMuted] = useState(soundFX.muted);
   const [showLab, setShowLab] = useState(false);
   const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT'>('IDLE');
@@ -153,7 +171,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
   useEffect(() => {
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
-    engine.showHitboxes = mode === 'TRAINING';
+    engine.showHitboxes = mode === 'TRAINING' && !tutorial;
     engineRef.current = engine;
     engine.loadAssets();
     const lastNetSnapshot={current:engine.getSnapshot()};
@@ -214,6 +232,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
       }
       if (pausedRef.current) return;
       // G / K son la TÉCNICA contextual: neutra, adelante o arriba.
+      if (tutorial && event.code === 'KeyG' && !event.repeat)noteTutorialAction('SP_NEUTRAL');
+      if (tutorial && event.code === 'KeyF' && !event.repeat)noteTutorialAction('LIGHT');
       if (event.code === 'KeyG' && onlineMode) {
         event.preventDefault();
         if(!event.repeat)online?.sendAction(specialWithDirection(keyboardP1,guestOnline?engine.p2.facing:engine.p1.facing) === 'spNeutral' ? 'SP_NEUTRAL' : specialWithDirection(keyboardP1,guestOnline?engine.p2.facing:engine.p1.facing) === 'spUp' ? 'SP_UP' : 'SP_FORWARD');
@@ -252,6 +272,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
       if (p2Key) keyboardP2[p2Key] = true;
     };
     const handleKeyUp = (event: KeyboardEvent) => {
+      if (tutorial && event.code === 'KeyG' && !event.repeat)noteTutorialAction('SP_NEUTRAL');
+      if (tutorial && event.code === 'KeyF' && !event.repeat)noteTutorialAction('LIGHT');
       if (event.code === 'KeyG' && onlineMode) {
         event.preventDefault();
         return; // El especial online se ejecuta solo al presionar, nunca al soltar.
@@ -322,6 +344,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
             commandInput.superBtn=false;
             online?.sendControls(commandInput);
           }else engine.step();
+          if(tutorial){
+            if(tutorialOriginRef.current === null)tutorialOriginRef.current=engine.p1.x;
+            if(tutorialStepRef.current===0 && Math.abs(engine.p1.x-tutorialOriginRef.current)>55)advanceTutorial();
+            if(tutorialStepRef.current===1 && engine.p1.y < 415)advanceTutorial();
+          }
           uiSyncCounter++;
         }
         accumulator -= FIXED_TIMESTEP;
@@ -377,6 +404,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     if(onlineMode){online?.requestRematch();setRematchRequested(true);return;}
     p1TouchRef.current = emptyInput();
     engineRef.current?.resetRound();
+    if(tutorial){tutorialStepRef.current=0;setTutorialStep(0);tutorialLightRef.current=0;tutorialOriginRef.current=null;}
     if (engineRef.current) setSnapshot(engineRef.current.getSnapshot());
     pausedRef.current = false;
     setPaused(false);
@@ -403,7 +431,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
   const p1HpPct = Math.max(0, Math.min(100, (snapshot.p1Hp / snapshot.p1MaxHp) * 100));
   const p2HpPct = Math.max(0, Math.min(100, (snapshot.p2Hp / snapshot.p2MaxHp) * 100));
-  const modeLabel = mode === 'ONLINE' ? 'VERSUS ONLINE' : mode === 'TRAINING' ? 'ENTRENAMIENTO'
+  const modeLabel = tutorial ? 'TUTORIAL' : mode === 'ONLINE' ? 'VERSUS ONLINE' : mode === 'TRAINING' ? 'ENTRENAMIENTO'
     : mode === '1P_VS_2P' ? 'P1 VS P2'
     : mode === 'CPU_VS_CPU' ? 'CPU VS CPU' : 'P1 VS CPU';
   const winnerIsP1 = snapshot.winnerName === p1Profile.fighterName;
@@ -512,7 +540,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
       </div>
 
-      {!paused && !showLab && !snapshot.roundOver && !snapshot.roundBreakFrames && !snapshot.roundIntroFrames && mode !== 'CPU_VS_CPU' && (
+      {tutorial && !paused && !showLab && <aside className="pb-tutorial-in-fight" aria-live="polite"><span>ESCUELA ARCADE · {Math.min(tutorialStep+1,5)}/5</span><strong>{['MUÉVETE','SALTA','ENCADENA TRES GOLPES','USA UNA TÉCNICA','¡TUTORIAL COMPLETADO!'][tutorialStep]}</strong><small>{['Usa el joystick o A/D para caminar.','Pulsa SALTAR o W; algunos personajes pueden hacer doble salto.','Pulsa A tres veces o F en teclado.','Pulsa B, o G en teclado.','Ahora puedes practicar libremente o volver al menú.'][tutorialStep]}</small><div><button type="button" onClick={tutorialStep===4?onExit:advanceTutorial}>{tutorialStep===4?'TERMINAR':'SALTAR PASO'}</button>{tutorialStep!==4&&<button type="button" onClick={onExit}>SALIR</button>}</div></aside>}
+      {!tutorial && !paused && !showLab && !snapshot.roundOver && !snapshot.roundBreakFrames && !snapshot.roundIntroFrames && mode !== 'CPU_VS_CPU' && (
         <div className="arena-mobile-guide" aria-hidden="true">
           <div className="arena-guide-panel">
             <span className="arena-guide-eyebrow">APRENDE EN 10 SEGUNDOS</span>
@@ -538,7 +567,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
             const fighter = guestOnline?engineRef.current?.p2:engineRef.current?.p1;
             return !!(fighter && fighter.state === 'ATTACK' && fighter.currentAttack?.slot === 'LIGHT' && fighter.currentAttack.hasHit && fighter.lightChainCount >= 2);
           }}
-          onAction={(slot) => { if(onlineMode)online?.sendAction(slot);else engineRef.current?.queueTouchAction(slot); pulse(slot === 'SUPER' ? 20 : 9); }}
+          onAction={(slot) => { noteTutorialAction(slot); if(onlineMode)online?.sendAction(slot);else engineRef.current?.queueTouchAction(slot); pulse(slot === 'SUPER' ? 20 : 9); }}
           onDash={(dir) => { if(onlineMode)online?.sendDash(dir);else engineRef.current?.queueTouchDash(dir); pulse(8); }}
           onJump={() => { if(onlineMode)online?.sendJump();else engineRef.current?.queueTouchJump(); pulse(7); }}
           getFacing={() => (guestOnline?engineRef.current?.p2.facing:engineRef.current?.p1.facing) ?? 1}

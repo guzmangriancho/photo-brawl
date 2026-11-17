@@ -26,8 +26,8 @@ test('Draft includes original binary photo, analysis, images and step', () => {
 test('Draft serializes concurrent operations and supports clear', () => {
  for(const name of ['pendingOperation','enqueue(','saveCreatorDraft','getCreatorDraft','clearCreatorDraft'])assert.ok(draft.includes(name),name);
 });
-test('Resume marker reopens the creator at the fighter screen',()=>{
- assert.match(menu,/wasCreatorOpen\(\)\s*\?\s*'FIGHTERS'/);
+test('Resume marker reopens the creator directly over the main menu',()=>{
+ assert.match(menu,/const \[page, setPage\] = useState<MenuPage>\('HOME'\)/);
  assert.match(menu,/useState\(wasCreatorOpen\)/);
  assert.match(menu,/markCreatorOpen\(true\)/);
  assert.match(menu,/markCreatorOpen\(false\)/);
@@ -66,7 +66,7 @@ test('SW caches same-origin shell only; never Gemini requests',()=>{
 test('Current creator remains only entry for character creation',()=>{
  assert.match(menu,/openCreator/);
  assert.match(menu,/page === 'FIGHTERS'/);
- assert.match(menu,/page !== 'HOME' \|\| !featured/);
+ assert.match(menu,/if \(!featured\) \{ openCreator\(\); return; \}/);
 });
 for(const file of ['src/components/FighterCreator.tsx','src/components/PwaInstallPrompt.tsx','src/components/CharacterSelect.tsx','src/services/creatorDraftService.ts','src/services/storageService.ts','src/main.tsx']){
  const source=load(file);

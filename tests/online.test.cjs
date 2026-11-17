@@ -61,6 +61,8 @@ test.before(async()=>{
 test.after(()=>server?.kill());
 test('server rejects altered stats or unsupported mechanics',()=>{
   const p=profile('GOOD');assert.ok(validateProfile(p));
+  assert.equal(validateProfile({...p,isPreset:true}),null,'tutorial characters cannot join online');
+  assert.equal(validateProfile({...p,id:'preset_el_mozo'}),null,'a preset id cannot bypass the tutorial-only rule');
   p.stats.hp=35;assert.equal(validateProfile(p),null);
   p.stats.hp=25;p.moveset.specialUp.mechanic='HACK';assert.equal(validateProfile(p),null);
   p.moveset.specialUp.mechanic='INVINCIBLE_UPPERCUT';p.spriteSheetDataUrl='https://malicious.test/x';assert.equal(validateProfile(p),null);

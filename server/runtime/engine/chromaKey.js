@@ -69,18 +69,42 @@ function removeChromaBackground(surface, cellSize = 256) {
                         flood(x, y, false);
                 }
         }
-    // Remove green spill *along both exterior and interior hole contours*.
+    // V14: Key-green fringes are frequently *not* connected components: the
+    // generated edge pixels have a little foreground pigment mixed into them.
+    // Keep solid green costume regions untouched, but neutralize the immediate
+    // edge against a removed green background. No image blur: crisp pixel edges.
+    const src = new Uint8ClampedArray(data);
     for (let i = 0; i < width * height; i++) {
         const p = i * 4;
         if (erased[i]) {
             data[p + 3] = 0;
             continue;
         }
+        if (src[p + 3] === 0)
+            continue;
         const x = i % width, y = (i / width) | 0;
-        if ((x > 0 && erased[i - 1]) || (x + 1 < width && erased[i + 1]) || (y > 0 && erased[i - width]) || (y + 1 < height && erased[i + width])) {
-            const r = data[p], g = data[p + 1], b = data[p + 2];
-            if (g > 110 && g > Math.max(r, b) + 25 && g - Math.max(r, b) < 80)
-                data[p + 1] = Math.round(g * .7 + Math.max(r, b) * .3);
+        const touchesKey = (x > 0 && erased[i - 1]) || (x + 1 < width && erased[i + 1]) ||
+            (y > 0 && erased[i - width]) || (y + 1 < height && erased[i + width]) ||
+            (x > 0 && y > 0 && erased[i - width - 1]) || (x + 1 < width && y > 0 && erased[i - width + 1]) ||
+            (x > 0 && y + 1 < height && erased[i + width - 1]) || (x + 1 < width && y + 1 < height && erased[i + width + 1]);
+        if (!touchesKey)
+            continue;
+        const r = src[p], g = src[p + 1], b = src[p + 2];
+        const excess = g - Math.max(r, b);
+        if (excess <= 30 || g <= 120)
+            continue;
+        // Almost pure lime next to transparency is part of the chroma fringe.
+        // Remaining pixels have some foreground: remove the green spill while
+        // retaining their opaque, recognizable outline.
+        if (g >= 175 && excess >= 115 && r < 105 && b < 105) {
+            data[p + 3] = 0;
+        }
+        else if (excess >= 65) {
+            data[p + 3] = Math.round(src[p + 3] * 0.68);
+            data[p + 1] = Math.min(g, Math.max(r, b) + 22);
+        }
+        else {
+            data[p + 1] = Math.min(g, Math.max(r, b) + 28);
         }
     }
 }
