@@ -2151,10 +2151,48 @@ class FightEngine {
         ctx.fill();
     }
     renderShadow(ctx, f) {
-        const heightRatio = Math.max(0.4, 1 - (exports.FLOOR_Y - f.y) / 300);
-        const w = Math.round(76 * f.scale * heightRatio);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        ctx.fillRect(Math.round(f.x - w / 2), exports.FLOOR_Y - 4, w, 10);
+        // Layered contact shadow: a soft diffuse penumbra + a tighter ambient-occlusion
+        // footprint. Airborne shadows fade and detach from the fighter; the gameplay
+        // ground line remains unchanged. Everything is presentation-only.
+        const jumpHeight = Math.max(0, exports.FLOOR_Y - f.y);
+        const air = Math.min(1, jumpHeight / 220);
+        const opacity = 1 - air * 0.76;
+        const spread = 1 + air * 0.36;
+        const centerX = Math.round(f.x + f.facing * Math.min(17, jumpHeight * 0.1));
+        const centerY = exports.FLOOR_Y + 2;
+        const rx = Math.round(48 * f.scale * spread);
+        const ry = Math.max(4, Math.round(9 * f.scale));
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        // Scale a circular radial gradient to an elliptical surface. Avoids the
+        // visible rectangular sticker used previously, even on pale snow stages.
+        ctx.save();
+        ctx.scale(rx, ry);
+        const penumbra = ctx.createRadialGradient(0, 0, 0.08, 0, 0, 1);
+        penumbra.addColorStop(0, `rgba(8, 12, 27, ${0.38 * opacity})`);
+        penumbra.addColorStop(0.36, `rgba(9, 14, 30, ${0.29 * opacity})`);
+        penumbra.addColorStop(0.75, `rgba(8, 13, 28, ${0.105 * opacity})`);
+        penumbra.addColorStop(1, 'rgba(8, 13, 28, 0)');
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, Math.PI * 2);
+        ctx.fillStyle = penumbra;
+        ctx.fill();
+        ctx.restore();
+        // Small grounding core only while feet are near the floor. Deliberately
+        // elliptical, never a horizontal block or a hard-edged black patch.
+        if (air < 0.5) {
+            ctx.save();
+            ctx.scale(Math.max(1, rx * 0.58), Math.max(1, ry * 0.34));
+            const contact = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+            contact.addColorStop(0, `rgba(4, 9, 19, ${0.26 * (1 - air * 2)})`);
+            contact.addColorStop(1, 'rgba(4, 9, 19, 0)');
+            ctx.beginPath();
+            ctx.arc(0, 0, 1, 0, Math.PI * 2);
+            ctx.fillStyle = contact;
+            ctx.fill();
+            ctx.restore();
+        }
+        ctx.restore();
     }
     renderFighter(ctx, f) {
         const cell = this.getSpriteCellForFighter(f);

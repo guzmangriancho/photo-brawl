@@ -1,3 +1,12 @@
+## V24 — Diseño móvil compacto de salas, resultados y creador
+
+- En la sala versus online, el retrato sobre el nombre del **jugador local** abre el selector de luchadores; no ocupa espacio hasta pulsarlo. El selector muestra seis personajes por página, sin scroll. El icono rival es informativo: no permite cambiar el personaje de otra persona. Los cinco escenarios y AZAR usan una única fila compacta y las acciones quedan a la vista.
+- El resultado final usa estética pixel art 16-bit con marco y tipografía de arcade, sin scroll interno. Conserva marcador, escenario, variaciones ELO, revancha y salida.
+- En SPRITES y RETRATO hay dos botones de igual tamaño en la misma fila: **SUBIR IMAGEN** y **PEGAR IMAGEN**. El segundo lee una imagen del portapapeles y la procesa por la misma validación que el archivo. En Safari/navegadores que bloquean la API ofrece un área de pegado manual.
+- El creador reorganiza los pasos y reduce espacios en móvil para mantener la navegación visible. La PWA renueva su caché para esta versión.
+
+**Verificación:** `node --test tests/v24.mobile-ux.test.cjs tests/v22.result-summary.test.cjs`. Para validar en dispositivos reales, probar tanto vertical como apaisado, incluyendo móviles de pantalla pequeña.
+
 ## V22 — Resumen de combate en el popup final
 
 El mismo popup que ofrece **REVANCHA / PEDIR REVANCHA** y **SALIR / CAMBIAR LUCHADOR** ahora incluye el resultado, el marcador de rondas y el escenario. En clasificatorias muestra el ELO anterior, el ELO nuevo y la variación de ambos jugadores; en amistosas indica que el ELO no cambia. **Importante:** ejecuta `supabase/migrations/202611180002_ranked_result_details.sql` en Supabase → SQL Editor para que la función devuelva los ratings anteriores y posteriores. No sustituye la migración V21: mantiene su eliminación del límite de revanchas y la protección por identificador único.

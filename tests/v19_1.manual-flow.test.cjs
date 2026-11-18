@@ -28,7 +28,7 @@ assert.match(creator,/3 · PEGAR RESPUESTA/);
 assert.match(creator,/navigator\.clipboard\?\.writeText/);
 assert.match(css,/\.pb-creator-manual-layout\{/);
 assert.match(css,/@media \(orientation:portrait\)/);
-assert.match(sw,/pb-shell-v21-ranked-rematches/);
+assert.match(sw,/pb-shell-v24-mobile-compact/);
 const parsed=ts.createSourceFile('FighterCreator.tsx',creator,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 assert.equal(parsed.parseDiagnostics.length,0,parsed.parseDiagnostics.map(d=>d.messageText).join('\n'));
 console.log('OK: 13 comprobaciones de modo manual, ayuda, PWA y sintaxis TSX.');

@@ -31,7 +31,7 @@ test('login UI is compact, and cache is advanced without touching the legacy fig
  assert.match(css,/\.pb-login-switch\{display:grid/);
  assert.match(css,/\.pb-login-fields\{grid-template-columns:/);
  assert.match(css,/@media\(max-height:410px\)/);
- assert.match(read('public/sw.js'),/pb-shell-v21-ranked-rematches/);
+ assert.match(read('public/sw.js'),/pb-shell-v24-mobile-compact/);
  const migration=read('src/services/automaticFighterMigration.ts');
  assert.match(migration,/pb-local-fighters-cloud-owner-v16-2/);
  assert.match(migration,/getAllCustomFighters/);

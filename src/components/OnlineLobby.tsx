@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Check, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X } from 'lucide-react';
 import type { FighterProfile, StageId } from '../types/fighter';
 import { STAGE_ART, STAGE_IDS } from '../data/stages';
 import type { RoomView } from '../network/protocol';
@@ -20,6 +20,8 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
   const [copied,setCopied]=useState(false);
   const [remaining,setRemaining]=useState(3);
   const [ranked,setRanked]=useState(false);
+  const [pickerOpen,setPickerOpen]=useState(false);
+  const [fighterPage,setFighterPage]=useState(0);
   const {user}=usePlayerAccount();
   useEffect(()=>{
     if(room?.status!=='countdown'||!room.countdownEndsAt)return;
@@ -40,11 +42,15 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
   const ownFighterId=fighter.id;
   const availableFighters=fighters.filter(item=>!item.isPreset&&!item.id.startsWith('preset_'));
   const canChangeFighter=!!room&&(room.status==='waiting'||room.status==='countdown');
+  const fighterPageCount=Math.max(1,Math.ceil(availableFighters.length/6));
+  const visibleFighters=availableFighters.slice(Math.min(fighterPage,fighterPageCount-1)*6,(Math.min(fighterPage,fighterPageCount-1)+1)*6);
+  useEffect(()=>{if(!canChangeFighter)setPickerOpen(false);},[canChangeFighter]);
   const chooseFighter=(next:FighterProfile)=>{
     if(!canChangeFighter||next.id===ownFighterId)return;
     setError('');
     session?.choose(next);
     onFighterChange(next);
+    setPickerOpen(false);
   };
   const copy=async()=>{
     const text=room?.code||'';
@@ -70,23 +76,38 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
         {busy&&<p className="pb-online-message"><Loader2 size={15}/> Conectando al servidor…</p>}
       </div> : <div className="pb-online-ready">
         <div className="pb-online-code"><small>{room.ranked?'CLASIFICATORIA · 2 RONDAS PARA GANAR':'AMISTOSO · CÓDIGO DE SALA'}</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> INVITAR</button></div></div>
-        <div className="pb-online-players"><div><ShieldCheck size={18}/><strong>{room.host.name}</strong><small>{room.host.connected?(room.host.ready?'LISTO':'PREPARANDO'):'RECONECTANDO'}</small></div><b>VS</b><div><Gamepad2 size={18}/><strong>{room.guest?.name||'ESPERANDO RIVAL'}</strong><small>{!room.guest?'COMPARTE EL CÓDIGO':!room.guest.connected?'RECONECTANDO':room.guest.ready?'LISTO':'PREPARANDO'}</small></div></div>
-        {(room.status==='waiting'||room.status==='countdown') && <div className="pb-online-fighter-picker">
-          <div className="pb-online-picker-heading"><span>TU LUCHADOR</span><small>{room.status==='countdown'?'CAMBIAR CANCELA LA CUENTA ATRÁS':'PUEDES CAMBIAR ANTES DE EMPEZAR'}</small></div>
-          <div className="pb-online-fighter-list" aria-label="Elegir luchador para la sala">
-            {availableFighters.map(item=><button key={item.id} type="button" className={item.id===ownFighterId?'is-active':''} aria-pressed={item.id===ownFighterId} onClick={()=>chooseFighter(item)}>
-              <img src={item.portraitDataUrl} alt=""/><span>{item.fighterName}</span>{item.id===ownFighterId&&<Check size={13}/>} 
-            </button>)}
+        <div className="pb-online-players">
+          <div className="pb-online-player">
+            {room.role==='host' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={()=>{setFighterPage(0);setPickerOpen(true);}} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter.portraitDataUrl} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><ShieldCheck size={24}/></span>}
+            <strong>{room.host.name}</strong><small>{room.host.connected?(room.host.ready?'✓ LISTO':'PREPARANDO'):'RECONECTANDO'}</small>
           </div>
-          <small className="pb-online-picker-note">Si cambias de personaje, los dos jugadores tendrán que volver a marcar «Estoy listo».</small>
-        </div>}
+          <b>VS</b>
+          <div className="pb-online-player">
+            {room.role==='guest' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={()=>{setFighterPage(0);setPickerOpen(true);}} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter.portraitDataUrl} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><Gamepad2 size={24}/></span>}
+            <strong>{room.guest?.name||'ESPERANDO RIVAL'}</strong><small>{!room.guest?'COMPARTE EL CÓDIGO':!room.guest.connected?'RECONECTANDO':room.guest.ready?'✓ LISTO':'PREPARANDO'}</small>
+          </div>
+        </div>
+        {canChangeFighter && <small className="pb-online-change-tip">TOCA TU RETRATO PARA CAMBIAR DE LUCHADOR</small>}
         {room.role==='host' && room.status==='waiting' && <div className="pb-online-stages"><span>ESCENARIO</span><div>{STAGE_IDS.map(id => [id, STAGE_ART[id].short] as [StageId,string]).map(([id,label])=><button key={id} type="button" className={!room.randomStage&&room.stage===id?'is-active':''} onClick={()=>session?.stage(id)}>{label}</button>)}<button type="button" className={room.randomStage?'is-active':''} onClick={()=>session?.stage('RANDOM')}>AZAR</button></div></div>}
         {room.role==='guest' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
         {room.role==='host' && room.status!=='waiting' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
         {room.status==='countdown' && <div className="pb-online-countdown" role="status" aria-live="off"><span>PREPARADOS · A COMBATIR</span><strong>{remaining}</strong><small>INICIO AUTOMÁTICO</small></div>}
         <div className="pb-online-ready-actions"><button type="button" className={myReady?'is-ready':''} onClick={()=>session?.ready(!myReady)}><Check size={17}/> {room.status==='countdown'?'CANCELAR':myReady?'ESTOY LISTO ✓':'ESTOY LISTO'}</button><button type="button" onClick={onClose}><ArrowLeft size={16}/> VOLVER AL MENÚ</button></div>
-        <p className="pb-online-hint">{room.status==='countdown'?'¡La partida comienza sola al terminar la cuenta atrás!':'Cuando ambos estéis listos, comenzará una cuenta atrás de 3 segundos.'}</p>
+
         <button className="pb-online-leave" type="button" onClick={()=>{session?.close();onSession(null);}}>ABANDONAR SALA</button>
+      </div>}
+      {pickerOpen && canChangeFighter && <div className="pb-online-picker-shade" onPointerDown={e=>{if(e.target===e.currentTarget)setPickerOpen(false);}}>
+        <section className="pb-online-picker-dialog" role="dialog" aria-modal="true" aria-label="Elegir luchador">
+          <div className="pb-online-picker-top"><div><small>TU EQUIPO</small><strong>ELIGE LUCHADOR</strong></div><button type="button" onClick={()=>setPickerOpen(false)} aria-label="Cerrar selector"><X size={18}/></button></div>
+          <div className="pb-online-fighter-list" aria-label="Elegir luchador para la sala">
+            {visibleFighters.map(item=><button key={item.id} type="button" className={item.id===ownFighterId?'is-active':''} aria-pressed={item.id===ownFighterId} onClick={()=>chooseFighter(item)}>
+              <img src={item.portraitDataUrl} alt=""/><span>{item.fighterName}</span>{item.id===ownFighterId&&<Check size={14}/>}
+            </button>)}
+            {!availableFighters.length&&<p className="pb-online-picker-empty">No hay luchadores propios disponibles.</p>}
+          </div>
+          <div className="pb-online-picker-pages"><button type="button" disabled={fighterPage===0} onClick={()=>setFighterPage(p=>p-1)} aria-label="Página anterior"><ChevronLeft size={17}/></button><span>{fighterPage+1} / {fighterPageCount}</span><button type="button" disabled={fighterPage>=fighterPageCount-1} onClick={()=>setFighterPage(p=>p+1)} aria-label="Página siguiente"><ChevronRight size={17}/></button></div>
+          <small className="pb-online-picker-note">Cambiar luchador reinicia el estado «Estoy listo» de los dos jugadores.</small>
+        </section>
       </div>}
       {(error||externalError)&&<p className="pb-online-error" role="alert">{error||externalError}</p>}
       <div className="pb-online-foot"><Wifi size={13}/> 1 contra 1 · Clasificatorias con cuenta y resultado validado por Render · Se comparten retratos y sprites.</div>

@@ -22,8 +22,8 @@ const CHAT_SERVICES = [
 ] as const;
 const GUIDE_STEPS = [
   {title:'1 · CREA LA FICHA', intro:'IMPORTANTE: adjunta tu foto original en el chat de IA, junto al prompt.', details:'1. Pulsa COPIAR PROMPT. 2. Abre Gemini o ChatGPT, pega el prompt y adjunta tu foto original directamente en ese chat, en el mismo mensaje, antes de enviarlo. 3. Copia la respuesta de la IA, vuelve al juego y pulsa PEGAR RESPUESTA. La ficha se validará automáticamente. No hace falta subir la foto a PHOTO BRAWL en el modo guiado.'},
-  {title:'2 · SPRITESHEET', intro:'La ficha define los ataques, por eso los sprites se hacen después.', details:'Copia el prompt del spritesheet 4×4. Continúa en el mismo chat de IA y adjunta de nuevo la foto si es necesario. Descarga la imagen cuadrada con fondo verde y súbela aquí.'},
-  {title:'3 · RETRATO', intro:'Ahora crea un retrato para la selección de luchadores.', details:'Copia el prompt de retrato, envíalo en tu chat con la foto original, descarga la imagen y pulsa SUBIR RETRATO. No es necesario repetir el spritesheet.'},
+  {title:'2 · SPRITESHEET', intro:'La ficha define los ataques, por eso los sprites se hacen después.', details:'Copia el prompt del spritesheet 4×4. Continúa en el mismo chat de IA y adjunta de nuevo la foto si es necesario. Copia la imagen para pegarla aquí, o descárgala y súbela.'},
+  {title:'3 · RETRATO', intro:'Ahora crea un retrato para la selección de luchadores.', details:'Copia el prompt de retrato, envíalo en tu chat con la foto original y copia la imagen para pegarla aquí o usa SUBIR RETRATO. No es necesario repetir el spritesheet.'},
   {title:'4 · REVISAR Y GUARDAR', intro:'Comprueba el resultado antes de incorporarlo a tu colección.', details:'Revisa el retrato, los movimientos y las estadísticas. Si algo falla, vuelve al paso correspondiente. Pulsa GUARDAR LUCHADOR cuando estén listas ambas imágenes.'},
 ] as const;
 interface Props { onClose: () => void; onCreated: (fighter: FighterProfile) => void }
@@ -55,6 +55,8 @@ export const FighterCreator: React.FC<Props> = ({onClose,onCreated}) => {
   const [promptDialog,setPromptDialog] = useState<null | {title:string; value:string; which:'PHOTO'|'SPRITE'|'PORTRAIT'}>(null);
   const [copiedPrompt,setCopiedPrompt] = useState<'PHOTO'|'SPRITE'|'PORTRAIT'|null>(null);
   const [pasteHint,setPasteHint] = useState('');
+  const [imagePasteFallback,setImagePasteFallback] = useState<'SPRITE'|'PORTRAIT'|null>(null);
+  const imagePasteTarget = useRef<HTMLDivElement|null>(null);
   useEffect(() => () => { if (photoPreview.startsWith('blob:')) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
   // Restore not just the step but the actual original File, design and both generated images.
@@ -211,6 +213,40 @@ export const FighterCreator: React.FC<Props> = ({onClose,onCreated}) => {
     } catch(e) {if (which === 'SPRITE') setSpriteErr(friendlyError(e));else setPortraitErr(friendlyError(e));}
     finally {setBusy(false);setProgress('');}
   }
+  // On browsers with image Clipboard API, paste directly. iOS and other browsers
+  // may block read() even in a click: the editable paste target handles a user paste.
+  async function pasteArt(which: 'SPRITE'|'PORTRAIT') {
+    if (busy) return;
+    setError('');
+    if (navigator.clipboard?.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const type = item.types.find(type=>['image/png','image/jpeg','image/webp'].includes(type));
+          if (!type) continue;
+          const blob = await item.getType(type);
+          await importImage(which,new File([blob],which==='SPRITE'?'spritesheet.png':'retrato.png',{type}));
+          return;
+        }
+        if (which==='SPRITE') setSpriteErr('No hay una imagen en el portapapeles. Copia la imagen, no el enlace.');
+        else setPortraitErr('No hay una imagen en el portapapeles. Copia la imagen, no el enlace.');
+        return;
+      } catch { /* User denied permission / API unsupported: offer native Paste. */ }
+    }
+    setImagePasteFallback(which);
+    window.setTimeout(()=>imagePasteTarget.current?.focus(),0);
+  }
+  function onArtPaste(event: React.ClipboardEvent<HTMLDivElement>, which:'SPRITE'|'PORTRAIT') {
+    const file = Array.from(event.clipboardData.items).find(item=>item.kind==='file' && ['image/png','image/jpeg','image/webp'].includes(item.type))?.getAsFile();
+    event.preventDefault();
+    if (!file) {
+      if (which==='SPRITE') setSpriteErr('El contenido pegado no es una imagen. Copia una imagen PNG, JPG o WEBP.');
+      else setPortraitErr('El contenido pegado no es una imagen. Copia una imagen PNG, JPG o WEBP.');
+      return;
+    }
+    setImagePasteFallback(null);
+    void importImage(which,file);
+  }
   // Accept an entire pasted response and advance only after schema validation succeeds.
   // An invalid response stays editable; a partial response never overwrites the current fighter.
   function applyJson(value: string, reportError = true): boolean {
@@ -329,8 +365,11 @@ export const FighterCreator: React.FC<Props> = ({onClose,onCreated}) => {
           <div className="pb-creator-art-manual"><strong>{artDone?'IMAGEN CARGADA · PUEDES CONTINUAR':'GENÉRALA EN TU CHAT DE IA'}</strong>
           <button type="button" className="pb-mini-button pb-gold pb-creator-full-action" aria-live="polite" onClick={()=>showPrompt(artStep)}><ClipboardCopy size={14}/> {copiedPrompt===artStep?'✓ ¡COPIADO!':'1 · COPIAR PROMPT'}</button>
           {chatChooser}
-          <label className="pb-mini-button pb-purple pb-creator-file-button pb-creator-full-action"><Upload size={14}/> 3 · {step==='SPRITE'?'SUBIR SPRITESHEET':'SUBIR RETRATO'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{void importImage(artStep,e.target.files?.[0]);e.target.value='';}}/></label>
-          <small>Pega el prompt en el chat de IA, adjunta la foto original y sube aquí la imagen generada.</small></div>
+          <div className="pb-creator-image-actions" role="group" aria-label={`Importar ${step==='SPRITE'?'spritesheet':'retrato'}`}>
+            <label className="pb-mini-button pb-purple pb-creator-file-button" aria-label={step==='SPRITE'?'SUBIR SPRITESHEET':'SUBIR RETRATO'}><Upload size={14}/> SUBIR IMAGEN<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{void importImage(artStep,e.target.files?.[0]);e.target.value='';}}/></label>
+            <button type="button" className="pb-mini-button pb-blue" onClick={()=>void pasteArt(artStep)} disabled={busy}><ClipboardCopy size={14}/> PEGAR IMAGEN</button>
+          </div>
+          <small>Copia la imagen del chat y pégala aquí, o descárgala y súbela.</small></div>
           {(step==='SPRITE'?spriteErr:portraitErr)&&<p className="pb-creator-asset-error" role="alert">{step==='SPRITE'?spriteErr:portraitErr}</p>}
         </div></div>}
         {step==='FINISH' && design && <div className="pb-creator-review"><div className="pb-creator-review-images">{portrait?<img className="pb-creator-review-portrait" src={portrait} alt="Retrato final"/>:<div className="pb-creator-review-empty">FALTA RETRATO</div>}{sprite?<div className="pb-creator-review-sprite" style={{backgroundImage:`url('${sprite}')`}} aria-label="Pose de combate"/>:<div className="pb-creator-review-empty">FALTAN SPRITES</div>}</div><div className="pb-creator-review-details"><h3>{design.fighterName}</h3><small>{design.subtitle}</small><div className="pb-creator-review-stats">{Object.entries(design.stats).map(([k,v])=><span key={k}><b>{k.toUpperCase()}</b> {v}</span>)}</div><div className="pb-creator-review-trait"><ShieldCheck size={13}/> {design.passiveTrait.replace(/_/g,' ')} · {design.archetype.replace(/_/g,' ')}</div><div className="pb-creator-review-moves">{Object.entries(design.moveset).map(([k,m])=><span key={k}>{(m as {name:string}).name}</span>)}</div><p>Las estadísticas y técnicas se guardan exactamente como se jugarán en el motor. Solo podrás iniciar un combate desde Inicio.</p></div></div>}
@@ -338,6 +377,7 @@ export const FighterCreator: React.FC<Props> = ({onClose,onCreated}) => {
       {error&&<div role="alert" className="pb-creator-alert">{error}</div>}
       {busy&&<div className="pb-creator-progress" role="status"><Loader2 size={16} className="pb-spin"/>{progress}</div>}
       <div className="pb-creator-bottom"><button type="button" className="pb-mini-button pb-muted" disabled={busy} onClick={()=>{if(index===0)void closeAndSave();else {setStep(STEPS[index-1].id);setError('');}}}><ArrowLeft size={15}/>{index===0?'CANCELAR':'ATRÁS'}</button><div className="pb-creator-footnote"><span>{index+1} / 4 · {design?'FICHA LISTA':'SIN FICHA'}</span><button type="button" onClick={()=>setDiscardConfirm(true)} disabled={busy} title="Descartar todo el borrador"><Trash2 size={11}/> BORRAR</button></div>{step==='FINISH'?<button type="button" className="pb-mini-button pb-gold" onClick={()=>void save()} disabled={!ready||busy}><Check size={15}/> GUARDAR LUCHADOR</button>:<button type="button" className="pb-mini-button pb-blue" disabled={busy || !design || step==='PHOTO'||step==='SPRITE'&&!sprite||step==='PORTRAIT'&&!portrait} onClick={()=>{setStep(STEPS[index+1].id);setError('');}}>SIGUIENTE <ChevronRight size={15}/></button>}</div>
+      {imagePasteFallback && <div className="pb-creator-prompt-shade" onPointerDown={e=>{if(e.currentTarget===e.target)setImagePasteFallback(null);}}><section className="pb-creator-image-paste-dialog" role="dialog" aria-modal="true" aria-label="Pegar imagen desde el portapapeles"><div className="pb-creator-prompt-head"><strong>PEGAR {imagePasteFallback==='SPRITE'?'SPRITESHEET':'RETRATO'}</strong><button type="button" onClick={()=>setImagePasteFallback(null)} aria-label="Cerrar"><X size={17}/></button></div><p>Tu navegador requiere pegar manualmente. Copia la imagen y mantén pulsado en el recuadro para elegir PEGAR (o usa Ctrl+V).</p><div ref={imagePasteTarget} className="pb-creator-image-paste-target" contentEditable role="textbox" aria-label="Pega aquí la imagen copiada" tabIndex={0} suppressContentEditableWarning onPaste={e=>onArtPaste(e,imagePasteFallback)}>TOCA AQUÍ Y PEGA LA IMAGEN</div><button type="button" className="pb-mini-button pb-muted" onClick={()=>setImagePasteFallback(null)}>CANCELAR</button></section></div>}
       {guideStep!==null && <div className="pb-creator-prompt-shade"><section className="pb-creator-help-dialog" role="dialog" aria-modal="true" aria-label="Cómo crear tu luchador"><div className="pb-creator-prompt-head"><strong>¿CÓMO CREAR TU LUCHADOR?</strong><button type="button" onClick={()=>setGuideStep(null)} aria-label="Cerrar ayuda"><X size={17}/></button></div><div className="pb-creator-guide-progress">{GUIDE_STEPS.map((item,i)=><button type="button" key={item.title} onClick={()=>setGuideStep(i)} className={i===guideStep?'active':''} aria-current={i===guideStep?'step':undefined}>{i+1}</button>)}</div><div className="pb-creator-help-content"><div className="pb-creator-help-icon">{guideStep===0?<Camera size={36}/>:guideStep===1?<Image size={36}/>:guideStep===2?<Upload size={36}/>:<ShieldCheck size={36}/>}</div><h3>{GUIDE_STEPS[guideStep].title}</h3><p className="pb-creator-help-lead">{GUIDE_STEPS[guideStep].intro}</p><p>{GUIDE_STEPS[guideStep].details}</p><small>El borrador se guarda en este dispositivo mientras cambias a la IA.</small></div><div className="pb-creator-help-actions"><button type="button" className="pb-mini-button pb-muted" disabled={guideStep===0} onClick={()=>setGuideStep(s=>s===null?0:Math.max(0,s-1))}><ArrowLeft size={13}/> ANTERIOR</button><button type="button" className="pb-mini-button pb-gold" onClick={()=>guideStep===3?setGuideStep(null):setGuideStep(guideStep+1)}>{guideStep===3?'EMPEZAR':'SIGUIENTE'} <ChevronRight size={13}/></button></div></section></div>}
       {discardConfirm&&<div className="pb-creator-prompt-shade"><section className="pb-creator-delete-confirm" role="alertdialog" aria-modal="true" aria-label="Borrar borrador"><strong>¿DESCARTAR PERSONAJE?</strong><p>Se eliminarán la foto, la ficha y las imágenes de este borrador. Cerrar con × no los elimina.</p><div><button type="button" className="pb-mini-button pb-muted" onClick={()=>setDiscardConfirm(false)}>CONSERVAR</button><button type="button" className="pb-mini-button pb-red" onClick={()=>void discardDraft()}><Trash2 size={14}/> BORRAR TODO</button></div></section></div>}
       {promptDialog&&<div className="pb-creator-prompt-shade"><section className="pb-creator-prompt" role="dialog" aria-label="Copiar prompt manualmente"><div className="pb-creator-prompt-head"><strong>COPIAR PROMPT · {promptDialog.title}</strong><button type="button" onClick={()=>setPromptDialog(null)} aria-label="Cerrar prompt"><X size={17}/></button></div><p>Tu navegador ha bloqueado la copia automática. Selecciona el texto y cópialo manualmente. En una PWA con HTTPS normalmente no necesitarás esta pantalla.</p><textarea id="pb-prompt-textarea" aria-label="Texto del prompt para copiar" readOnly value={promptDialog.value} onFocus={e=>e.currentTarget.select()}/><div className="pb-creator-prompt-actions"><button type="button" className="pb-mini-button pb-gold" onClick={()=>showPrompt(promptDialog.which)}><ClipboardCopy size={14}/> REINTENTAR COPIA</button><button type="button" className="pb-mini-button pb-muted" onClick={()=>setPromptDialog(null)}>CERRAR</button></div></section></div>}
