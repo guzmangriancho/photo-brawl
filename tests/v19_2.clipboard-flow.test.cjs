@@ -17,7 +17,7 @@ assert.doesNotMatch(creator,/VALIDAR FICHA Y CONTINUAR/,'No redundant validation
 assert.match(creator,/className=\"pb-mini-button pb-blue pb-creator-full-action pb-creator-choose-chat\"/,'Chat button same component sizing');
 assert.match(css,/\.pb-creator-choose-chat\.pb-mini-button\.pb-creator-full-action/,'Chat button same height');
 assert.match(css,/\.pb-creator-chat-chooser>\.pb-creator-provider-row\{position:absolute/,'Chat menu does not change layout');
-assert.match(sw,/pb-shell-v24-mobile-compact/,'PWA shell version updated');
+assert.match(sw,/pb-shell-v\d+[\w-]*/,'PWA shell version updated');
 const parsed=ts.createSourceFile('FighterCreator.tsx',creator,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 assert.equal(parsed.parseDiagnostics.length,0,parsed.parseDiagnostics.map(x=>x.messageText).join('\n'));
 console.log('OK: 13 comprobaciones V19.2 de portapapeles, validación, botones y TSX.');

@@ -181,10 +181,10 @@ function handle(peer,msg) {
     if(++player.msgCount>95)return;
     if(!Number.isSafeInteger(msg.seq)||msg.seq<=player.lastSeq)return;
     player.lastSeq=msg.seq;
-    if(!Number.isInteger(msg.mask)||msg.mask<0||msg.mask>=8192)return;
+    if(!Number.isInteger(msg.mask)||msg.mask<0||msg.mask>=16384)return;
     // Network actions are accepted separately. The hold mask only moves/guards,
     // which prevents bypassing action rate limits with attack bits.
-    player.mask=msg.mask & 0b1111;
+    player.mask=msg.mask & (0b1111 | (1 << 13)); // Dirección + botón de guardia (bit 13)
     const index=player.role==='host'?0:1;
     if(now-player.actionTick>1000){player.actionCount=0;player.actionTick=now;}
     const actions=cleanActions(msg.actions);

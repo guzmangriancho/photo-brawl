@@ -1,33 +1,32 @@
-# PHOTO BRAWL — Fix del transporte WebSocket (Render)
+# PHOTO BRAWL V27 · Escuela Arcade avanzada
 
-## Qué corrige
+Incluye íntegramente los cambios de V24 a V26. Se añaden **14 ejercicios guiados** para aprender los controles del combate, con validación de las acciones reales, práctica de bloqueo/parry contra un muñeco que avisa antes de golpear, y una tarjeta pixel art compacta adaptada a móvil. En el menú: **Inicio → Tutorial**.
 
-El transporte anterior cerraba WebSocket cuando recibía un frame de texto con FIN=0 (fragmentado). Un proxy o cliente puede dividir mensajes grandes en varios frames; esto provocaba `1005`/`1006` en el navegador y `Servidor online no disponible` en el juego.
+**Instalación:** `npm ci`, `npm test` y `npm run build`. Para online se mantiene el despliegue de frontend y servidor consistente con los cambios de versiones anteriores; V27 no exige modificar el protocolo ni ejecutar nuevas migraciones SQL. La caché de PWA cambia para recoger la actualización. Consulta `docs/TUTORIAL_AVANZADO_V27.md`.
 
-Este cambio acepta correctamente las continuaciones RFC 6455, admite PING intercalado, limita el tamaño acumulado a 8 MiB, y responde con códigos de cierre útiles cuando hay tramas inválidas.
+## Información de versiones anteriores
 
-## Instalación
+# PHOTO BRAWL V25 · Defensa y combate equilibrado
 
-1. Copia `server/transport.cjs` sobre el mismo archivo de tu proyecto.
-2. (Opcional) Copia `tests/online.fragments.test.cjs` dentro de `tests/`.
-3. Confirma y sube a la rama `main` de GitHub; Render hará autodeploy.
-4. Espera a ver `Your service is live` en los logs de Render.
-5. Recarga PHOTO BRAWL en Vercel e intenta crear una sala con MAGA NEÓN.
+**Proyecto completo, basado en V24**. Se conservan la sala online compacta, la creación y pegado de imágenes, la pantalla de resultados, los luchadores guardados y las funciones online.
 
-No hay que cambiar el frontend, las variables de Vercel, Render ni Supabase. No hace falta ejecutar una nueva compilación de Vercel.
+## Novedades
 
-## Comandos Git
+- El botón **CUBRIR** del móvil (teclado **Q** para jugador 1 / **N** para jugador 2) permite bloquear sin tener que retroceder. Mientras lo mantienes pulsado puedes caminar **hacia delante o atrás** con el joystick/flechas, a velocidad defensiva. **Abajo + CUBRIR** protege de bajos; en guardia normal, de medios y altos. La defensa tiene prioridad sobre las nuevas órdenes de ataque.
+- **Parry:** si pulsas CUBRIR durante los **5 fotogramas previos** a un jab, el golpe se interrumpe, el rival retrocede y aparece un destello pequeño de píxeles. Mantener CUBRIR mucho antes del jab bloquea, pero no hace parry automático.
+- **Antispam:** la presión de jabs tiene menos aturdimiento y el tercer golpe normal deja margen para escapar. Se permite **un disparo activo por luchador**, con un descanso mínimo de 70 fotogramas entre lanzamientos. La ráfaga tipo escopeta tiene 45 fotogramas de descanso.
+- **Ataques súper** con efectos y destello escalados desde resolución interna 320×180 sin suavizado, en estética pixel art. Los sprites originales de los personajes no se pixelan artificialmente.
 
-```bash
-git add server/transport.cjs tests/online.fragments.test.cjs
-git commit -m "Fix fragmented WebSocket profile uploads"
-git push origin main
-```
+## Instalar / desplegar
 
-## Verificación
+1. Extrae el ZIP completo en tu proyecto. **No es un parche parcial.**
+2. Instala dependencias con `npm ci`.
+3. Ejecuta `npm test` y `npm run build`.
+4. Para el servidor online: `npm run build:server-engine` y reinicia el servidor Node (`npm run dev:server` en local).
+5. Actualiza **tanto Vercel como Render**, ya que ha cambiado el protocolo de guardia. Se ha incrementado la caché de la PWA para recoger la versión nueva.
 
-Se ejecutaron estas pruebas sobre el proyecto original: `node --test tests/online.test.cjs tests/online.fragments.test.cjs`, resultado: 6/6 OK.
+No hay ninguna migración SQL nueva para V25. No borres los personajes existentes ni la base de datos.
 
-## Si sigue fallando
+## Verificación realizada
 
-Abre Render > Logs mientras creas la sala; busca `[online] Frame WebSocket rechazado:` o reinicios del proceso. La prueba reproduce mensajes fragmentados pero no ha sido ejecutada en el despliegue real de Render, así que aún podría existir otra causa.
+Se ejecutó `npm test` y se compiló el motor del servidor. La compilación final del frontend requiere instalar el conjunto completo de dependencias; no se ha validado en un dispositivo móvil real.

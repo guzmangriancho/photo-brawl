@@ -1,3 +1,19 @@
+## V27 · Escuela Arcade avanzada (14 retos)
+
+- El tutorial gratuito ahora enseña **caminar, dash, salto, guardia en movimiento, jab certero, cadena de golpes, remate, golpe bajo contra guardia alta, tres técnicas direccionales, bloqueo de jab, parry y súper**.
+- Los ejercicios pasan únicamente al **realizar el movimiento**; los jabs, el remate y el golpe bajo deben **conectar de verdad**. Se corrige el antiguo conteo de teclas pulsadas y soltadas.
+- El rival cambia de comportamiento según la lección: pasivo, cubierto arriba o lanzando **jabs lentos anunciados** para aprender a bloquear y hacer parry sin cambiar la velocidad de los ataques normales.
+- Indicador de progreso, ayuda de controles móvil/teclado, botón para saltar un ejercicio, repetir la escuela y salir. Tarjeta compacta estilo arcade sin scroll.
+- Se conservan los cuatro luchadores de tutorial y los controles V26. No se modifica el online ni se necesitan migraciones. Guía: [`docs/TUTORIAL_AVANZADO_V27.md`](docs/TUTORIAL_AVANZADO_V27.md).
+
+## V25 · Defensa libre, parry y supers 16-bit
+
+- **Guardia independiente:** mantener **CUBRIR** en móvil, **Q** en teclado P1 o **N** en teclado P2; el joystick/flechas permiten caminar hacia delante o atrás mientras se protege. Abajo + guardia bloquea ataques bajos; guardia normal bloquea medios y altos. Retroceder o agacharse solos ya no bloquean. No se puede atacar mientras se mantiene guardia.
+- **Parry de jab:** tocar guardia durante los 5 fotogramas previos al contacto de un golpe ligero provoca un destello pixelado y hace retroceder/interrumpe al atacante.
+- **Antispam:** se reduce el aturdimiento y se aumenta la separación al llegar al tercer impacto de normales en un combo; el segundo jab también empuja más. Se limita a **un proyectil activo por luchador** y **70 fotogramas entre disparos** (45 para la escopeta).
+- **Supers:** visualizados a una resolución interna de 320x180, escalada por vecino más próximo, sin pixelar los sprites de los luchadores.
+- **Online:** la guardia se transmite en el bit 13 del control enviado al servidor; actualizar cliente y servidor juntos.
+
 ## V24 — Diseño móvil compacto de salas, resultados y creador
 
 - En la sala versus online, el retrato sobre el nombre del **jugador local** abre el selector de luchadores; no ocupa espacio hasta pulsarlo. El selector muestra seis personajes por página, sin scroll. El icono rival es informativo: no permite cambiar el personaje de otra persona. Los cinco escenarios y AZAR usan una única fila compacta y las acciones quedan a la vista.

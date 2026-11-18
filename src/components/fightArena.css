@@ -887,3 +887,167 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
  .arena-elo-row{min-height:18px}
  .arena-result-actions button{min-height:24px}
 }
+
+/* V25 · Guardia independiente, accesible al mismo tiempo que el joystick. */
+.mobile-guard {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  flex: 1 1 auto; min-width: 0; height: 37px; min-height: 37px;
+  padding: 2px 4px; border: 2px solid #0b1832; border-radius: 3px;
+  outline: 1px solid #e3f8ff;
+  background: linear-gradient(180deg,#d5f7ff 0 22%,#7fbee8 23% 68%,#3a6eab 69%);
+  color: #07213a; box-shadow: inset 0 2px 0 #ffffffa0, 0 3px 0 #061322;
+  opacity: var(--mobile-control-opacity,.8);
+  font: 700 clamp(10px,1.4vw,14px)/1 'Pixelify Sans',monospace;
+  pointer-events: auto; touch-action: none; user-select: none;
+}
+.mobile-guard span { font-size: 17px; line-height: 1; }
+.mobile-guard.is-pressed { transform: translateY(2px); background: #e5fcff; box-shadow: inset 0 2px 0 #071a4055; }
+.mobile-guard:focus-visible { outline: 2px solid #fff1aa; outline-offset: 3px; }
+.mobile-jump { flex: 0 1 auto; min-width: 59px; padding-inline: 4px; }
+.mobile-utility-row { gap: 5px; }
+.mobile-super { flex: 0 1 auto; min-width: 58px; padding-inline: 2px; }
+.mobile-super strong { font-size: clamp(11px,1.45vw,15px); }
+@media (orientation: landscape) and (max-height: 365px) {
+  .mobile-guard, .mobile-jump, .mobile-super { height: 28px; min-height: 28px; }
+  .mobile-guard strong { font-size: 10px; }
+  .mobile-guard span { font-size: 14px; }
+  .mobile-jump { min-width: 49px; gap: 2px; }
+  .mobile-jump strong { font-size: 11px; }
+  .mobile-jump span { font-size: 14px; }
+  .mobile-super { min-width: 47px; }
+  .mobile-super span { font-size: 14px; }
+  .mobile-super strong { font-size: 10px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .mobile-utility-row { gap: 3px; }
+  .mobile-guard { font-size: 10px; }
+  .mobile-guard span { font-size: 14px; }
+  .mobile-jump { min-width: 52px; gap: 2px; }
+  .mobile-jump span { font-size: 15px; }
+  .mobile-jump strong { font-size: 12px; }
+  .mobile-super { min-width: 48px; }
+}
+
+/* Control density on narrow mobile: never let the three top buttons overflow. */
+@media (orientation: portrait) and (max-width: 750px) {
+  .mobile-action-side { width: clamp(158px,46vw,210px); }
+  .mobile-guard strong { font-size: clamp(9px,2.4vw,12px); }
+  .mobile-guard span { display: none; }
+  .mobile-super { min-width: 46px; }
+  .mobile-jump { min-width: 50px; }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .mobile-controls { padding-left: max(8px,env(safe-area-inset-left)); padding-right: max(8px,env(safe-area-inset-right)); gap: 5px; }
+  .mobile-action-side { width: 155px; }
+  .mobile-guard span { display: inline; }
+  .mobile-guard strong { display: none; }
+  .mobile-jump { min-width: 51px; }
+  .mobile-super { min-width: 45px; }
+}
+
+/* V26 · Four clearly grouped right-hand controls. SUPER is a separate central
+   action, rendered only when the meter is ready. Preserve pointer independence
+   so guard + movement and simultaneous taps work on multi-touch devices. */
+.mobile-action-side { gap: 6px; }
+.mobile-utility-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; width: 100%; min-height: 0; }
+.mobile-utility-row > .mobile-guard,
+.mobile-utility-row > .mobile-jump { box-sizing: border-box; width: 100%; min-width: 0; height: clamp(39px,7dvh,53px); min-height: 0; flex: none; padding-inline: 2px; }
+.mobile-actions { gap: 6px; align-items: stretch; }
+.mobile-action { box-sizing: border-box; }
+.mobile-super-center {
+  position: absolute; left: 50%; bottom: max(15px,env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 23; pointer-events: auto;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  gap: 1px; width: clamp(76px,13vw,114px); min-width: 0;
+  height: clamp(65px,13dvh,94px); min-height: 0;
+  padding: 5px 8px; touch-action: none; user-select: none;
+  border: 3px solid #4a2918; outline: 2px solid #fff4ba;
+  background: linear-gradient(#fff9ca 0 18%,#f7c455 19% 70%,#b66c2d 71%);
+  box-shadow: inset 0 3px 0 #fff9db,0 5px 0 #261626,0 0 15px #ffc94b70;
+  animation: v26-super-appear 160ms steps(3,end) both;
+}
+.mobile-super-center span { display: block; font: 900 clamp(25px,4vw,36px)/1 'Pixelify Sans',monospace; }
+.mobile-super-center strong { font: 900 clamp(15px,2.5vw,20px)/1 'Pixelify Sans',monospace; }
+.mobile-super-center.is-pressed { transform: translateX(-50%) translateY(3px); box-shadow: inset 0 2px 0 #fff9db,0 2px 0 #261626; }
+@keyframes v26-super-appear { from { opacity: 0; } to { opacity: var(--mobile-control-opacity,.8); } }
+@media (orientation: portrait) and (max-width:750px) {
+  .mobile-action-side { width: clamp(144px,44vw,204px); }
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: 43px; min-width: 0; }
+  .mobile-jump strong, .mobile-guard strong { font-size: clamp(10px,2.8vw,13px); }
+  .mobile-super-center { width: clamp(70px,23vw,98px); height: clamp(62px,11dvh,80px); bottom: max(13px,env(safe-area-inset-bottom)); }
+}
+@media (orientation: portrait) and (max-width:345px) {
+  .mobile-action-side { width: 144px; }
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: 39px; }
+  .mobile-guard span { display: none; }
+  .mobile-guard strong { display: inline; font-size: 10px; }
+  .mobile-jump span { font-size: 15px; }
+  .mobile-jump strong { font-size: 11px; }
+  .mobile-super-center { width: 68px; height: 60px; }
+}
+@media (orientation: landscape) and (max-height:420px) {
+  .mobile-action-side { gap: 4px; }
+  .mobile-utility-row { gap: 4px; }
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: clamp(27px,9dvh,36px); min-height: 0; }
+  .mobile-super-center { width: clamp(78px,12vw,110px); height: clamp(57px,19dvh,75px); bottom: max(5px,env(safe-area-inset-bottom)); }
+  .mobile-super-center span { font-size: 23px; }
+  .mobile-super-center strong { font-size: 15px; }
+}
+@media (orientation: landscape) and (max-height:310px) {
+  .mobile-super-center { height: 51px; width: 76px; }
+  .mobile-super-center span { font-size: 18px; }
+  .mobile-super-center strong { font-size: 13px; }
+}
+
+/* V27 · Escuela Arcade: una sola tarjeta compacta, siempre fuera de los botones.
+   La ayuda es desplegable; no hay scroll y cada lección valida el motor real. */
+.pb-tutorial-in-fight {
+  z-index: 11;
+  width: min(420px, 51vw);
+  gap: 3px;
+  padding: 7px 10px;
+  border: 2px solid #8fc5e8;
+  border-radius: 2px;
+  background: #0a1939f2;
+  box-shadow: 3px 3px 0 #050b18, inset 0 0 0 1px #315b85;
+  pointer-events: auto;
+}
+.pb-school-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;color:#82e4ff;font:900 9px/1.1 'Press Start 2P',monospace;letter-spacing:0}
+.pb-school-heading b{color:#ffe29d;white-space:nowrap;font-size:9px}
+.pb-school-progress{height:4px;background:#172e53;border:1px solid #477293;overflow:hidden;margin:1px 0}
+.pb-school-progress i{display:block;height:100%;background:#fbc765;transition:width .25s steps(4,end)}
+.pb-tutorial-in-fight>strong{font:900 clamp(12px,1.65vw,18px)/1.12 'Pixelify Sans',monospace;color:#ffdc7f;letter-spacing:.03em}
+.pb-tutorial-in-fight>small{color:#edf5ff;font:700 clamp(10px,1.15vw,12px)/1.16 'Oxanium',sans-serif}
+.pb-school-help{margin:2px 0 0;color:#c8dfff;font:700 clamp(9px,1.05vw,11px)/1.2 'Oxanium',sans-serif}
+.pb-school-help b{color:#8fecf4}
+.pb-school-incoming{font:900 10px/1.2 'Pixelify Sans',monospace;color:#ff9393;text-shadow:0 0 5px #a23131;animation:pb-school-blink .55s steps(2,end) infinite}
+@keyframes pb-school-blink{50%{opacity:.55}}
+.pb-school-actions{display:grid!important;grid-template-columns:1fr 1fr auto;gap:4px!important;margin-top:2px!important}
+.pb-school-actions button{min-height:23px;padding:3px 5px!important;white-space:nowrap;font:900 clamp(9px,1.1vw,11px)/1 'Pixelify Sans',monospace!important;background:#1e436d;border:1px solid #6ba3d2;color:#e6f5ff}
+.pb-school-actions button:last-child{border-color:#ab5470;background:#4a203f;color:#ffcedb}
+.pb-tutorial-in-fight.is-complete{border-color:#facc67}
+.pb-tutorial-in-fight.is-complete .pb-school-progress i{background:#8bf0c1}
+@media(orientation:portrait){
+  .pb-tutorial-in-fight{top:clamp(78px,14vh,138px);width:min(94vw,385px);padding:6px 8px;gap:3px}
+  .pb-school-heading{font-size:9px}
+  .pb-tutorial-in-fight>strong{font-size:clamp(14px,4vw,18px)}
+  .pb-tutorial-in-fight>small{font-size:clamp(10px,2.7vw,12px)}
+  .pb-school-actions button{font-size:10px!important;min-height:26px}
+}
+@media(orientation:landscape) and (max-height:410px){
+  .pb-tutorial-in-fight{top:clamp(47px,13vh,56px);width:min(370px,47vw);padding:4px 7px;gap:2px}
+  .pb-school-heading,.pb-school-heading b{font-size:8px}
+  .pb-school-progress{height:3px;margin:0}
+  .pb-tutorial-in-fight>strong{font-size:clamp(12px,1.8vw,15px)}
+  .pb-tutorial-in-fight>small,.pb-school-help{font-size:9px;line-height:1.06}
+  .pb-school-actions button{font-size:9px!important;min-height:19px;padding:2px 3px!important}
+}
+@media(orientation:landscape) and (max-width:600px){
+  .pb-tutorial-in-fight{width:50vw;left:50%}
+}
+@media(prefers-reduced-motion:reduce){.pb-school-incoming{animation:none}.pb-school-progress i{transition:none}}
+.pb-tutorial-in-fight>.pb-school-heading{justify-content:space-between;margin-top:0}
+.pb-tutorial-in-fight>.pb-school-progress{display:block;margin:1px 0;pointer-events:none}

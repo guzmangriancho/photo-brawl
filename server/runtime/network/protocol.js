@@ -6,7 +6,7 @@ exports.unpackControls = unpackControls;
 exports.ONLINE_PROTOCOL = 1;
 exports.CONTROL_KEYS = [
     'left', 'right', 'up', 'down', 'light', 'heavy', 'spNeutral', 'spForward', 'spUp',
-    'superBtn', 'romanCancel', 'dashLeft', 'dashRight',
+    'superBtn', 'romanCancel', 'dashLeft', 'dashRight', 'guard',
 ];
 function packControls(input) {
     let value = 0;

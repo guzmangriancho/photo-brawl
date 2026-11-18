@@ -19,7 +19,7 @@ export interface RoomView {
 export interface NetworkFighter {
   x: number; y: number; vx: number; vy: number; facing: 1 | -1;
   hp: number; maxHp: number; meter: number; state: FighterState; stateFrame: number;
-  hitstunFrames: number; blockstunFrames: number; invincibleFrames: number;
+  hitstunFrames: number; blockstunFrames: number; invincibleFrames: number; projectileCooldownFrames: number;
   lightChainCount: number; comboCount: number; comboDamage: number; comboTimer: number;
   jumpsRemaining: number; airDashUsed: boolean; hasArmorActive: boolean;
   currentAttack: Record<string, unknown> | null;
@@ -35,6 +35,7 @@ export interface NetworkState {
   callouts: object[];
   afterimages: object[];
   shockwaves: object[];
+  parryBursts: object[];
   meteors: object[];
   crossSlashes: object[];
   superFlashFrames: number; superFlashOwner: 0 | 1;
@@ -44,7 +45,7 @@ export interface NetworkState {
 export type ControlKey = keyof InputState;
 export const CONTROL_KEYS: ControlKey[] = [
   'left','right','up','down','light','heavy','spNeutral','spForward','spUp',
-  'superBtn','romanCancel','dashLeft','dashRight',
+  'superBtn','romanCancel','dashLeft','dashRight','guard',
 ];
 export type RemoteAction = { kind: 'move'; slot: MoveSlot } | { kind: 'jump' } | { kind: 'dash'; dir: -1 | 1 };
 export interface OnlineStart {

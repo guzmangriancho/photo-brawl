@@ -7,8 +7,10 @@ exports.drawShockwaveFX = drawShockwaveFX;
 exports.drawCrossSlashFX = drawCrossSlashFX;
 exports.drawParticlesFX = drawParticlesFX;
 exports.drawMeteorFX = drawMeteorFX;
+exports.drawSuperMeteorsFX = drawSuperMeteorsFX;
 exports.drawProjectileFX = drawProjectileFX;
 exports.drawHitstopSparkFX = drawHitstopSparkFX;
+exports.drawParryBurstFX = drawParryBurstFX;
 const Q = (v) => Math.round(v / 2) * 2;
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -202,6 +204,37 @@ function drawDive(ctx, f, color) {
         streak(ctx, -20, -70, 115, 62, 4, '#ffffff');
     });
 }
+/**
+ * 16-bit presentation pass: all SUPER effects are painted at 320x180 and then
+ * nearest-neighbor enlarged. The arena, portraits and character sprites remain
+ * at their own resolution; only the super effects get chunky hardware pixels.
+ */
+const PIXEL_SCALE = 3;
+let superFxCanvas = null;
+function drawPixelSuper(ctx, draw) {
+    if (typeof document === 'undefined') {
+        draw(ctx);
+        return;
+    }
+    if (!superFxCanvas) {
+        superFxCanvas = document.createElement('canvas');
+        superFxCanvas.width = 960 / PIXEL_SCALE;
+        superFxCanvas.height = 540 / PIXEL_SCALE;
+    }
+    const fx = superFxCanvas.getContext('2d');
+    if (!fx) {
+        draw(ctx);
+        return;
+    }
+    fx.setTransform(1, 0, 0, 1, 0, 0);
+    fx.clearRect(0, 0, superFxCanvas.width, superFxCanvas.height);
+    fx.setTransform(1 / PIXEL_SCALE, 0, 0, 1 / PIXEL_SCALE, 0, 0);
+    draw(fx);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(superFxCanvas, 0, 0, 960, 540);
+    ctx.restore();
+}
 function drawAttackFX(ctx, f, frame) {
     const a = f.currentAttack;
     if (f.state !== 'ATTACK' || !a || f.stateFrame < a.startup || f.stateFrame >= a.startup + a.active)
@@ -234,14 +267,16 @@ function drawAttackFX(ctx, f, frame) {
                 drawUppercut(ctx, f, frame, color);
             break;
         case 'SUPER':
-            if (a.mechanic === 'GIANT_BEAM_LASER')
-                drawBeam(ctx, f, frame, color);
-            else if (a.mechanic === 'METEOR_SCREEN_DROP')
-                drawMeteorAura(ctx, f, frame, color);
-            else if (a.mechanic === 'MULTI_HIT_RUSH_COMBO')
-                drawRush(ctx, f, frame, color);
-            else if (a.mechanic === 'OMEGA_SUPLEX')
-                drawSuplex(ctx, f, frame, color);
+            drawPixelSuper(ctx, fx => {
+                if (a.mechanic === 'GIANT_BEAM_LASER')
+                    drawBeam(fx, f, frame, color);
+                else if (a.mechanic === 'METEOR_SCREEN_DROP')
+                    drawMeteorAura(fx, f, frame, color);
+                else if (a.mechanic === 'MULTI_HIT_RUSH_COMBO')
+                    drawRush(fx, f, frame, color);
+                else if (a.mechanic === 'OMEGA_SUPLEX')
+                    drawSuplex(fx, f, frame, color);
+            });
             break;
     }
     ctx.restore();
@@ -279,7 +314,7 @@ function drawGuardFX(ctx, f, frame) {
     }
     ctx.restore();
 }
-function drawSuperFlashFX(ctx, f, remaining, frame) {
+function drawSuperFlashRaw(ctx, f, remaining, frame) {
     // 26 frame activation: stylized vignette and radial rays, no giant solid disc.
     const progress = clamp((26 - remaining) / 26, 0, 1);
     const x = f.x, y = f.y - 92;
@@ -298,6 +333,9 @@ function drawSuperFlashFX(ctx, f, remaining, frame) {
     arcStrokes(ctx, x, y, 24 + progress * 100, color, -frame, 5, .7, 4);
     diamond(ctx, x, y, 17 + flicker(frame) * 4, '#fffdf2');
     ctx.restore();
+}
+function drawSuperFlashFX(ctx, f, remaining, frame) {
+    drawPixelSuper(ctx, fx => drawSuperFlashRaw(fx, f, remaining, frame));
 }
 function drawShockwaveFX(ctx, sw, frame) {
     const alpha = clamp(sw.alpha, 0, 1);
@@ -318,7 +356,7 @@ function drawShockwaveFX(ctx, sw, frame) {
     }
     ctx.restore();
 }
-function drawCrossSlashFX(ctx, x, y, color, life) {
+function drawCrossSlashRaw(ctx, x, y, color, life) {
     const t = clamp(life / 16, 0, 1);
     ctx.save();
     ctx.globalAlpha = t;
@@ -329,6 +367,9 @@ function drawCrossSlashFX(ctx, x, y, color, life) {
     for (let i = 0; i < 4; i++)
         diamond(ctx, x + (i % 2 ? 1 : -1) * (20 + i * 8), y + (i - 2) * 23, 4 + i % 2 * 3, '#fff0bf');
     ctx.restore();
+}
+function drawCrossSlashFX(ctx, x, y, color, life) {
+    drawPixelSuper(ctx, fx => drawCrossSlashRaw(fx, x, y, color, life));
 }
 function drawParticlesFX(ctx, particles) {
     ctx.save();
@@ -357,7 +398,7 @@ function drawParticlesFX(ctx, particles) {
     }
     ctx.restore();
 }
-function drawMeteorFX(ctx, m, frame) {
+function drawMeteorRaw(ctx, m, frame) {
     const x = m.x, y = m.y, r = m.size * .55;
     ctx.save();
     streak(ctx, x - m.vx * 5, y - m.vy * 6, m.vx * 5, m.vy * 6, r * .58, m.color);
@@ -370,6 +411,16 @@ function drawMeteorFX(ctx, m, frame) {
         diamond(ctx, tx, ty, 3 + i, '#fef9ef');
     }
     ctx.restore();
+}
+function drawMeteorFX(ctx, m, frame) {
+    drawPixelSuper(ctx, fx => drawMeteorRaw(fx, m, frame));
+}
+/** All falling super meteors share one pixelated pass (cheaper on mobile). */
+function drawSuperMeteorsFX(ctx, meteors, frame) {
+    if (!meteors.length)
+        return;
+    drawPixelSuper(ctx, fx => { for (const meteor of meteors)
+        drawMeteorRaw(fx, meteor, frame); });
 }
 function drawProjectileFX(ctx, p, frame) {
     ctx.save();
@@ -425,5 +476,29 @@ function drawHitstopSparkFX(ctx, particles, hitstopFrames) {
         streak(ctx, x, y, Math.cos(a) * (r * .85), Math.sin(a) * (r * .85), i % 2 ? 2.5 : 4, i % 2 ? '#fffdf3' : s.color);
     }
     diamond(ctx, s.x, s.y, Math.min(15, r * .55), '#fffefa');
+    ctx.restore();
+}
+/** 11-frame parry spark: tiny 16-bit light explosion with sharp 4px pixels. */
+function drawParryBurstFX(ctx, burst) {
+    const age = 11 - burst.life;
+    const radius = 10 + age * 4;
+    const x = Math.round(burst.x / 4) * 4;
+    const y = Math.round(burst.y / 4) * 4;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, burst.life / 11);
+    // A small bright center + rectangular cross and four diagonal sparks.
+    ctx.fillStyle = age < 4 ? '#ffffff' : '#d5ffff';
+    const core = Math.max(4, 16 - age);
+    ctx.fillRect(x - core / 2, y - core / 2, core, core);
+    ctx.fillStyle = '#7de6ff';
+    ctx.fillRect(x - radius, y - 4, radius * 2, 8);
+    ctx.fillRect(x - 4, y - radius, 8, radius * 2);
+    ctx.fillStyle = '#fff6ae';
+    for (const direction of [-1, 1]) {
+        ctx.fillRect(x + direction * (radius + 5), y - 2, 8, 4);
+        ctx.fillRect(x - 2, y + direction * (radius + 5), 4, 8);
+        ctx.fillRect(x + direction * Math.round(radius * .65), y - Math.round(radius * .65), 8, 8);
+        ctx.fillRect(x + direction * Math.round(radius * .65), y + Math.round(radius * .65), 8, 8);
+    }
     ctx.restore();
 }

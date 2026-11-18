@@ -16,7 +16,7 @@ interface MobileControlsProps {
 }
 
 type Dir = 'left' | 'right' | 'up' | 'down';
-type ButtonId = 'strike' | 'skill' | 'jump' | 'super';
+type ButtonId = 'strike' | 'skill' | 'jump' | 'super' | 'guard';
 const directions: Dir[] = ['left', 'right', 'up', 'down'];
 const HOLD_MS = 270;
 const DEADZONE = 19;
@@ -65,6 +65,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     clearHoldTimer();
     releaseMovement();
     buttonPointers.current = {};
+    inputRef.current.guard = false;
     setPressed({});
     setChargedHold(false);
   };
@@ -77,6 +78,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     return () => {
       clearHoldTimer();
       for (const dir of directions) inputRef.current[dir] = false;
+      inputRef.current.guard = false;
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('visibilitychange', onHidden);
     };
@@ -136,7 +138,9 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       buttonPointers.current[id] = event.pointerId;
       event.currentTarget.setPointerCapture(event.pointerId);
       setPressed((old) => ({ ...old, [id]: true }));
-      if (id === 'strike') {
+      if (id === 'guard') {
+        inputRef.current.guard = true;
+      } else if (id === 'strike') {
         clearHoldTimer();
         setChargedHold(false);
         // Immediate press response: no waiting for release or for hold detection.
@@ -160,6 +164,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       event.preventDefault();
       event.stopPropagation();
       if (buttonPointers.current[id] !== event.pointerId) return;
+      if (id === 'guard') inputRef.current.guard = false;
       if (id === 'strike') clearHoldTimer();
       delete buttonPointers.current[id];
       setPressed((old) => ({ ...old, [id]: false }));
@@ -167,6 +172,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     },
     onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
       if (buttonPointers.current[id] !== event.pointerId) return;
+      if (id === 'guard') inputRef.current.guard = false;
       if (id === 'strike') clearHoldTimer();
       delete buttonPointers.current[id];
       setPressed((old) => ({ ...old, [id]: false }));
@@ -174,6 +180,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     },
     onLostPointerCapture: (event: React.PointerEvent<HTMLButtonElement>) => {
       if (buttonPointers.current[id] !== event.pointerId) return;
+      if (id === 'guard') inputRef.current.guard = false;
       if (id === 'strike') clearHoldTimer();
       delete buttonPointers.current[id];
       setPressed((old) => ({ ...old, [id]: false }));
@@ -192,7 +199,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       style={{ '--mobile-control-opacity': opacity / 100 } as React.CSSProperties}
       aria-label="Controles táctiles del combate">
       <div className="mobile-movement-zone" role="group"
-        aria-label="Joystick: mover, agacharse, bloquear; deslizar lateral para dash. El salto tiene botón propio."
+        aria-label="Joystick: mover en cualquier dirección y agacharse. Guardia y salto tienen botones propios."
         onPointerDown={(event) => {
           event.preventDefault();
           if (activeStick.current) return;
@@ -225,12 +232,10 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       </div>
       <div className="mobile-action-side">
         <div className="mobile-utility-row">
-          {superReady && (
-            <button type="button" className={`mobile-super ${pressed.super ? 'is-pressed' : ''}`}
-              aria-label="Súper cargado: ejecutar ataque definitivo" {...buttonHandlers('super')}>
-              <span aria-hidden="true">✦</span><strong>SÚPER</strong>
-            </button>
-          )}
+          <button type="button" className={`mobile-guard ${pressed.guard ? 'is-pressed' : ''}`}
+            aria-label="GUARDIA: mantener pulsado para bloquear; pulsar justo antes de recibir un jab para hacer parry. Compatible con mover el joystick" aria-pressed={Boolean(pressed.guard)} {...buttonHandlers('guard')}>
+            <span aria-hidden="true">▣</span><strong>CUBRIR</strong>
+          </button>
           <button type="button" className={`mobile-jump ${pressed.jump ? 'is-pressed' : ''}`}
             aria-label="Saltar. Pulsa una segunda vez en el aire solo si tu luchador tiene doble salto" {...buttonHandlers('jump')}>
             <span aria-hidden="true">↑</span><strong>SALTO</strong>
@@ -249,6 +254,12 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
           </button>
         </div>
       </div>
+      {superReady && (
+        <button type="button" className={`mobile-super mobile-super-center ${pressed.super ? 'is-pressed' : ''}`}
+          aria-label="Súper cargado: ejecutar ataque definitivo" {...buttonHandlers('super')}>
+          <span aria-hidden="true">✦</span><strong>SÚPER</strong>
+        </button>
+      )}
     </nav>
   );
 };

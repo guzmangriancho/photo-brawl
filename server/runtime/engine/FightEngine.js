@@ -31,6 +31,7 @@ function createEmptyInput() {
         right: false,
         up: false,
         down: false,
+        guard: false,
         light: false,
         heavy: false,
         spNeutral: false,
@@ -71,6 +72,7 @@ class FightEngine {
     callouts = [];
     afterimages = [];
     shockwaves = [];
+    parryBursts = [];
     meteors = [];
     crossSlashes = [];
     nextProjId = 1;
@@ -127,6 +129,7 @@ class FightEngine {
             lastTapLeftFrame: -999,
             lastTapRightFrame: -999,
             aiCooldown: 12,
+            projectileCooldownFrames: 0,
             grabbedBy: null,
             grabSlamTimer: 0,
         };
@@ -163,6 +166,7 @@ class FightEngine {
         this.callouts = [];
         this.afterimages = [];
         this.shockwaves = [];
+        this.parryBursts = [];
         this.meteors = [];
         this.crossSlashes = [];
         this.roundTimerFrames = 99 * 60;
@@ -256,6 +260,7 @@ class FightEngine {
             x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, maxHp: f.maxHp,
             meter: f.meter, state: f.state, stateFrame: f.stateFrame, hitstunFrames: f.hitstunFrames,
             blockstunFrames: f.blockstunFrames, invincibleFrames: f.invincibleFrames,
+            projectileCooldownFrames: f.projectileCooldownFrames,
             lightChainCount: f.lightChainCount, comboCount: f.comboCount, comboDamage: f.comboDamage,
             comboTimer: f.comboTimer, jumpsRemaining: f.jumpsRemaining, airDashUsed: f.airDashUsed,
             hasArmorActive: f.hasArmorActive, currentAttack: f.currentAttack,
@@ -265,7 +270,7 @@ class FightEngine {
             frame: this.frameCount, snapshot: this.getSnapshot(), p1: fighter(this.p1), p2: fighter(this.p2),
             projectiles: this.projectiles.map(({ spriteSheet, ...p }) => p),
             particles: this.particles, callouts: this.callouts, afterimages: this.afterimages,
-            shockwaves: this.shockwaves, meteors: this.meteors, crossSlashes: this.crossSlashes,
+            shockwaves: this.shockwaves, parryBursts: this.parryBursts, meteors: this.meteors, crossSlashes: this.crossSlashes,
             superFlashFrames: this.superFlashFrames, superFlashOwner: this.superFlashOwner,
             hitstopFrames: this.hitstopFrames, shakeIntensity: this.shakeIntensity,
             announceTimer: this.announceTimer, roundTimerFrames: this.roundTimerFrames,
@@ -288,6 +293,7 @@ class FightEngine {
         this.callouts = state.callouts;
         this.afterimages = state.afterimages;
         this.shockwaves = state.shockwaves;
+        this.parryBursts = (state.parryBursts || []);
         this.meteors = state.meteors;
         this.crossSlashes = state.crossSlashes;
         this.superFlashFrames = state.superFlashFrames;
@@ -342,7 +348,9 @@ class FightEngine {
             slot = 'HEAVY';
         else if (pressed('light'))
             slot = 'LIGHT';
-        if (slot !== null && !this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) {
+        if (input.guard)
+            f.bufferedActions = [];
+        if (slot !== null && !input.guard && !this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) {
             f.bufferedActions.push({ slot, frame: this.frameCount });
             if (f.bufferedActions.length > 4)
                 f.bufferedActions.shift();
@@ -453,6 +461,12 @@ class FightEngine {
         }
         this.updateFighter(this.p1, this.p2, this.p1Input);
         this.updateFighter(this.p2, this.p1, this.p2Input);
+        // Solo el muñeco del tutorial: anticipación visible para aprender el timing.
+        // No modifica jabs de jugadores, CPU normal ni el servidor online.
+        if (this.mode === 'TRAINING' && this.trainingDummyMode === 'TUTORIAL_JABS' &&
+            this.p2.currentAttack?.slot === 'LIGHT' && this.p2.stateFrame <= 1) {
+            this.p2.currentAttack.startup = 30;
+        }
         this.resolveCharacterCollision();
         this.resolveAttackCollisions(this.p1, this.p2);
         this.resolveAttackCollisions(this.p2, this.p1);
@@ -548,6 +562,12 @@ class FightEngine {
             }
         }
         const grounded = this.isGrounded(f);
+        if (f.projectileCooldownFrames > 0)
+            f.projectileCooldownFrames--;
+        if (input.guard) {
+            f.bufferedActions = [];
+            f.bufferedDash = null;
+        }
         if (grounded &&
             !this.roundOver &&
             (f.state === 'IDLE' ||
@@ -558,15 +578,10 @@ class FightEngine {
                 f.state === 'BLOCK_CROUCH')) {
             f.facing = opp.x >= f.x ? 1 : -1;
         }
-        // Track defensive stance: Standing Back vs Crouching Guard
-        const holdingBack = (f.facing === 1 && input.left) || (f.facing === -1 && input.right);
+        // La guardia se activa con SU botón, independientemente del movimiento.
         const holdingCrouch = input.down;
-        const anyGuard = holdingBack || holdingCrouch;
-        const prevHoldingBack = (f.facing === 1 && f.prevInput.left) || (f.facing === -1 && f.prevInput.right);
-        const prevAnyGuard = prevHoldingBack || f.prevInput.down;
-        if (anyGuard && !prevAnyGuard) {
+        if (input.guard && !f.prevInput.guard)
             f.blockPressFrame = this.frameCount;
-        }
         if (this.roundOver) {
             this.applyPhysics(f);
             return;
@@ -634,7 +649,7 @@ class FightEngine {
             f.blockstunFrames--;
             this.applyPhysics(f);
             if (f.blockstunFrames <= 0) {
-                f.state = holdingCrouch ? 'BLOCK_CROUCH' : holdingBack ? 'BLOCK_STAND' : 'IDLE';
+                f.state = input.guard ? (holdingCrouch ? 'BLOCK_CROUCH' : 'BLOCK_STAND') : holdingCrouch ? 'CROUCH' : 'IDLE';
                 f.stateFrame = 0;
             }
             return;
@@ -660,7 +675,7 @@ class FightEngine {
             return;
         }
         // Dash State
-        if (f.state === 'DASH') {
+        if (f.state === 'DASH' && !input.guard) {
             if (f.stateFrame % 3 === 0) {
                 this.afterimages.push({
                     x: f.x,
@@ -680,11 +695,11 @@ class FightEngine {
             return;
         }
         // Check Attack Inputs
-        if (this.tryStartAttack(f, opp, input)) {
+        if (!input.guard && this.tryStartAttack(f, opp, input)) {
             return;
         }
         // Flick horizontal táctil (con buffer corto) o doble tap de teclado.
-        if (f.bufferedDash) {
+        if (f.bufferedDash && !input.guard) {
             const dash = f.bufferedDash;
             f.bufferedDash = null;
             if (grounded || (f.profile.passiveTrait === 'AIR_DASH' && !f.airDashUsed)) {
@@ -695,7 +710,7 @@ class FightEngine {
         // Double-Tap Dash & Air-Dash
         const leftPressed = input.left && !f.prevInput.left;
         const rightPressed = input.right && !f.prevInput.right;
-        if (leftPressed) {
+        if (leftPressed && !input.guard) {
             if (this.frameCount - f.lastTapLeftFrame <= 14) {
                 if (grounded || (f.profile.passiveTrait === 'AIR_DASH' && !f.airDashUsed)) {
                     this.triggerDash(f, -1, !grounded);
@@ -704,7 +719,7 @@ class FightEngine {
             }
             f.lastTapLeftFrame = this.frameCount;
         }
-        if (rightPressed) {
+        if (rightPressed && !input.guard) {
             if (this.frameCount - f.lastTapRightFrame <= 14) {
                 if (grounded || (f.profile.passiveTrait === 'AIR_DASH' && !f.airDashUsed)) {
                     this.triggerDash(f, 1, !grounded);
@@ -716,7 +731,7 @@ class FightEngine {
         // Jump & Double Jump
         const upPressed = input.up && !f.prevInput.up;
         const queuedJump = f.bufferedJumpFrame !== null && this.frameCount - f.bufferedJumpFrame <= 14;
-        if ((upPressed || queuedJump) && f.jumpsRemaining > 0) {
+        if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0) {
             f.bufferedJumpFrame = null;
             f.vy = f.profile.archetype === 'GRAPPLER_TANK' ? -13.2 : -14.8;
             f.y -= 2;
@@ -733,19 +748,17 @@ class FightEngine {
         if (grounded) {
             if (holdingCrouch) {
                 f.vx = 0;
-                f.state = 'BLOCK_CROUCH';
+                f.state = input.guard ? 'BLOCK_CROUCH' : 'CROUCH';
             }
-            else if (input.left && !input.right) {
-                f.vx = f.facing === 1 ? -walkSpd * 0.82 : -walkSpd;
-                f.state = f.facing === 1 ? 'BLOCK_STAND' : 'WALK_FWD';
-            }
-            else if (input.right && !input.left) {
-                f.vx = f.facing === 1 ? walkSpd : walkSpd * 0.82;
-                f.state = f.facing === 1 ? 'WALK_FWD' : 'BLOCK_STAND';
+            else if (input.left !== input.right) {
+                const dir = input.left ? -1 : 1;
+                // Puedes caminar tanto hacia el rival como hacia atrás CON la guardia levantada.
+                f.vx = dir * walkSpd * (input.guard ? 0.57 : (dir === f.facing ? 1 : 0.82));
+                f.state = input.guard ? 'BLOCK_STAND' : dir === f.facing ? 'WALK_FWD' : 'WALK_BACK';
             }
             else {
                 f.vx = 0;
-                f.state = 'IDLE';
+                f.state = input.guard ? 'BLOCK_STAND' : 'IDLE';
             }
         }
         else {
@@ -835,6 +848,12 @@ class FightEngine {
         }
         if (current === 'LIGHT' || current === 'HEAVY' || current === 'LOW' || current === 'RUSH') {
             if (next === 'SP_UP' || next === 'SP_FORWARD' || next === 'SP_NEUTRAL') {
+                if (next === 'SP_NEUTRAL' &&
+                    (f.projectileCooldownFrames > 0 ||
+                        (f.profile.moveset.specialNeutral.mechanic !== 'SHORT_SHOTGUN_BLAST' && this.projectiles.some(p => p.ownerIndex === f.index)))) {
+                    f.bufferedActions.shift();
+                    return false;
+                }
                 f.bufferedActions.shift();
                 this.startMove(f, opp, next);
                 return true;
@@ -855,6 +874,10 @@ class FightEngine {
     tryStartAttack(f, opp, _input) {
         const next = this.takeCommand(f);
         if (!next)
+            return false;
+        if (next === 'SP_NEUTRAL' &&
+            (f.projectileCooldownFrames > 0 ||
+                (f.profile.moveset.specialNeutral.mechanic !== 'SHORT_SHOTGUN_BLAST' && this.projectiles.some(p => p.ownerIndex === f.index))))
             return false;
         if (next === 'LIGHT' || next === 'RUSH' || next === 'LOW')
             f.lightChainCount = 0;
@@ -1201,7 +1224,11 @@ class FightEngine {
     spawnSpecialProjectile(f) {
         const sp = f.profile.moveset.specialNeutral;
         const mech = sp.mechanic;
+        if (f.projectileCooldownFrames > 0 || (mech !== 'SHORT_SHOTGUN_BLAST' &&
+            this.projectiles.some(p => p.ownerIndex === f.index)))
+            return;
         if (mech === 'SHORT_SHOTGUN_BLAST') {
+            f.projectileCooldownFrames = 45; // ráfaga corta también necesita descanso
             SoundFX_1.soundFX.heavyHit();
             this.shockwaves.push({
                 x: f.x + f.facing * 45,
@@ -1214,6 +1241,7 @@ class FightEngine {
             this.spawnHitSparks(f.x + f.facing * 95, f.y - 78, sp.primaryHex, 22);
             return;
         }
+        f.projectileCooldownFrames = 70; // ~1,17 s a 60 FPS; las minas también ocupan un único hueco.
         SoundFX_1.soundFX.projectile();
         const pwr = this.getPowerMultiplier(f);
         const spawnX = f.x + f.facing * 52;
@@ -1278,9 +1306,8 @@ class FightEngine {
             return false;
         if (defender.state === 'ATTACK' || defender.state === 'HURT')
             return false;
-        const holdingBack = (defender.facing === 1 && defInput.left) || (defender.facing === -1 && defInput.right);
         const holdingCrouch = defInput.down;
-        if (!holdingBack && !holdingCrouch)
+        if (!defInput.guard)
             return false;
         if (holdingCrouch) {
             // Crouching block beats LOW and MID, loses to OVERHEAD
@@ -1336,24 +1363,25 @@ class FightEngine {
         const hitY = (Math.max(hbY, defY) + Math.min(hbY + hbH, defY + defH)) / 2;
         const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
         const validGuard = !atk.isGrab && this.canGuardAttack(defender, defInput, atk.height);
-        // 1. Check 6-Frame PARRY!
-        if (validGuard && this.frameCount - defender.blockPressFrame <= 6) {
+        // Parry de jab: pulsar GUARDIA justo antes del contacto (5 fotogramas).
+        // Interrumpe el jab y deja espacio para que el defensor pueda responder.
+        if (atk.slot === 'LIGHT' && validGuard && this.frameCount - defender.blockPressFrame <= 4) {
             SoundFX_1.soundFX.parry();
-            this.hitstopFrames = 9;
-            defender.invincibleFrames = 14;
-            defender.state = 'BLOCK_STAND';
+            this.hitstopFrames = 5;
+            defender.invincibleFrames = 12;
+            defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
+            defender.stateFrame = 0;
             defender.blockstunFrames = 0;
+            attacker.currentAttack = null;
+            attacker.bufferedActions = [];
+            attacker.lightChainCount = 0;
+            attacker.state = 'HURT';
+            attacker.stateFrame = 0;
+            attacker.hitstunFrames = 18;
+            attacker.vx = -attacker.facing * 11;
             this.addMeter(defender, 16);
-            this.shockwaves.push({
-                x: hitX,
-                y: hitY,
-                radius: 10,
-                maxRadius: 95,
-                color: '#38bdf8',
-                alpha: 0.9,
-            });
-            this.spawnHitSparks(hitX, hitY, '#38bdf8', 18);
-            this.addCallout(defender.x, defender.y - 155, 'PARRY!!', '#38bdf8');
+            this.parryBursts.push({ x: hitX, y: hitY, life: 11, facing: defender.facing });
+            this.addCallout(defender.x, defender.y - 155, 'PARRY!', '#befaff');
             return;
         }
         // 2. Check Normal Guard (High/Low validated)
@@ -1467,12 +1495,20 @@ class FightEngine {
         else {
             defender.state = 'HURT';
             defender.stateFrame = 0;
-            defender.hitstunFrames = atk.hitstun + (isCounterHit ? 5 : 0);
+            const normalPressure = (atk.slot === 'LIGHT' || atk.slot === 'HEAVY' || atk.slot === 'RUSH' || atk.slot === 'LOW') && attacker.comboCount >= 3;
+            // El tercer normal puede rematar, pero ya no encierra al rival en hitstun infinito.
+            defender.hitstunFrames = normalPressure ? 7 : atk.hitstun + (isCounterHit ? 5 : 0);
+            if (atk.slot === 'LIGHT' && attacker.lightChainCount >= 2)
+                defender.hitstunFrames = Math.min(defender.hitstunFrames, 9);
             if (atk.launchY !== 0) {
                 defender.vy = atk.launchY;
                 defender.y -= 2;
             }
-            this.applyCornerAwarePushback(attacker, defender, atk.pushback);
+            const pressurePush = normalPressure ? atk.pushback + 13 :
+                atk.slot === 'LIGHT' && attacker.lightChainCount >= 2 ? atk.pushback + 4 : atk.pushback;
+            this.applyCornerAwarePushback(attacker, defender, pressurePush);
+            if (normalPressure)
+                attacker.vx = -attacker.facing * 4;
         }
         if (atk.slot === 'SUPER' && atk.mechanic === 'MULTI_HIT_RUSH_COMBO') {
             this.crossSlashes.push({
@@ -1561,10 +1597,10 @@ class FightEngine {
                 p.y - p.radius < defBottom) {
                 const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
                 const validGuard = this.canGuardAttack(defender, defInput, p.height);
-                if (validGuard && this.frameCount - defender.blockPressFrame <= 6) {
+                if (validGuard && this.frameCount - defender.blockPressFrame <= 4) {
                     SoundFX_1.soundFX.parry();
                     this.addMeter(defender, 15);
-                    this.spawnHitSparks(p.x, p.y, '#38bdf8', 15);
+                    this.parryBursts.push({ x: p.x, y: p.y, life: 11, facing: defender.facing });
                     this.addCallout(defender.x, defender.y - 150, 'PARRY!', '#38bdf8');
                     this.projectiles.splice(i, 1);
                     continue;
@@ -1573,7 +1609,8 @@ class FightEngine {
                     SoundFX_1.soundFX.block();
                     defender.hp = Math.max(1, defender.hp - Math.ceil(p.damage * 0.12));
                     defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
-                    defender.blockstunFrames = 11;
+                    defender.blockstunFrames = 7;
+                    this.applyCornerAwarePushback(attacker, defender, 8);
                     this.spawnHitSparks(p.x, p.y, '#60a5fa', 10);
                     this.projectiles.splice(i, 1);
                     continue;
@@ -1616,7 +1653,7 @@ class FightEngine {
                 else {
                     defender.state = 'HURT';
                     defender.stateFrame = 0;
-                    defender.hitstunFrames = p.hitstun;
+                    defender.hitstunFrames = attacker.comboCount >= 3 ? 9 : p.hitstun;
                     defender.vx = (p.vx >= 0 ? 1 : -1) * 6.5;
                 }
                 this.projectiles.splice(i, 1);
@@ -1654,26 +1691,25 @@ class FightEngine {
             }
             return inp;
         }
+        if (this.trainingDummyMode === 'TUTORIAL_JABS') {
+            // Lentos y telegráficos, solo para practicar bloqueo y parry con tacto.
+            if (this.frameCount % 100 === 0)
+                inp.light = true;
+            return inp;
+        }
         if (this.trainingDummyMode === 'GUARD_HIGH') {
-            if (dummy.facing === 1)
-                inp.left = true;
-            else
-                inp.right = true;
+            inp.guard = true;
             return inp;
         }
         if (this.trainingDummyMode === 'GUARD_LOW') {
+            inp.guard = true;
             inp.down = true;
             return inp;
         }
         if (this.trainingDummyMode === 'GUARD_ALL') {
+            inp.guard = true;
             if (player.state === 'ATTACK' && player.currentAttack?.height === 'LOW') {
                 inp.down = true;
-            }
-            else {
-                if (dummy.facing === 1)
-                    inp.left = true;
-                else
-                    inp.right = true;
             }
             return inp;
         }
@@ -1710,15 +1746,9 @@ class FightEngine {
         if (player.state === 'ATTACK' &&
             dist < 175 &&
             Math.random() < (this.difficulty === 'HARD' ? 0.68 : 0.34)) {
-            if (player.currentAttack?.height === 'LOW') {
+            inp.guard = true;
+            if (player.currentAttack?.height === 'LOW')
                 inp.down = true;
-            }
-            else {
-                if (cpu.facing === 1)
-                    inp.left = true;
-                else
-                    inp.right = true;
-            }
             return inp;
         }
         if (cpu.aiCooldown === 0) {
@@ -1868,6 +1898,10 @@ class FightEngine {
             if (c.life <= 0)
                 this.callouts.splice(i, 1);
         }
+        for (let i = this.parryBursts.length - 1; i >= 0; i--) {
+            if (--this.parryBursts[i].life <= 0)
+                this.parryBursts.splice(i, 1);
+        }
         for (let i = this.shockwaves.length - 1; i >= 0; i--) {
             const sw = this.shockwaves[i];
             sw.radius += (sw.maxRadius - sw.radius) * 0.25;
@@ -2014,12 +2048,13 @@ class FightEngine {
             this.renderProjectile(ctx, p);
         }
         // Mechanic-specific impact FX, all presentation-only and snapshot-safe.
-        for (const m of this.meteors)
-            (0, ArcadeVFX_1.drawMeteorFX)(ctx, m, this.frameCount);
+        (0, ArcadeVFX_1.drawSuperMeteorsFX)(ctx, this.meteors, this.frameCount);
         for (const cs of this.crossSlashes)
             (0, ArcadeVFX_1.drawCrossSlashFX)(ctx, cs.x, cs.y, cs.color, cs.life);
         for (const sw of this.shockwaves)
             (0, ArcadeVFX_1.drawShockwaveFX)(ctx, sw, this.frameCount);
+        for (const burst of this.parryBursts)
+            (0, ArcadeVFX_1.drawParryBurstFX)(ctx, burst);
         (0, ArcadeVFX_1.drawParticlesFX)(ctx, this.particles);
         (0, ArcadeVFX_1.drawHitstopSparkFX)(ctx, this.particles, this.hitstopFrames);
         ctx.font = '12px "Press Start 2P", monospace';

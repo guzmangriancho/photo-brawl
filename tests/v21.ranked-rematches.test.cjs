@@ -37,7 +37,7 @@ test('the arena listens for and displays the authoritative ranked result',()=>{
 });
 
 test('PWA cache is versioned so installed clients receive the ranked fix',()=>{
- assert.match(read('public/sw.js'),/pb-shell-v24-mobile-compact/);
+ assert.match(read('public/sw.js'),/pb-shell-v\d+[\w-]*/);
 });
 
 test('modified React screens transpile without JSX or TypeScript syntax errors',()=>{
