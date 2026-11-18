@@ -46,8 +46,8 @@ function saveOwner(uid:string):void {
   // risking copying a shared device's local collection to multiple accounts.
   localStorage.setItem(OWNER_KEY,uid);
 }
-function fingerprint(uid:string,rows:{id:string;createdAt?:number;fighterName:string}[]):string {
-  return uid+'|'+rows.map(f=>`${f.id}:${f.createdAt??''}:${f.fighterName}`).sort().join('|');
+function fingerprint(uid:string,rows:{id:string;createdAt?:number;fighterName:string;artUpdatedAt?:number}[]):string {
+  return uid+'|'+rows.map(f=>`${f.id}:${f.createdAt??''}:${f.fighterName}:${f.artUpdatedAt??0}`).sort().join('|');
 }
 
 async function migrate():Promise<void> {

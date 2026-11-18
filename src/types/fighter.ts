@@ -119,6 +119,8 @@ export interface FighterProfile extends FighterDesignSchema {
   createdAt: number;
   /** Last local display-name edit; used to sync renames without overwriting newer cloud names. */
   nameUpdatedAt?: number;
+  /** Last artwork revision; lets cloud restore distinguish new art from an ID collision. */
+  artUpdatedAt?: number;
   spriteSheetDataUrl: string; // 1024x1024 processed PNG with transparent background and foot-grounded 4x4 grid
   portraitDataUrl: string;    // 512x512 PNG
   /** New character sheets use 16 cells with windup/impact pairs and a contextual final slot. */
@@ -129,7 +131,7 @@ export interface FighterProfile extends FighterDesignSchema {
   scaleMultiplier?: number;   // e.g. 1.15 for heavy tanks, 0.96 for nimble rushdown
 }
 
-export type StageId = 'SKI_RESORT' | 'NIGHT_PLAZA' | 'SUMMER_SUMMIT' | 'TEMPLE_SUNSET' | 'INDUSTRIAL_ROOFTOP';
+export type StageId = 'SKI_RESORT' | 'NIGHT_PLAZA' | 'SUMMER_SUMMIT' | 'TEMPLE_SUNSET' | 'INDUSTRIAL_ROOFTOP' | 'SUNKEN_ATLANTIS' | 'SPIRIT_FOREST' | 'CELESTIAL_TEMPLE' | 'VOLCANIC_FORTRESS';
 export type GameMode = '1P_VS_CPU' | '1P_VS_2P' | 'CPU_VS_CPU' | 'TRAINING' | 'ONLINE';
 export type CpuDifficulty = 'EASY' | 'NORMAL' | 'HARD';
 

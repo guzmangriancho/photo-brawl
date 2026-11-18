@@ -168,6 +168,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     }
   };
   const [showHitboxes, setShowHitboxes] = useState(mode === 'TRAINING' && !tutorial);
+  const [showArenaCollisions, setShowArenaCollisions] = useState(false);
   const [muted, setMuted] = useState(soundFX.muted);
   const [showLab, setShowLab] = useState(false);
   const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT'>('IDLE');
@@ -196,6 +197,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   useEffect(() => {
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
     engine.showHitboxes = mode === 'TRAINING' && !tutorial;
+    engine.showArenaCollisions = false;
     if(tutorial)prepareTutorialLesson(engine,TUTORIAL_LESSONS[0]);
     engineRef.current = engine;
     engine.loadAssets();
@@ -219,7 +221,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
       online.on('rematch',(event:{stage?:StageId}|null)=>{
-        if(event?.stage){engine.stage=event.stage;setCurrentStage(event.stage);}
+        if(event?.stage){engine.setStage(event.stage);setCurrentStage(event.stage);}
         engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);
       }),
       online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating_before?:number;guest_rating_before?:number;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
@@ -428,6 +430,12 @@ export const FightArena: React.FC<FightArenaProps> = ({
     };
   }, [p1Profile, p2Profile, mode, stage, difficulty, online]);
 
+  const toggleArenaCollisions = () => {
+    if (mode !== 'TRAINING' || tutorial) return;
+    const next = !engineRef.current?.showArenaCollisions;
+    if (engineRef.current) engineRef.current.showArenaCollisions = next;
+    setShowArenaCollisions(next);
+  };
   const toggleHitboxes = () => {
     const next = !showHitboxes;
     setShowHitboxes(next);
@@ -493,6 +501,14 @@ export const FightArena: React.FC<FightArenaProps> = ({
         <section className="arena-stage" aria-label="Arena de combate">
           <canvas ref={canvasRef} width={STAGE_WIDTH} height={STAGE_HEIGHT} className="arena-canvas" />
           <div className="arena-stage-vignette" aria-hidden="true" />
+          {mode === 'TRAINING' && !tutorial && <div className="arena-collision-tools">
+            <button type="button" className={showArenaCollisions?'is-active':''}
+              aria-pressed={showArenaCollisions} onClick={toggleArenaCollisions}
+              title="Mostrar suelo, plataformas, puntos de apoyo y coordenadas">
+              <FlaskConical size={13}/> COLISIONES {showArenaCollisions ? 'ON' : 'OFF'}
+            </button>
+            {showArenaCollisions && <small>CIAN: plataformas · VERDE: suelo · P1/P2: pies</small>}
+          </div>}
           {onlineMode && <div className="arena-online-status" title={`Sala ${online?.code ?? ''} · ${guestOnline?'P2':'P1'} · ${onlineLatency!==null?`${onlineLatency} ms RTT`:'Conectado'}`} aria-label={`Conexión online: ${onlineLatency!==null?`${onlineLatency} milisegundos de ping`:'conectado'}`}>● {onlineLatency!==null?`${onlineLatency} ms`:'ONLINE'}</div>}
           {onlineMode && onlineIssue && <div className="arena-online-scrim"><section className="pb-frame arena-online-dialog" role="status"><h2>{onlineIssue==='closed'?'RIVAL DESCONECTADO':onlineIssue==='opponent'?'ESPERANDO AL RIVAL':'RECONECTANDO…'}</h2><p>{onlineIssue==='closed'?'La partida ha terminado. Vuelve al menú.':onlineIssue==='opponent'?'El combate se detiene temporalmente mientras se recupera la conexión.':'Estamos recuperando tu sesión online…'}</p>{onlineIssue==='closed'&&<button type="button" onClick={onExit}>VOLVER AL MENÚ</button>}</section></div>}
           <div className="arena-hud" aria-label="Estado del combate">
@@ -595,6 +611,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 <div className="arena-pause-options">
                   {!onlineMode && <button type="button" onClick={handleRematch}><RotateCcw size={16} /> REINICIAR</button>}
                   <button type="button" onClick={toggleMute}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />} SONIDO: {muted ? 'OFF' : 'ON'}</button>
+                  {mode === 'TRAINING' && !tutorial && <button type="button" onClick={toggleArenaCollisions}><FlaskConical size={16} /> COLISIONES: {showArenaCollisions ? 'ON' : 'OFF'}</button>}
                   {!onlineMode && <button type="button" onClick={toggleHitboxes}><Eye size={16} /> HITBOXES: {showHitboxes ? 'ON' : 'OFF'}</button>}
                   <button type="button" onClick={() => setFixedStick((old) => !old)}><Move size={16} /> JOYSTICK: {fixedStick ? 'FIJO' : 'FLOTANTE'}</button>
                   <button type="button" onClick={() => setSouthpaw((old) => !old)}><Smartphone size={16} /> MANOS: {southpaw ? 'INVERTIDAS' : 'NORMAL'}</button>
@@ -611,7 +628,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 <div className="arena-pause-help" aria-label="Guía de controles">
                   <strong>CÓMO JUGAR</strong>
                   <span><b>IZQUIERDA · JOYSTICK</b> Camina con el joystick y usa CUBRIR para bloquear; abajo se agacha. Usa SALTO para saltar (solo luchadores con DOUBLE_JUMP pueden repetirlo en el aire).</span>
-                  <span><b>DESLIZAR ↔ RÁPIDO</b> Dash. También puedes hacer doble toque direccional en teclado.</span>
+                  <span><b>DESLIZAR ↔ RÁPIDO</b> Dash. También puedes hacer doble toque direccional en teclado. En mapas multinivel, ABAJO + SALTO permite bajar de la plataforma.</span>
                   <span><b>A · GOLPE</b> Toque = ataque inmediato; A → A → A = remate. Mantener enlaza con un golpe fuerte; adelante + A = avance; abajo + A = golpe bajo.</span>
                   <span><b>B · TÉCNICA</b> Neutro = técnica propia · Adelante + B = avance · Arriba + B = antiaéreo.</span>
                   <span><b>ENLAZA</b> A → A → A → B; A → A → B; abajo + A → B; adelante + A → A → B. Encadena al conectar y anticipa las pulsaciones.</span>

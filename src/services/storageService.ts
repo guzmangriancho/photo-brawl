@@ -81,6 +81,47 @@ export async function renameCustomFighter(id:string,value:string):Promise<Fighte
   });
 }
 
+/** Edit only the owner's existing local fighter. New art was validated and processed
+ * by SpriteProcessor before calling this; never change the id or combat rules. */
+export async function editCustomFighter(id:string, changes:{
+  fighterName:string; portraitDataUrl?:string; spriteSheetDataUrl?:string;
+  spriteSheetLastCell?:'PROJECTILE'|'KO';
+}):Promise<FighterProfile> {
+  const fighterName=normalizeFighterName(changes.fighterName);
+  for(const art of [changes.portraitDataUrl,changes.spriteSheetDataUrl]){
+    if(art!==undefined && !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(art))
+      throw new Error('La imagen debe ser un PNG procesado y válido.');
+  }
+  const db=await openDatabase();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE_FIGHTERS,'readwrite');
+    const store=tx.objectStore(STORE_FIGHTERS);
+    const req=store.get(id);
+    let result:FighterProfile|undefined;
+    req.onsuccess=()=>{
+      const original=req.result as FighterProfile|undefined;
+      if(!original || original.isPreset || original.id.startsWith('preset_')){tx.abort();return;}
+      const nameChanged=original.fighterName!==fighterName;
+      const artChanged=(changes.portraitDataUrl!==undefined && original.portraitDataUrl!==changes.portraitDataUrl) ||
+        (changes.spriteSheetDataUrl!==undefined && original.spriteSheetDataUrl!==changes.spriteSheetDataUrl);
+      const now=Date.now();
+      const updated:FighterProfile={...original,fighterName,
+        ...(nameChanged?{nameUpdatedAt:Math.max(now,(original.nameUpdatedAt??0)+1)}:{}),
+        ...(artChanged?{artUpdatedAt:Math.max(now,(original.artUpdatedAt??0)+1)}:{}),
+        ...(changes.portraitDataUrl!==undefined?{portraitDataUrl:changes.portraitDataUrl}:{}),
+        ...(changes.spriteSheetDataUrl!==undefined?{spriteSheetDataUrl:changes.spriteSheetDataUrl,
+          spriteSheetLayoutVersion:2 as const,spriteSheetKeyVersion:3 as const,
+          spriteSheetLastCell:changes.spriteSheetLastCell??original.spriteSheetLastCell??'KO'}:{}),
+      };
+      if(nameChanged || artChanged)store.put(updated);
+      result=updated;
+    };
+    tx.oncomplete=()=>{db.close();resolve(result!);};
+    tx.onerror=()=>{db.close();reject(tx.error??new Error('No se pudieron guardar los cambios.'));};
+    tx.onabort=()=>{db.close();reject(new Error('El luchador no existe o no se puede editar.'));};
+  });
+}
+
 export async function getAllCustomFighters(): Promise<FighterProfile[]> {
   // Do NOT turn an IndexedDB error into an empty collection. A temporary
   // storage failure must not look like the player lost all their fighters.
@@ -162,6 +203,14 @@ function sameFighterExceptDisplayName(a:FighterProfile,b:FighterProfile):boolean
     canonicalMetadata({...b,fighterName:'',nameUpdatedAt:undefined});
 }
 
+/** Same fighter identity/combat content, permitting newer edits to name and artwork. */
+function sameFighterExceptEditableFields(a:FighterProfile,b:FighterProfile):boolean {
+  const normalize=(f:FighterProfile)=>canonicalMetadata({...f,fighterName:'',nameUpdatedAt:undefined,
+    artUpdatedAt:undefined,spriteSheetLayoutVersion:undefined,spriteSheetKeyVersion:undefined,
+    spriteSheetLastCell:undefined});
+  return normalize(a)===normalize(b);
+}
+
 function uniqueImportId():string {
   // crypto.randomUUID is unavailable in some LAN http:// development contexts.
   const uuid=typeof crypto!=='undefined' && typeof crypto.randomUUID==='function'
@@ -198,6 +247,27 @@ export async function mergeCustomFighters(incoming:FighterProfile[]):Promise<Fig
               stored.splice(stored.indexOf(original),1,renamed);
               updated.push(renamed);
             }else{unchanged++;}
+            continue;
+          }
+          // Same combat profile with edited art: newest named/art revisions win
+          // independently. Do not fork a duplicate fighter on cloud restore.
+          if(sameFighterExceptEditableFields(original,fighter) &&
+             ((original.artUpdatedAt??0)!==(fighter.artUpdatedAt??0) ||
+              original.spriteSheetDataUrl===fighter.spriteSheetDataUrl && original.portraitDataUrl===fighter.portraitDataUrl)){
+            let merged=original;
+            if((fighter.nameUpdatedAt??0)>(merged.nameUpdatedAt??0)){
+              merged={...merged,fighterName:fighter.fighterName,nameUpdatedAt:fighter.nameUpdatedAt};
+            }
+            if((fighter.artUpdatedAt??0)>(merged.artUpdatedAt??0)){
+              merged={...merged,portraitDataUrl:fighter.portraitDataUrl,
+                spriteSheetDataUrl:fighter.spriteSheetDataUrl,artUpdatedAt:fighter.artUpdatedAt,
+                spriteSheetKeyVersion:fighter.spriteSheetKeyVersion,
+                spriteSheetLayoutVersion:fighter.spriteSheetLayoutVersion,
+                spriteSheetLastCell:fighter.spriteSheetLastCell};
+            }
+            if(!sameFighterContent(merged,original)){
+              store.put(merged);stored.splice(stored.indexOf(original),1,merged);updated.push(merged);
+            } else unchanged++;
             continue;
           }
           if(stored.some(existing=>sameFighterContent(existing,fighter))){unchanged++;continue;}

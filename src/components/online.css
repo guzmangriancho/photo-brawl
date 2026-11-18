@@ -176,3 +176,8 @@
  .pb-online-code strong{font-size:clamp(17px,5.2vw,23px);letter-spacing:1px}
  .pb-online-code button{font-size:10px;padding:4px}
 }
+
+/* V31: nine real arenas plus random – a compact 5×2 selector in the online room. */
+.pb-online-stages>div,.pb-online-dialog .pb-online-stages>div{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;min-width:0}
+.pb-online-dialog .pb-online-stages button{font-size:clamp(8px,1.2vw,10px);padding:3px 1px;min-height:22px;overflow:hidden;text-overflow:ellipsis}
+@media (orientation:portrait){.pb-online-stages>div,.pb-online-dialog .pb-online-stages>div{grid-template-columns:repeat(5,minmax(0,1fr))}.pb-online-dialog .pb-online-stages button{font-size:clamp(7px,2vw,9px);min-height:21px;padding:3px 0}}

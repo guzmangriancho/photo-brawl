@@ -50,6 +50,11 @@ class FightEngine {
     stage;
     difficulty;
     showHitboxes = false;
+    /** Separate Training-only view: show exact main floor, one-way tops and fighter feet. */
+    showArenaCollisions = false;
+    cameraZoom = 1;
+    cameraX = exports.STAGE_WIDTH / 2;
+    cameraY = exports.STAGE_HEIGHT / 2;
     trainingDummyMode = 'IDLE';
     frameCount = 0;
     hitstopFrames = 0;
@@ -88,13 +93,13 @@ class FightEngine {
     createFighterRuntime(index, profile, startX, facing) {
         const maxHp = Math.round(850 + ((profile.stats.hp - 15) / 20) * 450);
         const isTank = profile.archetype === 'GRAPPLER_TANK';
-        const scale = profile.scaleMultiplier || (isTank ? 1.15 : 1.0);
+        const scale = (profile.scaleMultiplier || (isTank ? 1.15 : 1.0)) * ((0, stages_1.getLargeArena)(this.stage)?.fighterScale ?? 1);
         return {
             index,
             profile,
             spriteSheet: null,
             x: startX,
-            y: exports.FLOOR_Y,
+            y: this.getStageFloorY(),
             vx: 0,
             vy: 0,
             facing,
@@ -110,6 +115,7 @@ class FightEngine {
             invincibleFrames: 0,
             jumpsRemaining: profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1,
             airDashUsed: false,
+            dropThroughFrames: 0,
             lightChainCount: 0,
             comboCount: 0,
             comboDamage: 0,
@@ -142,6 +148,20 @@ class FightEngine {
         this.p1.spriteSheet = img1;
         this.p2.spriteSheet = img2;
         SoundFX_1.soundFX.roundStart();
+    }
+    /** Switch stages on online rematch without mixing the previous arena's scale. */
+    setStage(stage) {
+        if (this.stage === stage) {
+            this.resetRound();
+            this.frameCount = 0;
+            return;
+        }
+        this.stage = stage;
+        this.resetRound();
+        this.frameCount = 0;
+        this.cameraZoom = 1;
+        this.cameraX = exports.STAGE_WIDTH / 2;
+        this.cameraY = exports.STAGE_HEIGHT / 2;
     }
     /** Reset the entire match (for rematches), retaining already decoded art. */
     resetRound() {
@@ -512,8 +532,23 @@ class FightEngine {
         const nextMeter = f.meter + amount * this.getMeterGainMultiplier(f);
         f.meter = nextMeter >= 99.2 ? 100 : Math.min(100, nextMeter);
     }
+    getStageFloorY() {
+        return (0, stages_1.getLargeArena)(this.stage)?.floorY ?? exports.FLOOR_Y;
+    }
+    /** Support is resolved from exact platform TOP edges, never the artwork. */
+    supportSurface(f) {
+        const arena = (0, stages_1.getLargeArena)(this.stage);
+        const floorY = this.getStageFloorY();
+        if (Math.abs(f.y - floorY) <= 0.75)
+            return 'FLOOR';
+        if (!arena || f.dropThroughFrames > 0)
+            return null;
+        const top = arena.platforms.find(p => f.x >= p.x1 && f.x <= p.x2 && Math.abs(f.y - p.y) <= 0.75);
+        return top?.id ?? null;
+    }
     isGrounded(f) {
-        return f.y >= exports.FLOOR_Y && f.vy >= 0;
+        return f.vy >= 0 && (this.supportSurface(f) !== null ||
+            (!(0, stages_1.getLargeArena)(this.stage) && f.y >= exports.FLOOR_Y));
     }
     /**
      * Guilty Gear style ROMAN CANCEL ([E] or SP1+SP2 simultaneous):
@@ -564,6 +599,8 @@ class FightEngine {
         const grounded = this.isGrounded(f);
         if (f.projectileCooldownFrames > 0)
             f.projectileCooldownFrames--;
+        if (f.dropThroughFrames > 0)
+            f.dropThroughFrames--;
         if (input.guard) {
             f.bufferedActions = [];
             f.bufferedDash = null;
@@ -603,7 +640,7 @@ class FightEngine {
                 f.grabbedBy = null;
                 f.grabSlamTimer = 0;
                 f.x = Math.max(WALL_MARGIN, Math.min(exports.STAGE_WIDTH - WALL_MARGIN, grabber.x + grabber.facing * 58));
-                f.y = exports.FLOOR_Y - 4;
+                f.y = this.getStageFloorY() - 4;
                 f.vy = -9.5;
                 f.vx = grabber.facing * 7.5;
                 f.state = 'KNOCKDOWN';
@@ -612,13 +649,13 @@ class FightEngine {
                 SoundFX_1.soundFX.commandGrab();
                 this.shockwaves.push({
                     x: f.x,
-                    y: exports.FLOOR_Y - 8,
+                    y: this.getStageFloorY() - 8,
                     radius: 14,
                     maxRadius: 155,
                     color: '#facc15',
                     alpha: 1.0,
                 });
-                this.spawnHitSparks(f.x, exports.FLOOR_Y - 12, '#facc15', 26);
+                this.spawnHitSparks(f.x, this.getStageFloorY() - 12, '#facc15', 26);
                 return;
             }
         }
@@ -731,9 +768,22 @@ class FightEngine {
         // Jump & Double Jump
         const upPressed = input.up && !f.prevInput.up;
         const queuedJump = f.bufferedJumpFrame !== null && this.frameCount - f.bufferedJumpFrame <= 14;
-        if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0) {
+        // DOWN + JUMP passes through the CURRENT one-way platform, never the main floor.
+        if (!input.guard && (upPressed || queuedJump) && input.down && grounded &&
+            this.supportSurface(f) !== 'FLOOR' && (0, stages_1.getLargeArena)(this.stage)) {
             f.bufferedJumpFrame = null;
-            f.vy = f.profile.archetype === 'GRAPPLER_TANK' ? -13.2 : -14.8;
+            f.dropThroughFrames = 18;
+            f.y += 3;
+            f.vy = 2;
+            f.state = 'JUMP';
+            f.stateFrame = 0;
+            this.spawnDust(f.x, f.y, 3);
+        }
+        else if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0) {
+            f.bufferedJumpFrame = null;
+            // A little more reach for big multi-tier arenas; even tanks can reach the first tier.
+            const stageJump = (0, stages_1.getLargeArena)(this.stage) ? 1.22 : 1;
+            f.vy = (f.profile.archetype === 'GRAPPLER_TANK' ? -13.2 : -14.8) * stageJump;
             f.y -= 2;
             f.jumpsRemaining--;
             f.state = 'JUMP';
@@ -785,6 +835,47 @@ class FightEngine {
         this.spawnDust(f.x, f.y, 7);
     }
     applyPhysics(f) {
+        const arena = (0, stages_1.getLargeArena)(this.stage);
+        if (arena) {
+            const wasSupported = this.isGrounded(f);
+            const prevY = f.y;
+            f.x = Math.max(WALL_MARGIN, Math.min(exports.STAGE_WIDTH - WALL_MARGIN, f.x + f.vx));
+            f.y += f.vy;
+            // Descending feet can land on the *top* of the first one-way surface crossed.
+            // Ascending feet never collide with an underside or side of a platform.
+            const candidates = [
+                ...arena.platforms.filter(p => f.dropThroughFrames === 0),
+                { id: 'FLOOR', x1: 0, x2: exports.STAGE_WIDTH, y: arena.floorY },
+            ];
+            const landing = f.vy >= 0
+                ? candidates.filter(p => f.x >= p.x1 && f.x <= p.x2 &&
+                    (p.id === 'FLOOR' || prevY <= p.y + 0.75) && f.y >= p.y - 0.75)
+                    .sort((a, b) => a.y - b.y)[0]
+                : undefined;
+            if (landing) {
+                f.y = landing.y;
+                f.vy = 0;
+                if (!wasSupported) {
+                    f.jumpsRemaining = f.profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1;
+                    f.airDashUsed = false;
+                    this.spawnDust(f.x, f.y, 5);
+                    if (f.state === 'JUMP') {
+                        f.state = 'IDLE';
+                        f.stateFrame = 0;
+                    }
+                }
+            }
+            else {
+                f.vy += this.getGravity(f);
+            }
+            if (this.isGrounded(f) && !['WALK_FWD', 'BLOCK_STAND', 'BLOCK_CROUCH', 'DASH'].includes(f.state)) {
+                f.vx *= 0.82;
+                if (Math.abs(f.vx) < 0.15)
+                    f.vx = 0;
+            }
+            return;
+        }
+        // Preserve original arena physics byte-for-byte for the five classic maps.
         const wasAirborne = f.y < exports.FLOOR_Y;
         f.x += f.vx;
         f.y += f.vy;
@@ -798,19 +889,14 @@ class FightEngine {
                 f.jumpsRemaining = f.profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1;
                 f.airDashUsed = false;
                 this.spawnDust(f.x, exports.FLOOR_Y, 5);
-                if (f.state === 'JUMP' || f.state === 'ATTACK') {
-                    if (f.state === 'JUMP') {
-                        f.state = 'IDLE';
-                        f.stateFrame = 0;
-                    }
+                if (f.state === 'JUMP') {
+                    f.state = 'IDLE';
+                    f.stateFrame = 0;
                 }
             }
         }
-        if (f.y >= exports.FLOOR_Y &&
-            f.state !== 'WALK_FWD' &&
-            f.state !== 'BLOCK_STAND' &&
-            f.state !== 'BLOCK_CROUCH' &&
-            f.state !== 'DASH') {
+        if (f.y >= exports.FLOOR_Y && f.state !== 'WALK_FWD' && f.state !== 'BLOCK_STAND' &&
+            f.state !== 'BLOCK_CROUCH' && f.state !== 'DASH') {
             f.vx *= 0.82;
             if (Math.abs(f.vx) < 0.15)
                 f.vx = 0;
@@ -1169,6 +1255,16 @@ class FightEngine {
                 multiHitInterval: mech === 'MULTI_HIT_RUSH_COMBO' || mech === 'GIANT_BEAM_LASER' ? 4 : undefined,
             };
         }
+        const arenaScale = (0, stages_1.getLargeArena)(this.stage)?.fighterScale ?? 1;
+        if (arenaScale !== 1 && f.currentAttack?.hitbox) {
+            const hitbox = f.currentAttack.hitbox;
+            f.currentAttack.hitbox = {
+                offsetX: Math.round(hitbox.offsetX * arenaScale),
+                offsetY: Math.round(hitbox.offsetY * arenaScale),
+                width: Math.round(hitbox.width * (slot === 'SUPER' && f.currentAttack.mechanic === 'GIANT_BEAM_LASER' ? 1 : arenaScale)),
+                height: Math.round(hitbox.height * arenaScale),
+            };
+        }
     }
     processAttackMotion(f, opp) {
         const atk = f.currentAttack;
@@ -1244,12 +1340,13 @@ class FightEngine {
         f.projectileCooldownFrames = 70; // ~1,17 s a 60 FPS; las minas también ocupan un único hueco.
         SoundFX_1.soundFX.projectile();
         const pwr = this.getPowerMultiplier(f);
-        const spawnX = f.x + f.facing * 52;
+        const stageScale = (0, stages_1.getLargeArena)(this.stage)?.fighterScale ?? 1;
+        const spawnX = f.x + f.facing * 52 * stageScale;
         const spawnY = mech === 'GROUND_SHOCKWAVE'
-            ? exports.FLOOR_Y - 22
+            ? this.getStageFloorY() - 22 * stageScale
             : mech === 'TRAP_MINE_DROP'
-                ? exports.FLOOR_Y - 46
-                : f.y - 84;
+                ? this.getStageFloorY() - 46 * stageScale
+                : f.y - 84 * stageScale;
         let vx = f.facing * 8.6;
         let vy = 0;
         let ttl = 115;
@@ -1281,7 +1378,7 @@ class FightEngine {
             y: spawnY,
             vx,
             vy,
-            radius: mech === 'GROUND_SHOCKWAVE' ? 32 : mech === 'TRAP_MINE_DROP' ? 28 : 24,
+            radius: (mech === 'GROUND_SHOCKWAVE' ? 32 : mech === 'TRAP_MINE_DROP' ? 28 : 24) * stageScale,
             damage: Math.round((mech === 'TRAP_MINE_DROP' ? 88 : 72) * pwr),
             hitstun: 19,
             color: sp.primaryHex,
@@ -1451,7 +1548,7 @@ class FightEngine {
             SoundFX_1.soundFX.commandGrab();
             this.shockwaves.push({
                 x: defender.x,
-                y: exports.FLOOR_Y - 12,
+                y: this.getStageFloorY() - 12,
                 radius: 12,
                 maxRadius: 130,
                 color: '#f43f5e',
@@ -1539,12 +1636,12 @@ class FightEngine {
             p.ttl--;
             if (p.mechanic === 'ARCING_LOB_OBJECT') {
                 p.vy += 0.48;
-                if (p.y >= exports.FLOOR_Y - 18) {
-                    p.y = exports.FLOOR_Y - 18;
+                if (p.y >= this.getStageFloorY() - 18) {
+                    p.y = this.getStageFloorY() - 18;
                     if ((p.bouncesLeft || 0) > 0) {
                         p.bouncesLeft--;
                         p.vy = -8.5;
-                        this.spawnDust(p.x, exports.FLOOR_Y, 4);
+                        this.spawnDust(p.x, this.getStageFloorY(), 4);
                     }
                     else {
                         p.vy = -4.5;
@@ -1753,6 +1850,15 @@ class FightEngine {
         }
         if (cpu.aiCooldown === 0) {
             cpu.aiCooldown = reactionDelay + Math.floor(Math.random() * 10);
+            // Navigate toward the rival across tiers instead of staying below them.
+            if ((0, stages_1.getLargeArena)(this.stage) && player.y < cpu.y - 70 && this.isGrounded(cpu)) {
+                inp.up = true;
+                if (dirToPlayer === 1)
+                    inp.right = true;
+                else
+                    inp.left = true;
+                return inp;
+            }
             if (cpu.meter >= 100) {
                 const isBeam = cpu.profile.moveset.ultimateSuper.mechanic === 'GIANT_BEAM_LASER';
                 if (isBeam || dist < 290) {
@@ -1924,16 +2030,16 @@ class FightEngine {
                 life: 12,
                 maxLife: 12,
             });
-            if (m.y >= exports.FLOOR_Y - 12) {
+            if (m.y >= this.getStageFloorY() - 12) {
                 this.shockwaves.push({
                     x: m.x,
-                    y: exports.FLOOR_Y - 6,
+                    y: this.getStageFloorY() - 6,
                     radius: 10,
                     maxRadius: 95,
                     color: m.color,
                     alpha: 0.9,
                 });
-                this.spawnHitSparks(m.x, exports.FLOOR_Y - 12, '#facc15', 14);
+                this.spawnHitSparks(m.x, this.getStageFloorY() - 12, '#facc15', 14);
                 this.shakeIntensity = 10;
                 this.meteors.splice(i, 1);
             }
@@ -2025,6 +2131,30 @@ class FightEngine {
             const sy = Math.round((Math.random() - 0.5) * this.shakeIntensity * 2);
             ctx.translate(sx, sy);
         }
+        const arena = (0, stages_1.getLargeArena)(this.stage);
+        if (arena) {
+            const distance = Math.abs(this.p1.x - this.p2.x);
+            const midpoint = (this.p1.x + this.p2.x) / 2;
+            const sameSide = (this.p1.x < 450 && this.p2.x < 450) ||
+                (this.p1.x > 510 && this.p2.x > 510);
+            const desiredZoom = sameSide && distance < 330
+                ? 1 + 0.1 * Math.max(0, Math.min(1, (330 - distance) / 230))
+                : 1;
+            this.cameraZoom += (desiredZoom - this.cameraZoom) * 0.06;
+            const visibleHalf = exports.STAGE_WIDTH / (2 * this.cameraZoom);
+            const targetX = Math.max(visibleHalf, Math.min(exports.STAGE_WIDTH - visibleHalf, midpoint));
+            this.cameraX += (targetX - this.cameraX) * 0.065;
+            this.cameraX = Math.max(visibleHalf, Math.min(exports.STAGE_WIDTH - visibleHalf, this.cameraX));
+            this.cameraY = exports.STAGE_HEIGHT / 2;
+            ctx.translate(exports.STAGE_WIDTH / 2, exports.STAGE_HEIGHT / 2);
+            ctx.scale(this.cameraZoom, this.cameraZoom);
+            ctx.translate(-this.cameraX, -this.cameraY);
+        }
+        else {
+            this.cameraZoom = 1;
+            this.cameraX = exports.STAGE_WIDTH / 2;
+            this.cameraY = exports.STAGE_HEIGHT / 2;
+        }
         this.renderStage(ctx);
         if (this.superFlashFrames > 0) {
             (0, ArcadeVFX_1.drawSuperFlashFX)(ctx, this.superFlashOwner === 0 ? this.p1 : this.p2, this.superFlashFrames, this.frameCount);
@@ -2065,6 +2195,8 @@ class FightEngine {
             ctx.fillStyle = c.color;
             ctx.fillText(c.text, Math.round(c.x), Math.round(c.y));
         }
+        if (this.showArenaCollisions && (0, stages_1.getLargeArena)(this.stage))
+            this.renderArenaCollisionDebug(ctx);
         if (this.showHitboxes) {
             this.renderDebugBoxes(ctx, this.p1);
             this.renderDebugBoxes(ctx, this.p2);
@@ -2189,12 +2321,14 @@ class FightEngine {
         // Layered contact shadow: a soft diffuse penumbra + a tighter ambient-occlusion
         // footprint. Airborne shadows fade and detach from the fighter; the gameplay
         // ground line remains unchanged. Everything is presentation-only.
-        const jumpHeight = Math.max(0, exports.FLOOR_Y - f.y);
+        const ground = (0, stages_1.getLargeArena)(this.stage);
+        const supportingY = ground?.platforms.find(p => p.x1 <= f.x && f.x <= p.x2 && Math.abs(f.y - p.y) < 1)?.y ?? this.getStageFloorY();
+        const jumpHeight = Math.max(0, supportingY - f.y);
         const air = Math.min(1, jumpHeight / 220);
         const opacity = 1 - air * 0.76;
         const spread = 1 + air * 0.36;
         const centerX = Math.round(f.x + f.facing * Math.min(17, jumpHeight * 0.1));
-        const centerY = exports.FLOOR_Y + 2;
+        const centerY = (this.supportSurface(f) ? f.y : this.getStageFloorY()) + 2;
         const rx = Math.round(48 * f.scale * spread);
         const ry = Math.max(4, Math.round(9 * f.scale));
         ctx.save();
@@ -2262,7 +2396,7 @@ class FightEngine {
         }
         else {
             ctx.fillStyle = f.index === 0 ? '#ef4444' : '#eab308';
-            ctx.fillRect(f.x - 30, f.y - 150, 60, 150);
+            ctx.fillRect(f.x - 30 * f.scale, f.y - 150 * f.scale, 60 * f.scale, 150 * f.scale);
         }
     }
     drawSpriteCell(ctx, sheet, cell, x, y, facing, scale, scaleYMult = 1.0, rotation = 0) {
@@ -2292,7 +2426,7 @@ class FightEngine {
         if (p.mechanic === 'GROUND_SHOCKWAVE' || p.mechanic === 'TRAP_MINE_DROP')
             return;
         if (p.spriteSheet && p.useSpriteArt !== false) {
-            const sx = 3 * 256, sy = 3 * 256, size = 96;
+            const sx = 3 * 256, sy = 3 * 256, size = 96 * ((0, stages_1.getLargeArena)(this.stage)?.fighterScale ?? 1);
             ctx.save();
             ctx.translate(Math.round(p.x), Math.round(p.y));
             if (p.mechanic === 'BOOMERANG_RETURN' || p.mechanic === 'ARCING_LOB_OBJECT')
@@ -2325,6 +2459,58 @@ class FightEngine {
             ctx.fill();
             ctx.restore();
         }
+    }
+    /** The camera transform is active: debug lines follow actual physics pixels. */
+    renderArenaCollisionDebug(ctx) {
+        const arena = (0, stages_1.getLargeArena)(this.stage);
+        if (!arena)
+            return;
+        ctx.save();
+        ctx.font = '10px monospace';
+        ctx.textBaseline = 'bottom';
+        ctx.textAlign = 'left';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#b9ff77';
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(0, arena.floorY);
+        ctx.lineTo(exports.STAGE_WIDTH, arena.floorY);
+        ctx.stroke();
+        ctx.fillStyle = '#b9ff77';
+        ctx.fillText('FLOOR y=' + arena.floorY, 68, arena.floorY - 5);
+        for (const p of arena.platforms) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#00f5ff';
+            ctx.beginPath();
+            ctx.moveTo(p.x1, p.y);
+            ctx.lineTo(p.x2, p.y);
+            ctx.stroke();
+            ctx.fillStyle = '#00f5ff';
+            ctx.fillRect(p.x1 - 2, p.y - 5, 4, 10);
+            ctx.fillRect(p.x2 - 2, p.y - 5, 4, 10);
+            ctx.fillStyle = '#071522';
+            const label = p.id + ' [' + p.x1 + '..' + p.x2 + ', y=' + p.y + ']';
+            const labelX = Math.max(5, Math.min(740, p.x1 + 5));
+            ctx.fillRect(labelX - 2, p.y - 22, Math.min(215, label.length * 6.5 + 5), 17);
+            ctx.fillStyle = '#a0faff';
+            ctx.fillText(label, labelX, p.y - 8);
+        }
+        for (const fighter of [this.p1, this.p2]) {
+            const isGrounded = this.isGrounded(fighter);
+            ctx.fillStyle = fighter.index === 0 ? '#ffdf5a' : '#ff88e3';
+            ctx.fillRect(fighter.x - 4, fighter.y - 4, 8, 8);
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(fighter.x, fighter.y);
+            ctx.lineTo(fighter.x, fighter.y - 95 * fighter.scale);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillText((fighter.index === 0 ? 'P1 ' : 'P2 ') + Math.round(fighter.x) + ',' + Math.round(fighter.y) +
+                ' ' + (isGrounded ? 'APOYADO' : 'AIRE'), fighter.x - 25, fighter.y - 8);
+        }
+        ctx.restore();
     }
     renderDebugBoxes(ctx, f) {
         // Hurtbox (Green)

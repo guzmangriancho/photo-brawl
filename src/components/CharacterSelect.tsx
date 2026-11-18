@@ -3,7 +3,7 @@ import {
   ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
-  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift,
+  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Upload, ClipboardPaste,
 } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
@@ -16,8 +16,8 @@ import { OnlineSession } from '../network/OnlineSession';
 import type { OnlineStart, RoomView } from '../network/protocol';
 import { PwaInstallPrompt } from './PwaInstallPrompt';
 import { markCreatorOpen, wasCreatorOpen } from '../services/creatorDraftService';
-import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter } from '../services/storageService';
-import { currentUserIsAdmin, syncRenamedFighter } from '../services/communityService';
+import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter, editCustomFighter } from '../services/storageService';
+import { currentUserIsAdmin, syncRenamedFighter, syncFighterArtwork } from '../services/communityService';
 import { usePlayerAccount } from '../services/usePlayerAccount';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
@@ -105,12 +105,18 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [renamingValue,setRenamingValue]=useState('');
   const [renamingError,setRenamingError]=useState('');
   const [renamingBusy,setRenamingBusy]=useState(false);
+  const [artBusy,setArtBusy]=useState(false);
+  const [editedPortrait,setEditedPortrait]=useState<string|null>(null);
+  const [editedSprite,setEditedSprite]=useState<string|null>(null);
+  const [editPasteFallback,setEditPasteFallback]=useState<'PORTRAIT'|'SPRITE'|null>(null);
+  const [editPasteTarget,setEditPasteTarget]=useState<HTMLDivElement|null>(null);
   const [renameNotice,setRenameNotice]=useState('');
   const [muted, setMuted] = useState(() => { try { const saved = localStorage.getItem('pb-sound-muted'); if (saved !== null) soundFX.muted = saved === 'true'; } catch {} return soundFX.muted; });
   const [controlOpacity, setControlOpacity] = useState(() => { try { return Math.max(35, Math.min(100, Number(localStorage.getItem('pb-control-opacity')) || 80)); } catch { return 80; } });
   const [stickFixed, setStickFixed] = useState(() => { try { return localStorage.getItem('pb-stick-fixed') === 'true'; } catch { return false; } });
   const [southpaw, setSouthpaw] = useState(() => { try { return localStorage.getItem('pb-southpaw') === 'true'; } catch { return false; } });
   const [haptics, setHaptics] = useState(() => { try { return localStorage.getItem('pb-haptics') !== 'false'; } catch { return true; } });
+  const editingFighter = fighters.find(f => f.id === renamingId) || null;
   const featured = fighters.find(f => f.id === p1Id) || fighters[0] || null;
   const rival = fighters.find(f => f.id === p2Id) || fighters.find(f => f.id !== featured?.id) || featured;
   const tutorialFighter = TUTORIAL_FIGHTERS.find(f => f.id === tutorialId) || TUTORIAL_FIGHTERS[0];
@@ -205,14 +211,14 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       if (showAccount) { setShowAccount(false); return; }
       if (showTutorial) { setShowTutorial(false); return; }
       if (confirmDelete) { setConfirmDelete(null); return; }
-      if (renamingId) { if(!renamingBusy)setRenamingId(null); return; }
+      if (renamingId) { if(editPasteFallback){setEditPasteFallback(null);return;} if(!renamingBusy && !artBusy)setRenamingId(null); return; }
       if (showCreator) { markCreatorOpen(false); setShowCreator(false); return; }
       if (showApiKey) { setShowApiKey(false); return; }
       setPage(current => current === 'MOVES' ? 'FIGHTERS' : 'HOME');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmDelete, renamingId, renamingBusy, showCreator, showApiKey, showTutorial, showAccount, transferring]);
+  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showApiKey, showTutorial, showAccount, transferring]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
     if (!featured) { openCreator(); return; }
@@ -226,28 +232,78 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const pickFighter = (fighter: FighterProfile) => { setP1Id(fighter.id); soundFX.selectBeep(); };
   const openRename=(fighter:FighterProfile)=>{
     if(fighter.isPreset||fighter.id.startsWith('preset_'))return;
-    setRenamingId(fighter.id);setRenamingValue(fighter.fighterName);setRenamingError('');setRenameNotice('');soundFX.selectBeep();
+    setRenamingId(fighter.id);setRenamingValue(fighter.fighterName);setEditedPortrait(null);setEditedSprite(null);setEditPasteFallback(null);setRenamingError('');setRenameNotice('');soundFX.selectBeep();
+  };
+  const importEditedArt=async(which:'PORTRAIT'|'SPRITE',file?:File)=>{
+    if(!file||!editingFighter||artBusy||renamingBusy)return;
+    setArtBusy(true);setRenamingError('');
+    try{
+      const {readArtFile,processPortrait,processSpriteSheet}=await import('../engine/SpriteProcessor');
+      const {needsProjectileSprite}=await import('../services/fighterPrompts');
+      const raw=await readArtFile(file);
+      if(which==='PORTRAIT')setEditedPortrait(await processPortrait(raw));
+      else setEditedSprite(await processSpriteSheet(raw,
+        needsProjectileSprite(editingFighter.moveset.specialNeutral.mechanic)?'PROJECTILE':'KO'));
+    }catch(error){setRenamingError(error instanceof Error?error.message:'No se pudo procesar la imagen.');}
+    finally{setArtBusy(false);}
+  };
+  const pasteEditedArt=async(which:'PORTRAIT'|'SPRITE')=>{
+    if(renamingBusy||artBusy)return;
+    setRenamingError('');
+    if(navigator.clipboard?.read){
+      try{
+        const items=await navigator.clipboard.read();
+        for(const item of items){
+          const type=item.types.find(t=>['image/png','image/jpeg','image/webp'].includes(t));
+          if(type){const blob=await item.getType(type);
+            await importEditedArt(which,new File([blob],`${which.toLowerCase()}.png`,{type}));return;}
+        }
+        setRenamingError('El portapapeles no contiene una imagen. Copia el archivo o la imagen, no su enlace.');
+        return;
+      }catch{ /* Safari/iOS: use the native long-press paste fallback. */ }
+    }
+    setEditPasteFallback(which);
+    window.setTimeout(()=>editPasteTarget?.focus(),0);
+  };
+  const onEditedArtPaste=(event:React.ClipboardEvent<HTMLDivElement>,which:'PORTRAIT'|'SPRITE')=>{
+    const file=Array.from(event.clipboardData.items)
+      .find(item=>item.kind==='file'&&['image/png','image/jpeg','image/webp'].includes(item.type))?.getAsFile();
+    event.preventDefault();
+    if(!file){setRenamingError('Pega una imagen PNG, JPG o WEBP, no texto o enlaces.');return;}
+    setEditPasteFallback(null);
+    void importEditedArt(which,file);
   };
   const submitRename=async(event:React.FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
-    if(!renamingId||renamingBusy)return;
+    if(!renamingId||renamingBusy||artBusy)return;
+    const hasNewArt=editedPortrait!==null||editedSprite!==null;
+    const lastCell=editedSprite && editingFighter
+      ?(await import('../services/fighterPrompts')).needsProjectileSprite(editingFighter.moveset.specialNeutral.mechanic)?'PROJECTILE':'KO'
+      :undefined;
     setRenamingBusy(true);setRenamingError('');
     try{
-      const updated=await renameCustomFighter(renamingId,renamingValue);
+      // Name-only edits keep their lightweight cloud path (no image uploads).
+      // The art path edits the same IndexedDB row, retaining id, stats and moves.
+      const updated=hasNewArt?await editCustomFighter(renamingId,{
+        fighterName:renamingValue,
+        ...(editedPortrait?{portraitDataUrl:editedPortrait}:{}),
+        ...(editedSprite?{spriteSheetDataUrl:editedSprite,
+          spriteSheetLastCell:lastCell as 'PROJECTILE'|'KO'}:{}),
+      }):await renameCustomFighter(renamingId,renamingValue);
       onFighterRenamed(updated);
-      setRenamingId(null);
-      setRenameNotice('Nombre guardado en tu colección.');
+      setRenamingId(null);setEditPasteFallback(null);
+      setRenameNotice('Cambios guardados en tu colección.');
       soundFX.confirmBeep();
       try{
-        const result=await syncRenamedFighter(updated);
-        if(result==='synced')setRenameNotice('Nombre guardado y sincronizado con Supabase.');
-        else if(result==='newer-remote')setRenameNotice('Guardado localmente. Ya existe un nombre más reciente en la nube.');
-        else setRenameNotice('Guardado localmente. Se sincronizará al iniciar sesión.');
+        const result=hasNewArt?await syncFighterArtwork(updated):await syncRenamedFighter(updated);
+        if(result==='synced')setRenameNotice('Luchador actualizado también en Supabase.');
+        else if(result==='newer-remote')setRenameNotice('Guardado aquí; existe una versión más reciente en la nube.');
+        else setRenameNotice('Guardado aquí. Se sincronizará al iniciar sesión.');
       }catch(error){
-        console.warn('Nombre guardado localmente; sincronización pendiente.',error);
-        setRenameNotice('Guardado en este dispositivo. La nube se reintentará cuando haya conexión.');
+        console.warn('Luchador guardado localmente; sincronización pendiente.',error);
+        setRenameNotice('Guardado en este dispositivo. Sincronización pendiente: comprueba tu conexión.');
       }finally{requestAutomaticMigration();}
-    }catch(error){setRenamingError(error instanceof Error?error.message:'No se pudo cambiar el nombre.');}
+    }catch(error){setRenamingError(error instanceof Error?error.message:'No se pudieron guardar los cambios.');}
     finally{setRenamingBusy(false);}
   };
   const openKey = () => { setApiKeyInput(getGeminiApiKey()); setShowApiKey(true); soundFX.selectBeep(); };
@@ -311,7 +367,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><FighterPortrait fighter={f}/><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button>)}</div>
         <div className="pb-panel-bottom"><div className="pb-pagination"><button type="button" disabled={rosterPage === 0} onClick={() => setRosterPage(rosterPage - 1)} aria-label="Página anterior"><ChevronLeft size={16}/></button><span>{rosterPage + 1} / {rosterPages}</span><button type="button" disabled={rosterPage >= rosterPages - 1} onClick={() => setRosterPage(rosterPage + 1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div><button type="button" className="pb-mini-button pb-purple" onClick={openCreator}><Camera size={15}/> CREAR CON FOTO</button></div>
       </section>
-      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><FighterPortrait fighter={featured}/><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> CAMBIAR NOMBRE</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
+      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><FighterPortrait fighter={featured}/><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> EDITAR LUCHADOR</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
     </div>}
 
     {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><FighterPortrait fighter={featured}/><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
@@ -331,15 +387,27 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   {showTutorial && page === 'HOME' && <div className="pb-modal-backdrop pb-tutorial-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget)setShowTutorial(false);}}><section className="pb-modal pb-frame pb-tutorial-modal" role="dialog" aria-modal="true" aria-label="Tutorial gratuito"><button type="button" className="pb-modal-close" onClick={()=>setShowTutorial(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="ESCUELA ARCADE · GRATIS PARA SIEMPRE">APRENDE A COMBATIR</PanelTitle><p className="pb-tutorial-intro">Aprende 14 técnicas: dash, combos, golpe bajo, guardia móvil, parry y súper con ejercicios interactivos. Usa uno de estos cuatro luchadores de entrenamiento. No aparecen en tu colección ni en los modos normales.</p><div className="pb-tutorial-choices">{TUTORIAL_FIGHTERS.map(f=><button type="button" key={f.id} className={`pb-tutorial-choice ${tutorialId===f.id?'is-selected':''}`} aria-pressed={tutorialId===f.id} onClick={()=>setTutorialId(f.id)}><FighterPortrait fighter={f}/><strong>{f.fighterName}</strong>{tutorialId===f.id&&<Check size={15}/>}</button>)}</div><div className="pb-tutorial-bottom"><span><BookOpen size={15}/> 14 RETOS · COMBOS · PARRY · SÚPER</span><button type="button" className="pb-arcade-button pb-gold" onClick={()=>{setShowTutorial(false);onStartTutorial(tutorialFighter.id);}}><Gamepad2 size={17}/> EMPEZAR TUTORIAL</button></div></section></div>}
   {showOnlineLobby && mode==='ONLINE' && page==='HOME' && featured && <OnlineLobby fighter={featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>setP1Id(next.id)} onClose={()=>setShowOnlineLobby(false)}/>}
   {onlineError && mode==='ONLINE' && !showOnlineLobby && <div className="pb-online-notice" role="status" onClick={()=>setOnlineError('')}>{onlineError} · Toca para cerrar</div>}
-  {renamingId && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!renamingBusy)setRenamingId(null);}}><form className="pb-modal pb-frame pb-rename-modal" role="dialog" aria-modal="true" aria-label="Cambiar nombre de luchador" onSubmit={submitRename}>
-    <button type="button" className="pb-modal-close" onClick={()=>setRenamingId(null)} disabled={renamingBusy} aria-label="Cerrar"><X size={18}/></button>
-    <PanelTitle label="PERSONALIZA TU COLECCIÓN">CAMBIAR NOMBRE</PanelTitle>
-    <label className="pb-rename-label" htmlFor="pb-new-fighter-name">NUEVO NOMBRE</label>
-    <input id="pb-new-fighter-name" autoFocus required className="pb-rename-input" value={renamingValue} maxLength={20} onChange={e=>{setRenamingValue(e.target.value);setRenamingError('');}} autoComplete="off" enterKeyHint="done" />
-    <p className="pb-modal-note">Solo cambia el nombre. Conservarás el retrato, los sprites, las estadísticas y todos los ataques.</p>
-    {renamingError && <p className="pb-rename-error" role="alert">{renamingError}</p>}
-    <div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" disabled={renamingBusy} onClick={()=>setRenamingId(null)}>CANCELAR</button><button type="submit" className="pb-mini-button pb-gold" disabled={renamingBusy||!renamingValue.trim()}>{renamingBusy?<Loader2 size={15}/>:<Check size={15}/>} GUARDAR</button></div>
+  {renamingId && editingFighter && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!renamingBusy&&!artBusy)setRenamingId(null);}}><form className="pb-modal pb-frame pb-rename-modal pb-edit-fighter-modal" role="dialog" aria-modal="true" aria-label="Editar luchador" onSubmit={submitRename}>
+    <button type="button" className="pb-modal-close" onClick={()=>setRenamingId(null)} disabled={renamingBusy||artBusy} aria-label="Cerrar"><X size={18}/></button>
+    <PanelTitle label="PERSONALIZA TU COLECCIÓN">EDITAR LUCHADOR</PanelTitle>
+    <label className="pb-rename-label" htmlFor="pb-new-fighter-name">CAMBIAR NOMBRE</label>
+    <input id="pb-new-fighter-name" required className="pb-rename-input" value={renamingValue} maxLength={20} onChange={e=>{setRenamingValue(e.target.value);setRenamingError('');}} autoComplete="off" enterKeyHint="done" disabled={renamingBusy||artBusy}/>
+    <div className="pb-edit-art-grid">
+      {(['PORTRAIT','SPRITE'] as const).map(which=><div className="pb-edit-art-card" key={which}>
+        <strong>{which==='PORTRAIT'?'RETRATO':'SPRITESHEET 4×4'}</strong>
+        <div className="pb-edit-art-preview"><img src={which==='PORTRAIT'?(editedPortrait||editingFighter.portraitDataUrl):(editedSprite||editingFighter.spriteSheetDataUrl)} alt={`Vista previa de ${which==='PORTRAIT'?'retrato':'spritesheet'}`} draggable={false}/>{(which==='PORTRAIT'?editedPortrait:editedSprite)&&<span className="pb-edit-art-new">NUEVO</span>}</div>
+        <div className="pb-edit-art-actions">
+          <label className="pb-mini-button pb-purple pb-edit-art-upload"><Upload size={13}/> SUBIR<input type="file" accept="image/png,image/jpeg,image/webp" disabled={renamingBusy||artBusy} onChange={e=>{void importEditedArt(which,e.currentTarget.files?.[0]);e.currentTarget.value='';}}/></label>
+          <button type="button" className="pb-mini-button pb-blue" disabled={renamingBusy||artBusy} onClick={()=>void pasteEditedArt(which)}><ClipboardPaste size={13}/> PEGAR</button>
+        </div>
+      </div>)}
+    </div>
+    <p className="pb-modal-note pb-edit-art-note">Las imágenes nuevas sustituyen a las anteriores al guardar. Se conservan los movimientos, estadísticas y el ID. Los sprites deben contener 16 poses sobre fondo verde o transparente.</p>
+    {artBusy&&<p className="pb-edit-art-progress" role="status"><Loader2 size={14} className="pb-spin"/> PROCESANDO IMAGEN…</p>}
+    {renamingError&&<p className="pb-rename-error" role="alert">{renamingError}</p>}
+    <div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" disabled={renamingBusy||artBusy} onClick={()=>setRenamingId(null)}>CANCELAR</button><button type="submit" className="pb-mini-button pb-gold" disabled={renamingBusy||artBusy||!renamingValue.trim()}>{renamingBusy?<Loader2 size={15}/>:<Check size={15}/>} GUARDAR CAMBIOS</button></div>
   </form></div>}
+  {editPasteFallback && renamingId && <div className="pb-modal-backdrop pb-edit-paste-shade" onPointerDown={e=>{if(e.currentTarget===e.target)setEditPasteFallback(null);}}><section className="pb-modal pb-frame pb-edit-paste-modal" role="dialog" aria-modal="true" aria-label="Pegar imagen"><button type="button" className="pb-modal-close" onClick={()=>setEditPasteFallback(null)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="PORTAPAPELES">PEGAR {editPasteFallback==='PORTRAIT'?'RETRATO':'SPRITES'}</PanelTitle><p className="pb-modal-note">Mantén pulsado en el recuadro y selecciona PEGAR, o usa Ctrl+V.</p><div ref={setEditPasteTarget} className="pb-edit-paste-target" role="textbox" contentEditable tabIndex={0} suppressContentEditableWarning onPaste={e=>onEditedArtPaste(e,editPasteFallback)}>TOCA AQUÍ PARA PEGAR UNA IMAGEN</div><button type="button" className="pb-mini-button pb-muted" onClick={()=>setEditPasteFallback(null)}>CANCELAR</button></section></div>}
   {showApiKey && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e => { if (e.target === e.currentTarget) setShowApiKey(false); }}><section className="pb-modal pb-frame" role="dialog" aria-modal="true" aria-label="Configurar Gemini"><button type="button" className="pb-modal-close" onClick={() => setShowApiKey(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="PERSONALIZACIÓN">CLAVE GEMINI</PanelTitle><label className="pb-field-label">API KEY<input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Introduce tu API key" autoComplete="off"/></label><p className="pb-modal-note">Se guarda en el navegador de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setShowApiKey(false)}>CANCELAR</button><button type="button" className="pb-mini-button pb-gold" onClick={() => { setGeminiApiKey(apiKeyInput); setShowApiKey(false); soundFX.confirmBeep(); }}>GUARDAR</button></div></section></div>}
   {showAccount && <AccountPanel onClose={()=>setShowAccount(false)} onRestored={onFighterCreated}/>}
   {transferring&&<FighterTransfers fighter={transferring} onClose={()=>setTransferring(null)}/>}

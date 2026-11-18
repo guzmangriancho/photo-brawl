@@ -1054,3 +1054,10 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 
 /* V28: confirmación visible durante los dos segundos posteriores a cada técnica. */
 .pb-school-success{display:block;color:#a6ffcc;font:900 clamp(10px,1.4vw,13px)/1.15 'Pixelify Sans',monospace;text-shadow:1px 1px #184d30;letter-spacing:.025em}
+
+/* V31 — Training-only interactive stage collision overlay, above HUD artwork. */
+.arena-collision-tools{position:absolute;top:clamp(65px,17%,110px);left:clamp(5px,1vw,12px);z-index:17;display:flex;flex-direction:column;align-items:flex-start;gap:3px;pointer-events:none}
+.arena-collision-tools button{pointer-events:auto;display:flex;align-items:center;gap:4px;color:#bbf7ff;background:#081827dc;border:1px solid #3a8c9b;border-radius:2px;padding:4px 7px;font:800 clamp(9px,1vw,11px)/1.1 'Pixelify Sans',monospace;box-shadow:2px 2px 0 #031120}
+.arena-collision-tools button.is-active{border-color:#8dfaff;background:#135067;color:#fff}
+.arena-collision-tools small{display:block;color:#eaffff;background:#06131ece;padding:2px 4px;font:700 clamp(8px,.75vw,10px)/1.1 monospace;max-width:70vw;white-space:normal}
+@media (orientation:landscape) and (max-height:420px){.arena-collision-tools{top:clamp(40px,22%,65px)}.arena-collision-tools button{padding:2px 4px;font-size:9px}.arena-collision-tools small{font-size:8px}}

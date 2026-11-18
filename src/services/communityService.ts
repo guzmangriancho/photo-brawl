@@ -41,7 +41,7 @@ export type CloudFighter = {
   id:string; owner_id:string; local_id:string; fighter_name:string; archetype:string;
   fighter_data:Omit<FighterProfile,'spriteSheetDataUrl'|'portraitDataUrl'>;
   is_public:boolean; private_portrait_path:string; private_sheet_path:string;
-  public_portrait_path:string|null; public_sheet_path:string|null; created_at:string;
+  public_portrait_path:string|null; public_sheet_path:string|null; created_at:string; updated_at?:string;
 };
 export type CommunityFighter = Pick<CloudFighter,'id'|'owner_id'|'fighter_name'|'archetype'|'fighter_data'|'public_portrait_path'|'public_sheet_path'|'created_at'> & {
   player_profiles?:{username:string;display_name:string}|null;
@@ -88,6 +88,72 @@ export async function syncRenamedFighter(fighter:FighterProfile):Promise<'synced
     .eq('id',entry.id).eq('owner_id',auth.user.id).select('id').maybeSingle();
   if(error)throw error;
   if(!updated)throw new Error('Supabase no confirmó el nuevo nombre. Se reintentará.');
+  return 'synced';
+}
+
+/** Upload edited art under NEW versioned paths, then atomically switch the
+ * database pointers. This keeps previously published fighters public, avoids
+ * stale CDN images and never exposes an unpublished fighter. */
+export async function syncFighterArtwork(fighter:FighterProfile):Promise<'synced'|'pending'|'newer-remote'> {
+  if(!supabase)return 'pending';
+  const uid=await currentUserId();
+  const entry=await cloudEntry(fighter.id);
+  if(!entry)return 'pending'; // New fighters are handled by automatic backup.
+  const localStamp=fighter.artUpdatedAt??0;
+  const remoteStamp=entry.fighter_data.artUpdatedAt??0;
+  if(remoteStamp>localStamp)return 'newer-remote';
+  if(localStamp===remoteStamp)return syncRenamedFighter(fighter);
+  // Unique, unguessable paths prevent CDN cache collisions and overlapping retries.
+  const prefix=`${uid}/${entry.id}/edit-${localStamp}-${crypto.randomUUID()}`;
+  const privatePortrait=`${prefix}/portrait.png`,privateSheet=`${prefix}/sheet.png`;
+  const publicPortrait=entry.is_public?privatePortrait:null;
+  const publicSheet=entry.is_public?privateSheet:null;
+  const stagedPrivate:string[]=[],stagedPublic:string[]=[];
+  try{
+    await putImage('fighter-private',privatePortrait,fighter.portraitDataUrl);
+    stagedPrivate.push(privatePortrait);
+    await putImage('fighter-private',privateSheet,fighter.spriteSheetDataUrl);
+    stagedPrivate.push(privateSheet);
+    if(entry.is_public){
+      await putImage('fighter-public',publicPortrait!,fighter.portraitDataUrl);
+      stagedPublic.push(publicPortrait!);
+      await putImage('fighter-public',publicSheet!,fighter.spriteSheetDataUrl);
+      stagedPublic.push(publicSheet!);
+    }
+    if(await currentUserId()!==uid)throw new Error('La sesión cambió durante la sincronización.');
+    // Merge independent changes: an older local name cannot erase a newer
+    // rename that another device already stored in Supabase.
+    const localNameIsNewer=(fighter.nameUpdatedAt??0)>(entry.fighter_data.nameUpdatedAt??0);
+    const fighterData={...entry.fighter_data,artUpdatedAt:localStamp,
+      spriteSheetKeyVersion:fighter.spriteSheetKeyVersion,
+      spriteSheetLayoutVersion:fighter.spriteSheetLayoutVersion,
+      spriteSheetLastCell:fighter.spriteSheetLastCell,
+      ...(localNameIsNewer?{fighterName:fighter.fighterName,nameUpdatedAt:fighter.nameUpdatedAt}:{})};
+    const update={fighter_data:fighterData,
+      ...(localNameIsNewer?{fighter_name:fighter.fighterName}:{}),
+      private_portrait_path:privatePortrait,private_sheet_path:privateSheet,
+      ...(entry.is_public?{public_portrait_path:publicPortrait,public_sheet_path:publicSheet}:{}),
+      updated_at:new Date().toISOString()};
+    let request=supabase.from('fighters').update(update)
+      .eq('id',entry.id).eq('owner_id',uid);
+    // Protect against stale concurrent edits and publish/unpublish operations.
+    if(entry.updated_at)request=request.eq('updated_at',entry.updated_at);
+    const {data,error}=await request.select('id').maybeSingle();
+    if(error)throw error;
+    if(!data)throw new Error('Supabase no confirmó la actualización del luchador.');
+  }catch(error){
+    // Old storage paths still point at valid images: a partial upload must not
+    // replace or delete them. Ignore cleanup failures; never hide the root error.
+    if(stagedPrivate.length)void supabase.storage.from('fighter-private').remove(stagedPrivate).catch(()=>{});
+    if(stagedPublic.length)void supabase.storage.from('fighter-public').remove(stagedPublic).catch(()=>{});
+    throw error;
+  }
+  // Clean up only AFTER the new metadata and storage pointers are committed.
+  const oldPrivate=[entry.private_portrait_path,entry.private_sheet_path].filter(p=>!stagedPrivate.includes(p));
+  const oldPublic=[entry.public_portrait_path,entry.public_sheet_path]
+    .filter((p):p is string=>Boolean(p) && !stagedPublic.includes(p!));
+  if(oldPrivate.length)void supabase.storage.from('fighter-private').remove(oldPrivate).catch(()=>{});
+  if(oldPublic.length)void supabase.storage.from('fighter-public').remove(oldPublic).catch(()=>{});
   return 'synced';
 }
 
@@ -172,8 +238,12 @@ export async function backupMissingLocalFighters(fighters:FighterProfile[],onPro
       if(expectedUserId && await currentUserId()!==expectedUserId)throw new Error('La sesión cambió durante la copia.');
       const remote=await cloudEntry(fighter.id);
       if(remote){
-        // Preserve the newest explicit rename across devices; never upload stale names.
-        if((fighter.nameUpdatedAt??0)>(remote.fighter_data.nameUpdatedAt??0)){
+        // Update edited images too; a new sheet/portrait is the same fighter,
+        // never a newly imported duplicate. Keep the cloud/public visibility.
+        if((fighter.artUpdatedAt??0)>(remote.fighter_data.artUpdatedAt??0)){
+          const result=await syncFighterArtwork(fighter);
+          if(result!=='synced')throw new Error('No se pudo actualizar el arte en la nube.');
+        }else if((fighter.nameUpdatedAt??0)>(remote.fighter_data.nameUpdatedAt??0)){
           const result=await syncRenamedFighter(fighter);
           if(result!=='synced')throw new Error('No se pudo actualizar el nombre en la nube.');
         }

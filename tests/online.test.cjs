@@ -186,12 +186,12 @@ test('random arena mode is shared by both players and resolves to a valid stage'
   host.send({type:'ready',ready:true});guest.send({type:'ready',ready:true});
   await host.next('room',m=>m.room.status==='countdown');
   const start=await host.next('start');await guest.next('start');
-  assert.ok(['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP'].includes(start.stage));
+  assert.ok(['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP','SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'].includes(start.stage));
   host.close();guest.close();
 });
 
 test('random arena rerolls never repeat the immediately previous stage',()=>{
-  const stages=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP'];
+  const stages=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP','SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'];
   for(const previous of stages){
     for(let i=0;i<30;i++){
       const next=pickRandomStage(previous);
@@ -219,7 +219,7 @@ test('rematch event applies the server-selected arena to the active client engin
   assert.match(server,/if\(room\.randomStage\)room\.stage=pickRandomStage\(room\.stage\)/);
   assert.match(server,/type:'rematch',stage:room\.stage/);
   assert.match(session,/this\.match=\{\.\.\.this\.match,stage:msg\.stage as StageId\}/);
-  assert.match(arena,/engine\.stage=event\.stage;setCurrentStage\(event\.stage\)/);
+  assert.match(arena,/engine\.setStage\(event\.stage\);setCurrentStage\(event\.stage\)/);
 });
 
 test('changed online React and TypeScript files transpile without syntax errors',()=>{

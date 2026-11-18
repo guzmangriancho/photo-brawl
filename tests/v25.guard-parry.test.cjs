@@ -18,7 +18,7 @@ function loadTs(relative) {
   const fakeVfx = new Proxy({}, {get:()=>()=>{}});
   vm.runInNewContext(compiled, {
     module:mod,exports:mod.exports,
-    require:(id) => id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('ArcadeVFX')?fakeVfx:{},
+    require:(id) => id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('ArcadeVFX')?fakeVfx:id.includes('stages')?{STAGE_ART:{},getLargeArena:()=>undefined}:{},
     console,Math,Date,
   },{filename});
   return mod.exports;

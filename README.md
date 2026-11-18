@@ -1,3 +1,22 @@
+## V31 · Cuatro escenarios multinivel con colisiones y zoom suave
+
+- Se añaden **ATLÁNTIDA SUMERGIDA, BOSQUE DE LOS ESPÍRITUS, TEMPLO CELESTIAL y FORTALEZA VOLCÁNICA** usando las imágenes JPG originales entregadas (2048×1143). Disponibles en **selección de escenario, 1P vs CPU, 1P vs 2P, CPU vs CPU, Training y salas online, incluidas las revanchas y el escenario aleatorio**. No se introduce ningún nuevo modo de juego.
+- Estos escenarios reducen el tamaño visual/físico del luchador a **64 %** (sin cambiar el spritesheet guardado) y contienen **un suelo continuo sólido** y tres o cuatro plataformas elevadas cuya geometría queda en `src/data/stages.ts` → `LARGE_ARENAS`. Los clásicos siguen sin cambios.
+- Las plataformas **dejan pasar al subir** y **detienen la caída desde arriba**. Se puede bajar desde una plataforma manteniendo **ABAJO + SALTO**. La potencia del salto en estos mapas permite alcanzar las alturas también con luchadores pesados. La CPU trata de alcanzar adversarios situados más arriba.
+- **Cámara de encuadre suave**, con **zoom máximo del 10 %** solo cuando ambos luchadores están cerca en un mismo lado; no modifica el estado de combate ni las coordenadas de colisión.
+- Exclusivo de **Training normal**, aparece el botón **COLISIONES ON/OFF** sobre la arena y en PAUSA: **cian** = plataformas y sus IDs/coordenadas, **verde** = suelo, **amarillo/rosa** = pies y posición de P1/P2. Puedes mandar capturas para ajustar las líneas a las imágenes. El tutorial no muestra este debug.
+- **Despliegue:** actualizar **Vercel + Render** (el servidor online necesita las nuevas IDs de arena y sus colisiones). **Sin nuevas migraciones SQL.** Se actualiza la caché PWA. Documentación detallada: `docs/MAPAS_MULTINIVEL_V31.md`.
+- Pruebas: `npm run test:v31` (7 casos funcionales específicos), `npm test`, `npm run build:server-engine`.
+
+## V30 · Editar nombre, retrato y sprites de mis luchadores
+
+- En **ELEGIR LUCHADOR → EDITAR LUCHADOR** puedes modificar el nombre, el retrato (512×512) o el spritesheet (4×4, 1024×1024) por separado, sin recrear el personaje. Ambos admiten **SUBIR** y **PEGAR** desde el portapapeles, con área de pegado manual en navegadores que bloquean el acceso directo.
+- Antes de guardar se ven las imágenes nuevas. Se reutiliza la validación del creador (sprite con fondo verde o transparente y 16 poses, retrato cuadrado), y se conserva el **ID original, las estadísticas, habilidades, ataques y fecha de creación**.
+- Guardado local transaccional en la misma fila de IndexedDB. Las ediciones se sincronizan a Supabase con versiones de imagen distintas para evitar caché antigua. Un personaje privado permanece privado; uno publicado actualiza también su arte público sin perder el estado de publicación.
+- La restauración de otro dispositivo puede reconciliar imágenes nuevas y nombres mediante marcas de edición independientes, sin generar copias duplicadas cuando se trata del mismo luchador. Si falla la conexión, los cambios locales permanecen intactos y se puede reintentar la sincronización.
+- Actualiza el **frontend de Vercel**. **No** se necesita migración SQL nueva ni actualizar el servidor de Render. Se conserva la configuración de administrador V29.
+- Pruebas: `node --test tests/v30.edit-fighter-art.test.cjs` (8 nuevas) y resto de pruebas de la suite. Guía: [`docs/EDITOR_LUCHADORES_V30.md`](docs/EDITOR_LUCHADORES_V30.md).
+
 ## V29 · Archivo privado de luchadores para @guzmangriancho
 
 - Nuevo interruptor **INICIO → AJUSTES → VER TODOS LOS LUCHADORES**, visible únicamente después de comprobar en Supabase que la cuenta es la administradora designada.

@@ -11,7 +11,7 @@ function load(relative, dependencies={}) {
   const filename=path.join(root, relative);
   const js=ts.transpileModule(fs.readFileSync(filename,'utf8'),{fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
   const mod={exports:{}};
-  vm.runInNewContext(js,{module:mod,exports:mod.exports,require:(id)=>dependencies[id] || (id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('ArcadeVFX')?fakeVfx:{}),console,Math,Date},{filename});
+  vm.runInNewContext(js,{module:mod,exports:mod.exports,require:(id)=>dependencies[id] || (id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('ArcadeVFX')?fakeVfx:id.includes('stages')?{STAGE_ART:{},getLargeArena:()=>undefined}:{}),console,Math,Date},{filename});
   return mod.exports;
 }
 const engineExports=load('src/engine/FightEngine.ts');

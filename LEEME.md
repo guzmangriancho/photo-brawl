@@ -1,3 +1,25 @@
+# PHOTO BRAWL V31 · Mapas multinivel
+
+**Novedad:** cuatro arenas grandes con suelo continuo y plataformas jugables: **Atlántida, Bosque, Celestial y Volcán**. Selección disponibles en todos los combates existentes, incluida la sala online. Se juega en 1v1 como hasta ahora; sin implementar 2v2 ni FFA.
+
+**Training:** el nuevo botón **COLISIONES ON/OFF** dibuja las líneas reales de colisión encima de la imagen. Puedes activar y enviar capturas. Plataformas cian, suelo verde, pies de luchadores amarillo/rosa. Para bajar de plataformas pulsa **ABAJO + SALTO**.
+
+**Tamaño y cámara:** los luchadores se dibujan/colisionan al 64 % de la escala normal; zoom adicional suave máximo 10 % cuando ambos se concentran en un lado. Los mapas clásicos mantienen su jugabilidad.
+
+**Instalación:** actualizar tanto el frontend de Vercel como el servidor online de Render; no se necesita SQL nuevo. Si tenías pendiente la migración V29 de administrador, sigue siendo necesaria. La PWA tiene un nombre nuevo de caché. `docs/MAPAS_MULTINIVEL_V31.md` detalla coordenadas y pruebas.
+
+---
+
+# PHOTO BRAWL V30 · Edición de luchadores propios
+
+Proyecto completo basado en V29. En **ELEGIR LUCHADOR → EDITAR LUCHADOR** puedes cambiar el nombre, el retrato, el spritesheet o varios a la vez. Puedes subir o pegar imágenes, revisar la vista previa y guardar sin crear otro personaje. Se conservan los movimientos, estadísticas, ID y demás datos. Si el luchador ya está publicado en la comunidad, se actualiza su arte público; si es privado sigue privado.
+
+**Despliegue:** actualiza Vercel con el frontend completo. **No necesitas una migración SQL nueva ni actualizar Render** por estos cambios. Si todavía no instalaste el SQL del administrador V29, ejecuta la migración V29 existente como se indica más abajo. Más información en `docs/EDITOR_LUCHADORES_V30.md`.
+
+**Pruebas:** `npm ci && npm test && npm run build`. Los tests del código se han ejecutado en el entorno con un compilador TypeScript global; la instalación de dependencias y la compilación final del frontend necesitan verificarse en el entorno de despliegue.
+
+---
+
 # PHOTO BRAWL V29 · Archivo privado de administracion
 
 Esta versión incluye V28 y anteriores. Solo para la cuenta admin designada como **@guzmangriancho**, dentro de **INICIO → AJUSTES**, aparece el interruptor **VER TODOS LOS LUCHADORES**. Apagado mantiene la Comunidad habitual; encendido muestra los luchadores privados y públicos sincronizados, en **COMUNIDAD → EXPLORAR**, sin posibilidad de modificarlos.
