@@ -1051,3 +1051,6 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 @media(prefers-reduced-motion:reduce){.pb-school-incoming{animation:none}.pb-school-progress i{transition:none}}
 .pb-tutorial-in-fight>.pb-school-heading{justify-content:space-between;margin-top:0}
 .pb-tutorial-in-fight>.pb-school-progress{display:block;margin:1px 0;pointer-events:none}
+
+/* V28: confirmación visible durante los dos segundos posteriores a cada técnica. */
+.pb-school-success{display:block;color:#a6ffcc;font:900 clamp(10px,1.4vw,13px)/1.15 'Pixelify Sans',monospace;text-shadow:1px 1px #184d30;letter-spacing:.025em}

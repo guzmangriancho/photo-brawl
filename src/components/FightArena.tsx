@@ -100,11 +100,16 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [currentStage,setCurrentStage]=useState<StageId>(stage);
   const tutorialStepRef=useRef(0);
   const tutorialOriginRef=useRef<number|null>(null);
+  // Retain the completed exercise on screen for two seconds before changing lessons.
+  const tutorialCompletedAtRef=useRef<number|null>(null);
+  const [tutorialCelebrating,setTutorialCelebrating]=useState(false);
   const advanceTutorial = () => {
     if(!tutorial || tutorialStepRef.current >= TUTORIAL_LESSONS.length - 1)return;
     const next=tutorialStepRef.current+1;
     tutorialStepRef.current=next;
     tutorialOriginRef.current=null;
+    tutorialCompletedAtRef.current=null;
+    setTutorialCelebrating(false);
     setTutorialHelp(false);
     setIncomingJab(false);
     if(engineRef.current)prepareTutorialLesson(engineRef.current,TUTORIAL_LESSONS[next]);
@@ -115,6 +120,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
     if(!tutorial)return;
     tutorialStepRef.current=0;
     tutorialOriginRef.current=null;
+    tutorialCompletedAtRef.current=null;
+    setTutorialCelebrating(false);
     setTutorialStep(0);
     setTutorialHelp(false);
     setIncomingJab(false);
@@ -365,7 +372,12 @@ export const FightArena: React.FC<FightArenaProps> = ({
           if(tutorial && tutorialStepRef.current < TUTORIAL_LESSONS.length - 1){
             if(tutorialOriginRef.current === null)tutorialOriginRef.current=engine.p1.x;
             const lesson=TUTORIAL_LESSONS[tutorialStepRef.current];
-            if(tutorialLessonCompleted(lesson.id,engine,tutorialOriginRef.current))advanceTutorial();
+            if(tutorialCompletedAtRef.current !== null){
+              if(now - tutorialCompletedAtRef.current >= 2000)advanceTutorial();
+            }else if(tutorialLessonCompleted(lesson.id,engine,tutorialOriginRef.current)){
+              tutorialCompletedAtRef.current=now;
+              setTutorialCelebrating(true);
+            }
           }
           uiSyncCounter++;
         }
@@ -619,6 +631,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
         <div className="pb-school-progress" role="progressbar" aria-label="Progreso del tutorial" aria-valuemin={0} aria-valuemax={TUTORIAL_LESSONS.length-1} aria-valuenow={tutorialStep}><i style={{width:`${tutorialStep/(TUTORIAL_LESSONS.length-1)*100}%`}}/></div>
         <strong aria-live="polite">{TUTORIAL_LESSONS[tutorialStep].title}</strong>
         <small>{TUTORIAL_LESSONS[tutorialStep].instruction}</small>
+        {tutorialCelebrating && <em className="pb-school-success" role="status">¡BIEN HECHO! · SIGUIENTE EN 2 S</em>}
         {incomingJab && <em className="pb-school-incoming">¡VIENE UN JAB! · PREPARA LA GUARDIA</em>}
         {tutorialHelp && <p className="pb-school-help"><b>{TUTORIAL_LESSONS[tutorialStep].keyboard}</b> · {TUTORIAL_LESSONS[tutorialStep].tip}</p>}
         <div className="pb-school-actions">

@@ -215,3 +215,8 @@ Copiar prompt confirma en el botón sin diálogo; pegar respuesta valida y avanz
 Desde **Elegir luchador → Transferir**, envía una invitación al nombre único de otro usuario.
 El destinatario entra en **Cuenta → Regalos** para aceptar o rechazar. Solo al aceptar cambia el propietario de la misma ficha y de los recursos privados, conservando las estadísticas y los ataques del luchador.
 Documentación en `docs/TRANSFERENCIAS_LUCHADORES_V20.md`.
+
+
+## V28 — Ritmo del tutorial
+
+Las lecciones completadas permanecen 2 segundos en pantalla con un aviso de confirmación, antes de pasar a la siguiente.
