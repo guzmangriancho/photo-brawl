@@ -1,6 +1,7 @@
 'use strict';
 const {randomInt,randomBytes,randomUUID} = require('node:crypto');
 const rankedApi=require('./ranked.cjs');
+const groups=require('./group-rooms.cjs');
 const {FightEngine} = require('./runtime/engine/FightEngine.js');
 const {unpackControls}=require('./runtime/network/protocol.js');
 const {validateProfile,cleanActions}=require('./validation.cjs');
@@ -13,8 +14,9 @@ const IDLE_EXPIRY=15*60_000;
 const COUNTDOWN_MS=Math.max(300,Math.min(10000,Number(process.env.ONLINE_START_COUNTDOWN_MS)||3000));
 const STAGES=['SKI_RESORT','NIGHT_PLAZA','SUMMER_SUMMIT','TEMPLE_SUNSET','INDUSTRIAL_ROOFTOP','SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'];
 const rooms=new Map();
+groups.setLegacyCodes(()=>new Set(rooms.keys()));
 const token=()=>randomBytes(24).toString('hex');
-function code(){let c;do{c=Array.from({length:6},()=>LETTERS[randomInt(LETTERS.length)]).join('');}while(rooms.has(c));return c;}
+function code(){let c;do{c=Array.from({length:6},()=>LETTERS[randomInt(LETTERS.length)]).join('');}while(rooms.has(c)||groups.rooms.has(c));return c;}
 function pickRandomStage(previous=null){
   const choices=previous?STAGES.filter(stage=>stage!==previous):STAGES;
   const pool=choices.length?choices:STAGES;
@@ -82,6 +84,7 @@ function bind(peer,room,player){
   send(player,{type:'welcome',code:room.code,role:player.role,token:player.token});
 }
 function handle(peer,msg) {
+  if(peer.room?.isGroup || (msg?.type==='create' && ['2V2','FREE_FOR_ALL'].includes(msg.battleMode)) || (msg?.type==='join' && groups.rooms.has(String(msg.code||'').toUpperCase())) || (msg?.type==='resume' && groups.rooms.has(String(msg.code||'').toUpperCase()))) return groups.handle(peer,msg);
   // Cheap per-connection envelope limit, including unauthenticated handshakes.
   const now=Date.now();
   if(!peer.rateAt || now-peer.rateAt>=1000){peer.rateAt=now;peer.rateCount=0;}
@@ -199,6 +202,8 @@ function handle(peer,msg) {
   }
   if(msg.type==='rematch') {
     if(room.status!=='playing'||!room.engine?.roundOver)return;
+    const nextProfile=msg.profile?validateProfile(msg.profile):null;
+    if(nextProfile)player.profile=nextProfile;
     player.vote=true;
     each(room,{type:'rematch_vote',host:room.host.vote,guest:room.guest.vote});
     if(room.host.vote && room.guest?.vote && room.host.peer && room.guest.peer){
@@ -208,7 +213,7 @@ function handle(peer,msg) {
       room.host.mask=0;room.guest.mask=0;
       room.host.lastSeq=-1;room.guest.lastSeq=-1;
       room.host.vote=false;room.guest.vote=false;
-      each(room,{type:'rematch',stage:room.stage});sendState(room);
+      each(room,{type:'rematch',stage:room.stage,p1:room.host.profile,p2:room.guest.profile});sendState(room);
     }
     return;
   }
@@ -249,7 +254,7 @@ function leave(peer,explicit=false){
     if(room.status==='playing')each(room,{type:'interrupted',role:player.role,seconds:Math.floor(WAIT_GRACE/1000)});
   }
 }
-function closed(peer){leave(peer,false);}
+function closed(peer){if(peer.room?.isGroup)return groups.closed(peer);leave(peer,false);}
 function cleanup(){
   const now=Date.now();
   for(const room of rooms.values()) {

@@ -7,27 +7,25 @@ const ts=(()=>{try{return require('typescript');}catch{return require('/opt/nvm/
 const root=path.resolve(__dirname,'..');
 const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 
-test('final summary stays in the existing rematch/exit result popup',()=>{
+test('V35 final summary retains both scores and offers shared rematch with fighter changes',()=>{
  const arena=read('src/components/FightArena.tsx');
- const popup=arena.split('className="arena-result-overlay"')[1]?.split('className="arena-pause-overlay"')[0]||'';
- assert.match(popup,/arena-match-summary/);
- assert.match(popup,/arena-result-actions/);
- assert.match(popup,/PEDIR REVANCHA|REVANCHA/);
- assert.match(popup,/SALIR DEL ONLINE|CAMBIAR LUCHADOR/);
+ const component=read('src/components/RematchRoster.tsx');
+ assert.match(arena,/className="arena-result-overlay pb-v35-rematch-overlay"/);
+ assert.match(arena,/arena-match-summary/);
+ assert.match(arena,/snapshot\.p1RoundWins/);
+ assert.match(arena,/snapshot\.p2RoundWins/);
+ assert.match(component,/PEDIR REVANCHA/);
+ assert.match(component,/SALIR/);
+ assert.match(component,/CAMBIAR/);
 });
 
-test('ranked summary displays both players before/after ratings and deltas',()=>{
+test('ranked summary continues to show both player ratings and their variations',()=>{
  const arena=read('src/components/FightArena.tsx');
- assert.match(arena,/host_rating_before/);
- assert.match(arena,/guest_rating_before/);
- assert.match(arena,/host_rating/);
- assert.match(arena,/guest_rating/);
- assert.match(arena,/arena-elo-delta/);
+ for(const term of ['host_rating_before','guest_rating_before','host_rating','guest_rating','eloLabel','CLASIFICATORIA REGISTRADA'])assert.ok(arena.includes(term));
 });
 
-test('friendly summary explicitly states ELO is unchanged',()=>{
- const arena=read('src/components/FightArena.tsx');
- assert.match(arena,/El ELO de ambos jugadores no cambia en esta modalidad/);
+test('friendly result explicitly promises unchanged ranking rating',()=>{
+ assert.match(read('src/components/FightArena.tsx'),/AMISTOSO · SIN CAMBIOS DE ELO/);
 });
 
 test('V22 SQL response includes before and after rating values without removing V21 rematches',()=>{

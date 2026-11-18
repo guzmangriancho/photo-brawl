@@ -40,7 +40,10 @@ test('result popup has pixel font and no scroll, with retained score and ELO det
   assert.match(css,/\.arena-result-headline\{[^}]*Press Start 2P/);
   assert.match(css,/\.arena-result-actions\{display:grid;grid-template-columns:repeat\(2/);
   const jsx=read('src/components/FightArena.tsx');
-  for(const token of ['arena-match-summary','arena-elo-delta','arena-summary-stage','PEDIR REVANCHA'])assert.ok(jsx.includes(token),token);
+  const replay=read('src/components/RematchRoster.tsx'),cssReplay=read('src/components/rematchRoster.css');
+  for(const token of ['arena-match-summary','arena-result-elo-v35','stageLabel','eloLabel'])assert.ok(jsx.includes(token),token);
+  for(const token of ['PEDIR REVANCHA','SALIR','CAMBIAR'])assert.ok(replay.includes(token),token);
+  assert.match(cssReplay,/\.pb-replay\{[^}]*overflow:hidden/);
 });
 test('touched TSX files have no parse errors',()=>{
   for(const filename of ['src/components/OnlineLobby.tsx','src/components/FighterCreator.tsx']){

@@ -18,6 +18,7 @@ export const STAGE_ART: Record<StageId, { name: string; short: string; image: st
   VOLCANIC_FORTRESS: { name: 'FORTALEZA VOLCÁNICA', short: 'VOLCÁN', image: '/backgrounds/volcan.jpg' },
 };
 export const STAGE_IDS = Object.keys(STAGE_ART) as StageId[];
+export const LARGE_ARENA_IDS: StageId[]=['SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'];
 
 /**
  * V32 – hand-aligned collision planes for the four user-supplied panoramas.

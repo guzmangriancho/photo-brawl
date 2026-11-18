@@ -3,6 +3,7 @@ import {
   CpuDifficulty,
   FighterProfile,
   GameMode,
+  GroupBattleMode,
   StageId,
 } from './types/fighter';
 import { getPresetFighters } from './data/presetFighters';
@@ -13,6 +14,8 @@ import { reconcileSentFighterTransfers } from './services/fighterTransferService
 import { supabase } from './services/supabaseClient';
 import { CharacterSelect } from './components/CharacterSelect';
 import { FightArena } from './components/FightArena';
+import { GroupFightArena } from './components/GroupFightArena';
+import { LARGE_ARENA_IDS } from './data/stages';
 import type { OnlineSession } from './network/OnlineSession';
 import type { OnlineStart } from './network/protocol';
 
@@ -21,6 +24,7 @@ export function App() {
   const [fighters, setFighters] = useState<FighterProfile[]>([]);
   const [rosterLoaded,setRosterLoaded] = useState(false);
   const [rosterError,setRosterError] = useState('');
+  const [fightKey,setFightKey]=useState(0);
   const [screen, setScreen] = useState<'SELECT' | 'FIGHT'>('SELECT');
 
   const [matchConfig, setMatchConfig] = useState<{
@@ -31,6 +35,8 @@ export function App() {
     difficulty: CpuDifficulty;
     online?: OnlineSession;
     tutorial?: boolean;
+    battleMode?: GroupBattleMode;
+    fighters?: FighterProfile[];
   } | null>(null);
 
   // Start migration at app boot, independently of what menu the user opens.
@@ -97,11 +103,18 @@ export function App() {
     p2: FighterProfile,
     mode: GameMode,
     stage: StageId,
-    difficulty: CpuDifficulty
+    difficulty: CpuDifficulty,
+    extra?: [FighterProfile,FighterProfile]
   ) => {
     // Preset fighters are only playable inside the guided tutorial.
     if (p1.isPreset || p2.isPreset) return;
-    setMatchConfig({ p1, p2, mode, stage, difficulty });
+    const group=mode==='2V2'||mode==='FREE_FOR_ALL';
+    const arena=group && !LARGE_ARENA_IDS.includes(stage)?LARGE_ARENA_IDS[0]:stage;
+    const groupRoster=[p1,p2,extra?.[0]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p1,
+      extra?.[1]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p2];
+    setMatchConfig({p1,p2,mode,stage:arena,difficulty,battleMode:group?mode:undefined,
+      fighters:group?groupRoster:undefined});
+    setFightKey(value=>value+1);
     setScreen('FIGHT');
   };
 
@@ -114,13 +127,30 @@ export function App() {
   };
 
   const handleOnlineMatch = (start: OnlineStart, session: OnlineSession) => {
-    setMatchConfig({p1:start.p1,p2:start.p2,mode:'ONLINE',stage:start.stage,difficulty:'NORMAL',online:session});
+    setMatchConfig({p1:start.p1,p2:start.p2,mode:'ONLINE',stage:start.stage,difficulty:'NORMAL',online:session,
+      battleMode:start.battleMode,fighters:start.fighters});
+    setFightKey(value=>value+1);
     setScreen('FIGHT');
   };
 
+  const handleRematch=(profiles:FighterProfile[],stage?:StageId)=>{
+    setMatchConfig(old=>old?{...old,p1:profiles[0]||old.p1,p2:profiles[1]||old.p2,
+      fighters:old.battleMode?profiles:undefined,stage:stage||old.stage}:old);
+    setFightKey(v=>v+1);
+  };
+  const handleExit=()=>{
+    matchConfig?.online?.close();setMatchConfig(null);setScreen('SELECT');
+  };
+
   if (screen === 'FIGHT' && matchConfig) {
+    if(matchConfig.battleMode && matchConfig.fighters?.length===4){
+      return <GroupFightArena key={fightKey} fighters={matchConfig.fighters as [FighterProfile,FighterProfile,FighterProfile,FighterProfile]}
+        roster={fighters} battleMode={matchConfig.battleMode} stage={matchConfig.stage}
+        difficulty={matchConfig.difficulty} online={matchConfig.online}
+        onRematch={handleRematch} onExit={handleExit}/>;
+    }
     return (
-      <FightArena
+      <FightArena key={fightKey} roster={fighters} onRematch={handleRematch}
         p1Profile={matchConfig.p1}
         p2Profile={matchConfig.p2}
         mode={matchConfig.mode}
@@ -128,11 +158,7 @@ export function App() {
         difficulty={matchConfig.difficulty}
         online={matchConfig.online}
         tutorial={matchConfig.tutorial}
-        onExit={() => {
-          matchConfig.online?.close();
-          setMatchConfig(null);
-          setScreen('SELECT');
-        }}
+        onExit={handleExit}
       />
     );
   }

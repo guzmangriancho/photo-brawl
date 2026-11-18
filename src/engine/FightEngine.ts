@@ -75,7 +75,7 @@ export interface ActiveAttackData {
 
 export interface ProjectileEntity {
   id: number;
-  ownerIndex: 0 | 1;
+  ownerIndex: number;
   x: number;
   y: number;
   vx: number;
@@ -161,7 +161,7 @@ export interface InputState {
 }
 
 export interface FighterRuntime {
-  index: 0 | 1;
+  index: number;
   profile: FighterProfile;
   spriteSheet: HTMLImageElement | null;
   x: number;
@@ -200,7 +200,7 @@ export interface FighterRuntime {
   lastTapRightFrame: number;
   aiCooldown: number;
   projectileCooldownFrames: number; // Anti-spam: mínimo entre disparos
-  grabbedBy: 0 | 1 | null;
+  grabbedBy: number | null;
   grabSlamTimer: number;
 }
 
@@ -227,6 +227,7 @@ export interface EngineSnapshot {
   p2RoundWins: number;
   roundBreakFrames: number;
   roundIntroFrames: number;
+  multi?: import('./MultiFightEngine').MultiMatchSummary;
 }
 
 function createEmptyInput(): InputState {
@@ -265,7 +266,7 @@ export class FightEngine {
   public frameCount: number = 0;
   public hitstopFrames: number = 0;
   public superFlashFrames: number = 0;
-  public superFlashOwner: 0 | 1 = 0;
+  public superFlashOwner: number = 0;
   public shakeIntensity: number = 0;
   public roundTimerFrames: number = 99 * 60;
   /** roundOver means MATCH over; intermediate KOs trigger the next round automatically. */
@@ -306,8 +307,8 @@ export class FightEngine {
     this.p2 = this.createFighterRuntime(1, p2Profile, STAGE_WIDTH - 260, -1);
   }
 
-  private createFighterRuntime(
-    index: 0 | 1,
+  protected createFighterRuntime(
+    index: number,
     profile: FighterProfile,
     startX: number,
     facing: 1 | -1
@@ -362,6 +363,11 @@ export class FightEngine {
       grabSlamTimer: 0,
     };
   }
+
+  /** Shared accessors: 1v1 keeps its two actors; multi battles override them. */
+  public getFighters(): FighterRuntime[] { return [this.p1, this.p2]; }
+  protected getInputFor(index: number): InputState { return index === 0 ? this.p1Input : this.p2Input; }
+  protected getFighterByIndex(index: number): FighterRuntime { return index === 0 ? this.p1 : this.p2; }
 
   public async loadAssets(): Promise<void> {
     const [img1, img2] = await Promise.all([
@@ -559,7 +565,7 @@ export class FightEngine {
   /** Captura pulsaciones incluso durante HITSTOP. La orden dura ~0,38 s,
    * y puede ser consumida por el siguiente enlace válido de un combo.
    * Nunca hacemos auto-combos con un botón mantenido: exige taps nuevos. */
-  private captureCommands(f: FighterRuntime, input: InputState): void {
+  protected captureCommands(f: FighterRuntime, input: InputState): void {
     const prev = f.actionPrevInput;
     const pressed = (key: keyof InputState) => input[key] && !prev[key];
     let slot: MoveSlot | null = null;
@@ -795,7 +801,7 @@ export class FightEngine {
     return true;
   }
 
-  private updateFighter(f: FighterRuntime, opp: FighterRuntime, input: InputState): void {
+  protected updateFighter(f: FighterRuntime, opp: FighterRuntime, input: InputState): void {
     f.stateFrame++;
     if (f.invincibleFrames > 0) f.invincibleFrames--;
 
@@ -837,7 +843,7 @@ export class FightEngine {
 
     // Handle being physically hoisted & slammed by a Command Grab / Omega Suplex!
     if (f.grabbedBy !== null) {
-      const grabber = f.grabbedBy === 0 ? this.p1 : this.p2;
+      const grabber = this.getFighterByIndex(f.grabbedBy);
       f.grabSlamTimer++;
       if (f.grabSlamTimer < 16) {
         // Hoisted high above grabber's head!
@@ -1125,7 +1131,7 @@ export class FightEngine {
     f.x = Math.max(WALL_MARGIN, Math.min(STAGE_WIDTH - WALL_MARGIN, f.x));
   }
 
-  private resolveCharacterCollision(): void {
+  protected resolveCharacterCollision(): void {
     const minDist = (this.p1.hurtbox.width + this.p2.hurtbox.width) * 0.42;
     const dx = this.p2.x - this.p1.x;
     const dy = Math.abs(this.p2.y - this.p1.y);
@@ -1655,7 +1661,12 @@ export class FightEngine {
     }
   }
 
-  private resolveAttackCollisions(attacker: FighterRuntime, defender: FighterRuntime): void {
+  protected canDamage(_attacker: FighterRuntime, _defender: FighterRuntime): boolean { return true; }
+  protected onDamage(_attacker: FighterRuntime, _defender: FighterRuntime, _amount: number): void {}
+  public shouldRenderFighter(_fighter:FighterRuntime):boolean {return true;}
+
+  protected resolveAttackCollisions(attacker: FighterRuntime, defender: FighterRuntime): void {
+    if (!this.canDamage(attacker,defender) || defender.hp <= 0) return;
     const atk = attacker.currentAttack;
     if (!atk || !atk.hitbox) return;
 
@@ -1711,7 +1722,7 @@ export class FightEngine {
     const hitX = (Math.max(hbX, defX) + Math.min(hbX + hbW, defX + defW)) / 2;
     const hitY = (Math.max(hbY, defY) + Math.min(hbY + hbH, defY + defH)) / 2;
 
-    const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
+    const defInput = this.getInputFor(defender.index);
     const validGuard = !atk.isGrab && this.canGuardAttack(defender, defInput, atk.height);
 
     // Parry de jab: pulsar GUARDIA justo antes del contacto (5 fotogramas).
@@ -1769,6 +1780,7 @@ export class FightEngine {
     const counterMult = isCounterHit ? 1.25 : 1.0;
     const scaledDamage = Math.max(8, Math.round(rawDamage * counterMult * attacker.damageScaling));
     defender.hp = Math.max(0, defender.hp - scaledDamage);
+    this.onDamage(attacker,defender,scaledDamage);
 
     if (isCounterHit && atk.hitCountDone === 1) {
       this.addCallout(defender.x, defender.y - 170, 'COUNTER HIT!', '#fb7185');
@@ -1899,7 +1911,7 @@ export class FightEngine {
     }
   }
 
-  private updateProjectiles(): void {
+  protected updateProjectiles(): void {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.ttl--;
@@ -1950,9 +1962,9 @@ export class FightEngine {
 
       if (!p.armed) continue;
 
-      const attacker = p.ownerIndex === 0 ? this.p1 : this.p2;
-      const defender = p.ownerIndex === 0 ? this.p2 : this.p1;
-
+      const attacker = this.getFighterByIndex(p.ownerIndex);
+      for (const defender of this.getFighters()) {
+      if (defender.index === attacker.index || defender.hp <= 0 || !this.canDamage(attacker,defender)) continue;
       if (defender.invincibleFrames > 0 || defender.state === 'KO' || defender.state === 'KNOCKDOWN') {
         continue;
       }
@@ -1968,7 +1980,7 @@ export class FightEngine {
         p.y + p.radius > defTop &&
         p.y - p.radius < defBottom
       ) {
-        const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
+        const defInput = this.getInputFor(defender.index);
         const validGuard = this.canGuardAttack(defender, defInput, p.height);
 
         if (validGuard && this.frameCount - defender.blockPressFrame <= 4) {
@@ -1993,6 +2005,7 @@ export class FightEngine {
 
         const dmg = Math.max(10, Math.round(p.damage * attacker.damageScaling));
         defender.hp = Math.max(0, defender.hp - dmg);
+        this.onDamage(attacker,defender,dmg);
         attacker.comboCount++;
         attacker.comboDamage += dmg;
         attacker.comboTimer = 55;
@@ -2035,11 +2048,13 @@ export class FightEngine {
         }
 
         this.projectiles.splice(i, 1);
+        break;
       }
+      } // End defender candidates
     }
   }
 
-  private triggerKnockout(winner: FighterRuntime, loser: FighterRuntime): void {
+  protected triggerKnockout(winner: FighterRuntime, loser: FighterRuntime): void {
     if(this.roundOver||this.roundBreakFrames>0)return;
     winner.state = 'VICTORY';
     winner.stateFrame = 0;
@@ -2049,7 +2064,7 @@ export class FightEngine {
     loser.vx = winner.facing * 9;
     this.hitstopFrames = 16;
     this.shakeIntensity = 18;
-    this.completeRound(winner.index);
+    this.completeRound(winner.index as 0 | 1);
     // Keep an intermediate KO visible until the next-round countdown.
     if(!this.roundOver){this.announceText=`K.O.! ${winner.profile.fighterName}`;this.announceTimer=120;}
     soundFX.koFanfare();
@@ -2099,7 +2114,7 @@ export class FightEngine {
     return inp;
   }
 
-  private computeCpuInput(cpu: FighterRuntime, player: FighterRuntime): InputState {
+  protected computeCpuInput(cpu: FighterRuntime, player: FighterRuntime): InputState {
     const inp = createEmptyInput();
     if (cpu.aiCooldown > 0) cpu.aiCooldown--;
 
@@ -2252,7 +2267,7 @@ export class FightEngine {
     this.callouts.push({ x, y, vy: -1.1, text, color, life: 46 });
   }
 
-  private updateParticles(): void {
+  protected updateParticles(): void {
     // Keep wire snapshots and mobile draw costs bounded during long supers.
     if (this.particles.length > 160) this.particles.splice(0, this.particles.length - 160);
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -2312,7 +2327,7 @@ export class FightEngine {
     }
   }
 
-  private updateAfterimages(): void {
+  protected updateAfterimages(): void {
     for (let i = this.afterimages.length - 1; i >= 0; i--) {
       this.afterimages[i].alpha -= 0.06;
       if (this.afterimages[i].alpha <= 0) {
@@ -2386,10 +2401,12 @@ export class FightEngine {
 
     const arena = getLargeArena(this.stage);
     if (arena) {
-      const distance = Math.abs(this.p1.x - this.p2.x);
-      const midpoint = (this.p1.x + this.p2.x) / 2;
-      const sameSide = (this.p1.x < 450 && this.p2.x < 450) ||
-                       (this.p1.x > 510 && this.p2.x > 510);
+      const active = this.getFighters().filter(f => f.hp > 0);
+      const minX = active.length?Math.min(...active.map(f => f.x)):STAGE_WIDTH/2;
+      const maxX = active.length?Math.max(...active.map(f => f.x)):STAGE_WIDTH/2;
+      const distance = maxX - minX;
+      const midpoint = (minX + maxX) / 2;
+      const sameSide = maxX < 450 || minX > 510;
       const desiredZoom = sameSide && distance < 330
         ? 1 + 0.1 * Math.max(0, Math.min(1, (330 - distance) / 230))
         : 1;
@@ -2410,14 +2427,13 @@ export class FightEngine {
     this.renderStage(ctx);
 
     if (this.superFlashFrames > 0) {
-      drawSuperFlashFX(ctx,this.superFlashOwner===0?this.p1:this.p2,this.superFlashFrames,this.frameCount);
+      drawSuperFlashFX(ctx,this.getFighterByIndex(this.superFlashOwner),this.superFlashFrames,this.frameCount);
     }
 
-    this.renderShadow(ctx, this.p1);
-    this.renderShadow(ctx, this.p2);
+    for (const fighter of this.getFighters().filter(f => this.shouldRenderFighter(f))) this.renderShadow(ctx, fighter);
 
     for (const img of this.afterimages) {
-      const owner = Math.abs(img.x - this.p1.x) < Math.abs(img.x - this.p2.x) ? this.p1 : this.p2;
+      const owner = this.getFighters().reduce((best,f) => Math.abs(f.x-img.x)<Math.abs(best.x-img.x)?f:best);
       if (owner.spriteSheet) {
         ctx.save();
         ctx.globalAlpha = img.alpha;
@@ -2426,10 +2442,9 @@ export class FightEngine {
       }
     }
 
-    const first = this.p1.state === 'ATTACK' ? this.p2 : this.p1;
-    const second = first === this.p1 ? this.p2 : this.p1;
-    this.renderFighter(ctx, first);
-    this.renderFighter(ctx, second);
+    for (const fighter of this.getFighters().filter(f => this.shouldRenderFighter(f)).sort((a,b) => Number(a.state==='ATTACK')-Number(b.state==='ATTACK'))) {
+      this.renderFighter(ctx, fighter);
+    }
 
     for (const p of this.projectiles) {
       this.renderProjectile(ctx, p);
@@ -2454,8 +2469,7 @@ export class FightEngine {
 
     if (this.showArenaCollisions && getLargeArena(this.stage)) this.renderArenaCollisionDebug(ctx);
     if (this.showHitboxes) {
-      this.renderDebugBoxes(ctx, this.p1);
-      this.renderDebugBoxes(ctx, this.p2);
+      for (const fighter of this.getFighters()) this.renderDebugBoxes(ctx, fighter);
     }
 
     ctx.restore();

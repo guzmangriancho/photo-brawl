@@ -36,12 +36,12 @@ test('V14 chroma: removes both enclosed background and strong green halo, not cl
   assert.equal(pixel(4,5)[3],255,'red silhouette preserved');
   assert.equal(pixel(8,13)[3],255,'green garment preserved');
 });
-test('V14 menu shows precisely 3 play modes, keeps four presets in tutorial only',()=>{
+test('V35 menu preserves original play modes and reserves presets for tutorial only',()=>{
   const menu=fs.readFileSync(path.join(root,'src/components/CharacterSelect.tsx'),'utf8');
   const app=fs.readFileSync(path.join(root,'src/App.tsx'),'utf8');
   const block=menu.match(/const GAME_MODES:[\s\S]+?const STAT_FIELDS/)[0];
   const modes=Array.from(block.matchAll(/id:\s*'([^']+)'/g),m=>m[1]);
-  assert.deepEqual(modes,['1P_VS_CPU','TRAINING','ONLINE']);
+  assert.deepEqual(modes,['1P_VS_CPU','2V2','FREE_FOR_ALL','TRAINING','ONLINE']);
   assert.ok(menu.includes('const TUTORIAL_FIGHTERS = getPresetFighters()'));
   assert.ok(menu.includes('onStartTutorial(tutorialFighter.id)'));
   assert.ok(menu.includes("if (page !== 'HOME') return;"));

@@ -218,8 +218,8 @@ test('rematch event applies the server-selected arena to the active client engin
   const arena=fs.readFileSync(path.join(root,'src/components/FightArena.tsx'),'utf8');
   assert.match(server,/if\(room\.randomStage\)room\.stage=pickRandomStage\(room\.stage\)/);
   assert.match(server,/type:'rematch',stage:room\.stage/);
-  assert.match(session,/this\.match=\{\.\.\.this\.match,stage:msg\.stage as StageId\}/);
-  assert.match(arena,/engine\.setStage\(event\.stage\);setCurrentStage\(event\.stage\)/);
+  assert.match(session,/this\.match=\{\.\.\.this\.match,stage:/);
+  assert.match(arena,/onRematch\(\[event\?\.p1\|\|p1Profile,event\?\.p2\|\|p2Profile\],event\?\.stage\)/);
 });
 
 test('changed online React and TypeScript files transpile without syntax errors',()=>{

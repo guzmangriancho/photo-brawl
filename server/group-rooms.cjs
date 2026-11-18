@@ -1,0 +1,174 @@
+'use strict';
+const {randomBytes,randomInt}=require('node:crypto');
+const {MultiFightEngine}=require('./runtime/engine/MultiFightEngine.js');
+const {unpackControls}=require('./runtime/network/protocol.js');
+const {validateProfile,cleanActions}=require('./validation.cjs');
+const LETTERS='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const COUNTDOWN_MS=Math.max(300,Math.min(10000,Number(process.env.ONLINE_START_COUNTDOWN_MS)||3000));
+const GROUP_STAGES=['SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'];
+const WAIT_GRACE=Math.max(15000,Math.min(180000,Number(process.env.ONLINE_RECONNECT_GRACE_MS)||90000));
+const rooms=new Map();
+let legacyCodes=()=>new Set();
+function setLegacyCodes(fn){legacyCodes=fn;}
+function newCode(){let code;do{code=Array.from({length:6},()=>LETTERS[randomInt(LETTERS.length)]).join('');}while(rooms.has(code)||legacyCodes().has(code));return code;}
+function send(p,msg){return p?.peer?.send(msg)||false;}
+function each(room,msg){for(const p of room.players)send(p,msg);}
+function fail(peer,message){peer.send({type:'error',message});}
+function roomView(room,p){return {code:room.code,role:p.seat===0?'host':'guest',slot:p.seat,battleMode:room.mode,
+  status:room.status==='playing'&&room.players.some(s=>!s.peer)?'interrupted':room.status,
+  stage:room.stage,randomStage:room.randomStage,ranked:false,countdownEndsAt:room.countdownEndsAt,
+  host:{name:room.players[0].profile.fighterName,ready:room.players[0].ready,connected:!!room.players[0].peer},
+  guest:room.players[1]?{name:room.players[1].profile.fighterName,ready:room.players[1].ready,connected:!!room.players[1].peer}:null,
+  players:room.players.map(s=>({seat:s.seat,name:s.profile.fighterName,ready:s.ready,connected:!!s.peer,team:room.mode==='2V2'?(s.seat%2===0?'RED':'BLUE'):null})),
+  maxPlayers:4};}
+function lobby(room){for(const p of room.players)send(p,{type:'room',room:roomView(room,p)});}
+function newPlayer(peer,seat,profile){return {peer,seat,profile,token:randomBytes(24).toString('hex'),ready:false,vote:false,
+  mask:0,lastSeq:-1,rateAt:0,rateCount:0,actionAt:0,actionCount:0,lostAt:0};}
+function bind(peer,room,p){peer.room=room;peer.player=p;p.peer=peer;p.lostAt=0;send(p,{type:'welcome',code:room.code,role:p.seat===0?'host':'guest',slot:p.seat,token:p.token});}
+function cancelCountdown(room){if(room.countdownTimer)clearTimeout(room.countdownTimer);room.countdownTimer=null;room.countdownEndsAt=null;if(room.status==='countdown')room.status='waiting';}
+function start(room){
+  if(room.status!=='countdown')return;
+  cancelCountdown(room);
+  if(room.players.length!==4||room.players.some(p=>!p.peer||!p.ready)){lobby(room);return;}
+  if(room.randomStage){const options=GROUP_STAGES.filter(id=>id!==room.stage);room.stage=options[randomInt(options.length)];}
+  room.engine=new MultiFightEngine(room.players.map(p=>p.profile),room.mode,room.stage,'NORMAL');
+  room.engine.remoteHumanControls=true;
+  room.status='playing';for(const p of room.players){p.mask=0;p.vote=false;p.lastSeq=-1;}
+  each(room,{type:'start',code:room.code,p1:room.players[0].profile,p2:room.players[1].profile,
+    fighters:room.players.map(p=>p.profile),battleMode:room.mode,stage:room.stage});
+  lobby(room);each(room,{type:'state',state:room.engine.exportNetworkState()});
+  if(room.tick)clearInterval(room.tick);
+  room.tick=setInterval(()=>{
+    if(room.status!=='playing'||room.players.some(p=>!p.peer))return;
+    for(const p of room.players)room.engine.setSeatInput(p.seat,unpackControls(p.mask));
+    room.engine.step();
+    if(room.engine.frameCount%2===0)each(room,{type:'state',state:room.engine.exportNetworkState()});
+  },1000/60);
+}
+function maybeStart(room){
+  if(room.status!=='waiting'||room.players.length!==4||room.players.some(p=>!p.ready||!p.peer))return;
+  room.status='countdown';room.countdownEndsAt=Date.now()+COUNTDOWN_MS;
+  room.countdownTimer=setTimeout(()=>start(room),COUNTDOWN_MS);lobby(room);
+}
+function remove(room){if(!rooms.has(room.code))return;rooms.delete(room.code);cancelCountdown(room);if(room.tick)clearInterval(room.tick);
+  for(const p of room.players)if(p.peer){const peer=p.peer;p.peer=null;peer.room=null;peer.player=null;send({peer},{type:'closed'});}}
+function handle(peer,msg){
+  const now=Date.now();if(!peer.groupRateAt||now-peer.groupRateAt>=1000){peer.groupRateAt=now;peer.groupRateCount=0;}
+  if(++peer.groupRateCount>160)return;
+  if(!msg||typeof msg!=='object'||Array.isArray(msg)||typeof msg.type!=='string')return fail(peer,'Solicitud no válida.');
+  const room=peer.room,p=peer.player;
+  if(msg.type==='create'){
+    if(room)return fail(peer,'Ya estás en una sala.');
+    if(msg.ranked===true)return fail(peer,'Los combates de cuatro no son clasificatorios.');
+    const profile=validateProfile(msg.profile);
+    if(!profile)return fail(peer,'Luchador no válido.');
+    if(!['2V2','FREE_FOR_ALL'].includes(msg.battleMode))return fail(peer,'Modo no disponible.');
+    if(rooms.size>=40)return fail(peer,'Servidor ocupado.');
+    const host=newPlayer(peer,0,profile);
+    const r={isGroup:true,code:newCode(),mode:msg.battleMode,stage:GROUP_STAGES.includes(msg.stage)?msg.stage:GROUP_STAGES[0],
+      randomStage:false,players:[host],status:'waiting',countdownTimer:null,countdownEndsAt:null,tick:null,engine:null,created:now};
+    rooms.set(r.code,r);bind(peer,r,host);lobby(r);return;
+  }
+  if(msg.type==='join'){
+    if(room)return fail(peer,'Ya estás en una sala.');
+    const r=rooms.get(String(msg.code||'').toUpperCase());
+    if(!r||r.status!=='waiting'||r.players.length>=4)return fail(peer,'Sala no encontrada o completa.');
+    const profile=validateProfile(msg.profile);if(!profile)return fail(peer,'Luchador no válido.');
+    const seat=r.players.length;
+    const player=newPlayer(peer,seat,profile);r.players.push(player);
+    r.players.forEach(p=>p.ready=false);
+    bind(peer,r,player);lobby(r);return;
+  }
+  if(msg.type==='resume'){
+    if(room)return fail(peer,'Ya estás en una sala.');
+    const r=rooms.get(String(msg.code||'').toUpperCase());const found=r?.players.find(p=>p.token===msg.token);
+    if(!found)return fail(peer,'La sala ya no está disponible.');
+    if(r.status==='countdown'){cancelCountdown(r);found.ready=false;}
+    if(found.peer){const previous=found.peer;found.peer=null;previous.close();}
+    found.lastSeq=-1;found.actionCount=0;found.rateCount=0;
+    bind(peer,r,found);lobby(r);
+    if(r.engine&&r.status==='playing'){
+      send(found,{type:'start',code:r.code,p1:r.players[0].profile,p2:r.players[1].profile,
+        fighters:r.players.map(p=>p.profile),battleMode:r.mode,stage:r.stage,resumed:true});
+      send(found,{type:'state',state:r.engine.exportNetworkState()});each(r,{type:'resumed'});
+    }
+    return;
+  }
+  if(!room||!p)return fail(peer,'Primero únete a una sala.');
+  if(msg.type==='leave'){leave(peer,true);return;}
+  if(msg.type==='ping'){send(p,{type:'pong',t:msg.t});return;}
+  if(msg.type==='swap_seats'){
+    if(p.seat!==0||room.mode!=='2V2'||room.status!=='waiting')return;
+    const a=msg.a,b=msg.b;
+    if(!Number.isInteger(a)||!Number.isInteger(b)||a<1||a>3||b<1||b>3||a===b||a%2===b%2)return fail(peer,'Intercambio de equipos inválido.');
+    [room.players[a],room.players[b]]=[room.players[b],room.players[a]];
+    room.players.forEach((s,i)=>{s.seat=i;s.ready=false;});lobby(room);return;
+  }
+  if(msg.type==='stage'){
+    if(p.seat!==0||room.status!=='waiting')return;
+    if(msg.stage!=='RANDOM'&&!GROUP_STAGES.includes(msg.stage))return fail(peer,'Solo mapas multinivel.');
+    const random=msg.stage==='RANDOM';const changed=random!==room.randomStage||(!random&&room.stage!==msg.stage);
+    if(changed){room.randomStage=random;if(!random)room.stage=msg.stage;room.players.forEach(p=>p.ready=false);}
+    lobby(room);return;
+  }
+  if(msg.type==='choose'){
+    if(room.status!=='waiting'&&room.status!=='countdown')return fail(peer,'No puedes cambiar durante el combate.');
+    const profile=validateProfile(msg.profile);if(!profile)return fail(peer,'Luchador no válido.');
+    if(room.status==='countdown')cancelCountdown(room);
+    if(profile.id!==p.profile.id){p.profile=profile;room.players.forEach(p=>p.ready=false);lobby(room);}return;
+  }
+  if(msg.type==='ready'){
+    if(room.status!=='waiting'&&room.status!=='countdown')return;
+    if(room.status==='countdown'&&msg.ready!==true)cancelCountdown(room);
+    p.ready=msg.ready===true;maybeStart(room);lobby(room);return;
+  }
+  if(msg.type==='input'){
+    if(room.status!=='playing'||!room.engine||!p.peer)return;
+    if(!Number.isSafeInteger(msg.seq)||msg.seq<=p.lastSeq)return;
+    if(now-p.rateAt>=1000){p.rateAt=now;p.rateCount=0;}
+    if(++p.rateCount>95)return;
+    if(!Number.isInteger(msg.mask)||msg.mask<0||msg.mask>=16384)return;
+    p.lastSeq=msg.seq;p.mask=msg.mask&(0b1111|(1<<13));
+    if(now-p.actionAt>=1000){p.actionAt=now;p.actionCount=0;}
+    const actions=cleanActions(msg.actions);if(actions.length+p.actionCount>24)return;
+    p.actionCount+=actions.length;
+    for(const action of actions){
+      if(action.kind==='move')room.engine.queueNetworkAction(p.seat,action.slot);
+      if(action.kind==='jump')room.engine.queueNetworkJump(p.seat);
+      if(action.kind==='dash')room.engine.queueNetworkDash(p.seat,action.dir);
+    }
+    return;
+  }
+  if(msg.type==='rematch'){
+    if(room.status!=='playing'||!room.engine?.roundOver)return;
+    const profile=validateProfile(msg.profile);if(profile)p.profile=profile;
+    p.vote=true;
+    each(room,{type:'rematch_vote',votes:room.players.map(p=>p.vote),fighters:room.players.map(p=>p.profile)});
+    if(room.players.length===4&&room.players.every(p=>p.vote&&p.peer)){
+      if(room.randomStage){const remaining=GROUP_STAGES.filter(s=>s!==room.stage);room.stage=remaining[randomInt(remaining.length)];}
+      room.engine=new MultiFightEngine(room.players.map(p=>p.profile),room.mode,room.stage,'NORMAL');
+      room.engine.remoteHumanControls=true;
+      for(const p of room.players){p.vote=false;p.mask=0;p.lastSeq=-1;}
+      each(room,{type:'rematch',fighters:room.players.map(p=>p.profile),stage:room.stage});
+      each(room,{type:'state',state:room.engine.exportNetworkState()});
+    }return;
+  }
+  fail(peer,'Acción no reconocida.');
+}
+function leave(peer,explicit){const room=peer.room,p=peer.player;if(!room||!p||p.peer!==peer)return;
+  peer.room=null;peer.player=null;p.peer=null;p.mask=0;p.lostAt=Date.now();
+  if(room.status==='countdown')cancelCountdown(room);
+  if(explicit){
+    if(room.status==='playing'||p.seat===0){each(room,{type:'opponent_left'});remove(room);}
+    else {room.players.splice(p.seat,1);room.players.forEach((slot,i)=>{slot.seat=i;slot.ready=false;});lobby(room);}
+  }else{lobby(room);if(room.status==='playing')each(room,{type:'interrupted',role:p.seat,seconds:Math.floor(WAIT_GRACE/1000)});}
+}
+function closed(peer){leave(peer,false);}
+function cleanup(){const now=Date.now();for(const room of rooms.values()){
+  const gone=room.players.filter(p=>!p.peer&&now-p.lostAt>WAIT_GRACE);
+  if(gone.length){if(room.status==='playing'||gone.some(p=>p.seat===0)){each(room,{type:'opponent_left'});remove(room);}
+    else{room.players=room.players.filter(p=>!gone.includes(p));room.players.forEach((p,i)=>{p.seat=i;p.ready=false;});lobby(room);}}
+  if(room.status==='waiting'&&now-room.created>15*60000)remove(room);
+}}
+const cleanupTimer=setInterval(cleanup,1000);cleanupTimer.unref();
+module.exports={handle,closed,rooms,setLegacyCodes,cleanup,leave};

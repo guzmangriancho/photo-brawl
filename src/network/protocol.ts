@@ -1,4 +1,4 @@
-import type { FighterProfile, StageId } from '../types/fighter';
+import type { FighterProfile, StageId, GroupBattleMode } from '../types/fighter';
 import type { EngineSnapshot, InputState, MoveSlot, FighterState } from '../engine/FightEngine';
 
 export const ONLINE_PROTOCOL = 1;
@@ -14,6 +14,10 @@ export interface RoomView {
   /** When enabled, the server rolls a new arena for every match/rematch. */
   randomStage?: boolean;
   ranked?: boolean;
+  battleMode?: GroupBattleMode;
+  slot?: number;
+  maxPlayers?: number;
+  players?: {seat:number;name:string;ready:boolean;connected:boolean;team:'RED'|'BLUE'|null}[];
   countdownEndsAt?: number | null;
 }
 export interface NetworkFighter {
@@ -23,13 +27,14 @@ export interface NetworkFighter {
   lightChainCount: number; comboCount: number; comboDamage: number; comboTimer: number;
   jumpsRemaining: number; airDashUsed: boolean; hasArmorActive: boolean;
   currentAttack: Record<string, unknown> | null;
-  grabbedBy: 0 | 1 | null; grabSlamTimer: number;
+  grabbedBy: number | null; grabSlamTimer: number;
 }
 export interface NetworkState {
   frame: number;
   snapshot: EngineSnapshot;
   p1: NetworkFighter;
   p2: NetworkFighter;
+  fighters?: NetworkFighter[];
   projectiles: object[];
   particles: object[];
   callouts: object[];
@@ -38,7 +43,7 @@ export interface NetworkState {
   parryBursts: object[];
   meteors: object[];
   crossSlashes: object[];
-  superFlashFrames: number; superFlashOwner: 0 | 1;
+  superFlashFrames: number; superFlashOwner: number;
   hitstopFrames: number; shakeIntensity: number;
   announceTimer: number; roundTimerFrames: number;
 }
@@ -54,6 +59,9 @@ export interface OnlineStart {
   p1: FighterProfile;
   p2: FighterProfile;
   stage: StageId;
+  battleMode?: GroupBattleMode;
+  fighters?: FighterProfile[];
+  slot?: number;
 }
 export interface OnlineIncoming {
   type: string;

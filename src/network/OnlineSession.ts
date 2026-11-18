@@ -42,6 +42,7 @@ export class OnlineSession {
   public reconnecting = false;
   public error = '';
   public role: PlayerRole | null = null;
+  public slot = 0;
   public code = '';
   public token = '';
   public latency: number | null = null;
@@ -102,16 +103,17 @@ export class OnlineSession {
       ws.onmessage=(ev)=>{
         let msg:any;try{msg=JSON.parse(String(ev.data));}catch{return;}
         if(msg.type==='welcome'){
-          this.code=msg.code;this.role=msg.role;this.token=msg.token;this.save();
+          this.code=msg.code;this.role=msg.role;this.slot=typeof msg.slot==='number'?msg.slot:(msg.role==='guest'?1:0);this.token=msg.token;this.save();
           welcomed=true;this.retries=0;this.disconnectedAt=0;
           this.connected=true;this.reconnecting=false;this.error='';
           this.lastInputMask=0;this.sequence=0;this.queuedActions=[];
           this.emit('connection',{connected:true,reconnecting:false});
           if(!settled){settled=true;clearTimeout(errorTimeout);resolve();}
         }else if(msg.type==='room'){
-          this.room=msg.room;this.emit('room',this.room);
+          this.room=msg.room;
+          if(typeof msg.room?.slot==='number')this.slot=msg.room.slot;this.emit('room',this.room);
         }else if(msg.type==='start'){
-          this.match={code:msg.code,role:this.role||'host',p1:msg.p1,p2:msg.p2,stage:msg.stage};
+          this.match={code:msg.code,role:this.role||'host',p1:msg.p1,p2:msg.p2,stage:msg.stage,battleMode:msg.battleMode,fighters:msg.fighters,slot:this.slot};
           this.emit('start',this.match);
         }else if(msg.type==='state'){
           this.state=msg.state;this.emit('state',msg.state);
@@ -128,10 +130,12 @@ export class OnlineSession {
           this.emit('connection',{connected:true,reconnecting:false});
         }else if(msg.type==='rematch'){
           this.state=null;
-          if(this.match && typeof msg.stage==='string')this.match={...this.match,stage:msg.stage as StageId};
-          this.emit('rematch',{stage:typeof msg.stage==='string'?msg.stage:undefined});
+          if(this.match)this.match={...this.match,stage:typeof msg.stage==='string'?msg.stage as StageId:this.match.stage,
+            p1:msg.p1||msg.fighters?.[0]||this.match.p1,p2:msg.p2||msg.fighters?.[1]||this.match.p2,
+            fighters:msg.fighters||this.match.fighters};
+          this.emit('rematch',{stage:typeof msg.stage==='string'?msg.stage:undefined,p1:msg.p1,p2:msg.p2,fighters:msg.fighters});
         }else if(msg.type==='rematch_vote'){
-          this.emit('rematch_vote',{host:msg.host,guest:msg.guest});
+          this.emit('rematch_vote',{host:msg.host,guest:msg.guest,votes:msg.votes,fighters:msg.fighters});
         }else if(msg.type==='ranked_result'){
           this.emit('ranked_result',msg.result);
         }else if(msg.type==='opponent_left'||msg.type==='closed'){
@@ -168,10 +172,11 @@ export class OnlineSession {
       };
     });
   }
-  static async create(profile:FighterProfile,stage:StageId,ranked=false):Promise<OnlineSession>{
+  static async create(profile:FighterProfile,stage:StageId,ranked=false,battleMode?:GroupBattleMode):Promise<OnlineSession>{
     const accessToken=ranked?await getOnlineAccessToken():null;
     if(ranked&&!accessToken)throw new Error('Inicia sesión en CUENTA para crear una sala clasificatoria.');
-    const s=new OnlineSession();await s.connect({type:'create',profile,stage,ranked,accessToken});return s;
+    if(battleMode&&ranked)throw new Error('El 2v2 y FFA no son clasificatorios.');
+    const s=new OnlineSession();await s.connect({type:'create',profile,stage,ranked,accessToken,battleMode});return s;
   }
   static async join(code:string,profile:FighterProfile):Promise<OnlineSession>{
     const accessToken=await getOnlineAccessToken();
@@ -194,11 +199,12 @@ export class OnlineSession {
     activeRestore.finally(()=>{activeRestore=null;});
     return activeRestore;
   }
+  swapTeams(a:number,b:number){this.send({type:'swap_seats',a,b});}
   choose(profile:FighterProfile){this.send({type:'choose',profile});}
   stage(stage:StageId|'RANDOM'){this.send({type:'stage',stage});}
   ready(value:boolean){this.send({type:'ready',ready:value});}
   start(){this.send({type:'start'});}
-  requestRematch(){this.send({type:'rematch'});}
+  requestRematch(profile?:FighterProfile){this.send({type:'rematch',profile});}
   sendAction(slot:MoveSlot){if(!this.connected)return;this.queuedActions.push({kind:'move',slot});this.flush();}
   sendJump(){if(!this.connected)return;this.queuedActions.push({kind:'jump'});this.flush();}
   sendDash(dir:-1|1){if(!this.connected)return;this.queuedActions.push({kind:'dash',dir});this.flush();}

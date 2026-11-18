@@ -17,6 +17,7 @@ import { STAGE_ART } from '../data/stages';
 import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
 import { MobileControls } from './MobileControls';
+import { RematchRoster } from './RematchRoster';
 import { TUTORIAL_LESSONS, prepareTutorialLesson, tutorialLessonCompleted } from './tutorialLessons';
 import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
 import './fightArena.css';
@@ -29,6 +30,8 @@ interface FightArenaProps {
   difficulty: CpuDifficulty;
   online?: OnlineSession;
   tutorial?: boolean;
+  roster: FighterProfile[];
+  onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   onExit: () => void;
 }
 
@@ -91,7 +94,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, tutorial = false, onExit,
+  p1Profile, p2Profile, mode, stage, difficulty, online, tutorial = false, onExit, roster, onRematch,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
@@ -220,9 +223,9 @@ export const FightArena: React.FC<FightArenaProps> = ({
         setOnlineIssue(event.reconnecting?(event.opponent?'opponent':'reconnecting'):null);
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
-      online.on('rematch',(event:{stage?:StageId}|null)=>{
-        if(event?.stage){engine.setStage(event.stage);setCurrentStage(event.stage);}
-        engine.frameCount=0;setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);
+      online.on('rematch',(event:{stage?:StageId;p1?:FighterProfile;p2?:FighterProfile}|null)=>{
+        setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);
+        onRematch([event?.p1||p1Profile,event?.p2||p2Profile],event?.stage);
       }),
       online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating_before?:number;guest_rating_before?:number;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
       online.on('rematch_vote',(votes:{host:boolean;guest:boolean})=>{
@@ -446,7 +449,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     setMuted(soundFX.muted);
   };
   const handleRematch = () => {
-    if(onlineMode){online?.requestRematch();setRematchRequested(true);return;}
+    if(onlineMode){online?.requestRematch(online?.slot===1?p2Profile:p1Profile);setRematchRequested(true);return;}
     p1TouchRef.current = emptyInput();
     engineRef.current?.resetRound();
     if(tutorial)restartTutorial();
@@ -559,48 +562,30 @@ export const FightArena: React.FC<FightArenaProps> = ({
           {snapshot.announceText && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
 
           {snapshot.roundOver && !paused && (
-            <div className="arena-result-overlay">
-              <div className="arena-result-card">
-                <span className="arena-result-eyebrow">FIN DEL COMBATE · {resultModeLabel}</span>
-                <div className="arena-result-headline">K.O.</div>
-                <p className="arena-result-name"><span className={winnerIsP1 ? 'winner-p1' : 'winner-p2'}>{snapshot.winnerName ?? 'EMPATE'}</span><span className="arena-result-wins">{snapshot.winnerName ? 'GANA' : ''}</span></p>
-                <section className="arena-match-summary" aria-label="Resumen del combate">
-                  <div className="arena-summary-score">
-                    <span>{p1Profile.fighterName}</span>
-                    <strong>{snapshot.p1RoundWins} <i>—</i> {snapshot.p2RoundWins}</strong>
-                    <span>{p2Profile.fighterName}</span>
-                  </div>
-                  {rankedOnline ? (
-                    <div className="arena-elo-summary" aria-live="polite">
-                      {!rankedResult && <p className="arena-summary-pending">ACTUALIZANDO ELO Y REGISTRANDO RESULTADO…</p>}
-                      {rankedDetailsReady && <>
-                        <div className="arena-elo-heading"><strong>CAMBIOS DE CLASIFICACIÓN</strong><span>ANTES → AHORA</span></div>
-                        <div className="arena-elo-row">
-                          <span className="arena-elo-player"><i className="arena-elo-dot is-p1" />{p1Profile.fighterName}</span>
-                          <span className="arena-elo-values">{rankedResult!.host_rating_before} <b>→</b> {rankedResult!.host_rating}</span>
-                          <strong className={`arena-elo-delta ${(rankedResult!.host_rating!-rankedResult!.host_rating_before!)>=0?'is-positive':'is-negative'}`}>{eloLabel(rankedResult!.host_rating_before!,rankedResult!.host_rating!)}</strong>
-                        </div>
-                        <div className="arena-elo-row">
-                          <span className="arena-elo-player"><i className="arena-elo-dot is-p2" />{p2Profile.fighterName}</span>
-                          <span className="arena-elo-values">{rankedResult!.guest_rating_before} <b>→</b> {rankedResult!.guest_rating}</span>
-                          <strong className={`arena-elo-delta ${(rankedResult!.guest_rating!-rankedResult!.guest_rating_before!)>=0?'is-positive':'is-negative'}`}>{eloLabel(rankedResult!.guest_rating_before!,rankedResult!.guest_rating!)}</strong>
-                        </div>
-                        <p className="arena-summary-confirmed">CLASIFICATORIA REGISTRADA · RESULTADO GUARDADO</p>
-                      </>}
-                      {rankedResult?.recorded && !rankedDetailsReady && <p className="arena-summary-confirmed">RESULTADO GUARDADO · ELO ACTUAL {typeof rankedRating==='number'?rankedRating:'ACTUALIZADO'}</p>}
-                      {rankedResult && !rankedResult.recorded && <p className="arena-summary-error">{rankedResult.reason==='duplicate'?'ESTA PARTIDA YA ESTABA REGISTRADA. NO SE HA SUMADO ELO OTRA VEZ.':'NO SE PUDO CONFIRMAR EL REGISTRO. EL ELO NO SE HA VERIFICADO.'}</p>}
-                    </div>
-                  ) : (
-                    <div className="arena-friendly-summary">
-                      <strong>{onlineMode ? 'COMBATE AMISTOSO' : resultModeLabel}</strong>
-                      <span>El ELO de ambos jugadores no cambia en esta modalidad.</span>
-                    </div>
-                  )}
-                  <div className="arena-summary-stage"><span>ESCENARIO</span><strong>{stageLabel}</strong></div>
-                </section>
-                {otherWantsRematch && onlineMode && <p className="arena-online-invite">TU RIVAL QUIERE REVANCHA</p>}
-                <div className="arena-result-actions"><button className="arena-primary-button" type="button" disabled={rematchRequested} onClick={handleRematch}><RotateCcw size={16}/> {rematchRequested?'ESPERANDO RIVAL':onlineMode?'PEDIR REVANCHA':'REVANCHA'}</button><button className="arena-secondary-button" type="button" onClick={onExit}>{onlineMode?'SALIR DEL ONLINE':'CAMBIAR LUCHADOR'}</button></div>
-              </div>
+            <div className="arena-result-overlay pb-v35-rematch-overlay">
+              <RematchRoster players={[p1Profile,p2Profile]} roster={roster}
+                selectableSeats={onlineMode?[online?.slot??0]:[0,1]}
+                requested={rematchRequested}
+                labels={onlineMode?[online?.slot===0?'TÚ':'RIVAL',online?.slot===1?'TÚ':'RIVAL']:[mode==='1P_VS_2P'?'P1':'TÚ',mode==='1P_VS_2P'?'P2':'CPU']}
+                onExit={onExit}
+                onRematch={profiles=>{
+                  if(onlineMode){online?.requestRematch(profiles[online?.slot??0]);setRematchRequested(true);}
+                  else onRematch(profiles);
+                }}
+                title={snapshot.winnerName?`¡GANA ${snapshot.winnerName}!`:'¡EMPATE!'}
+                detail={<div className="arena-result-detail-v35 arena-match-summary">
+                  <span>RONDA {snapshot.roundNumber} · {snapshot.p1RoundWins} - {snapshot.p2RoundWins} · {stageLabel}</span>
+                  {rankedOnline? <div className="arena-result-elo-v35">
+                    {!rankedResult&&<p>ACTUALIZANDO ELO…</p>}
+                    {rankedDetailsReady&&<>
+                      <strong>CLASIFICATORIA REGISTRADA</strong>
+                      <span>{p1Profile.fighterName}: {rankedResult!.host_rating_before} → {rankedResult!.host_rating} ({eloLabel(rankedResult!.host_rating_before!,rankedResult!.host_rating!)})</span>
+                      <span>{p2Profile.fighterName}: {rankedResult!.guest_rating_before} → {rankedResult!.guest_rating} ({eloLabel(rankedResult!.guest_rating_before!,rankedResult!.guest_rating!)})</span>
+                    </>}
+                    {rankedResult&&!rankedDetailsReady&&<span>{rankedResult.recorded?'RESULTADO GUARDADO':'NO SE PUDO VERIFICAR EL RESULTADO'}</span>}
+                  </div>:<span>AMISTOSO · SIN CAMBIOS DE ELO</span>}
+                  {otherWantsRematch&&<b>TU RIVAL QUIERE REVANCHA</b>}
+                </div>}/>
             </div>
           )}
           {paused && (

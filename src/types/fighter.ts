@@ -132,7 +132,8 @@ export interface FighterProfile extends FighterDesignSchema {
 }
 
 export type StageId = 'SKI_RESORT' | 'NIGHT_PLAZA' | 'SUMMER_SUMMIT' | 'TEMPLE_SUNSET' | 'INDUSTRIAL_ROOFTOP' | 'SUNKEN_ATLANTIS' | 'SPIRIT_FOREST' | 'CELESTIAL_TEMPLE' | 'VOLCANIC_FORTRESS';
-export type GameMode = '1P_VS_CPU' | '1P_VS_2P' | 'CPU_VS_CPU' | 'TRAINING' | 'ONLINE';
+export type GameMode = '1P_VS_CPU' | '1P_VS_2P' | 'CPU_VS_CPU' | 'TRAINING' | 'ONLINE' | '2V2' | 'FREE_FOR_ALL';
+export type GroupBattleMode = '2V2' | 'FREE_FOR_ALL';
 export type CpuDifficulty = 'EASY' | 'NORMAL' | 'HARD';
 
 /**

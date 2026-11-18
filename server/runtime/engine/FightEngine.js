@@ -140,6 +140,10 @@ class FightEngine {
             grabSlamTimer: 0,
         };
     }
+    /** Shared accessors: 1v1 keeps its two actors; multi battles override them. */
+    getFighters() { return [this.p1, this.p2]; }
+    getInputFor(index) { return index === 0 ? this.p1Input : this.p2Input; }
+    getFighterByIndex(index) { return index === 0 ? this.p1 : this.p2; }
     async loadAssets() {
         const [img1, img2] = await Promise.all([
             (0, SpriteProcessor_1.loadImage)(this.p1.profile.spriteSheetDataUrl).catch(() => null),
@@ -625,7 +629,7 @@ class FightEngine {
         }
         // Handle being physically hoisted & slammed by a Command Grab / Omega Suplex!
         if (f.grabbedBy !== null) {
-            const grabber = f.grabbedBy === 0 ? this.p1 : this.p2;
+            const grabber = this.getFighterByIndex(f.grabbedBy);
             f.grabSlamTimer++;
             if (f.grabSlamTimer < 16) {
                 // Hoisted high above grabber's head!
@@ -1420,7 +1424,12 @@ class FightEngine {
             return height !== 'LOW';
         }
     }
+    canDamage(_attacker, _defender) { return true; }
+    onDamage(_attacker, _defender, _amount) { }
+    shouldRenderFighter(_fighter) { return true; }
     resolveAttackCollisions(attacker, defender) {
+        if (!this.canDamage(attacker, defender) || defender.hp <= 0)
+            return;
         const atk = attacker.currentAttack;
         if (!atk || !atk.hitbox)
             return;
@@ -1463,7 +1472,7 @@ class FightEngine {
         atk.hitCountDone = (atk.hitCountDone || 0) + 1;
         const hitX = (Math.max(hbX, defX) + Math.min(hbX + hbW, defX + defW)) / 2;
         const hitY = (Math.max(hbY, defY) + Math.min(hbY + hbH, defY + defH)) / 2;
-        const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
+        const defInput = this.getInputFor(defender.index);
         const validGuard = !atk.isGrab && this.canGuardAttack(defender, defInput, atk.height);
         // Parry de jab: pulsar GUARDIA justo antes del contacto (5 fotogramas).
         // Interrumpe el jab y deja espacio para que el defensor pueda responder.
@@ -1516,6 +1525,7 @@ class FightEngine {
         const counterMult = isCounterHit ? 1.25 : 1.0;
         const scaledDamage = Math.max(8, Math.round(rawDamage * counterMult * attacker.damageScaling));
         defender.hp = Math.max(0, defender.hp - scaledDamage);
+        this.onDamage(attacker, defender, scaledDamage);
         if (isCounterHit && atk.hitCountDone === 1) {
             this.addCallout(defender.x, defender.y - 170, 'COUNTER HIT!', '#fb7185');
         }
@@ -1684,82 +1694,87 @@ class FightEngine {
             }
             if (!p.armed)
                 continue;
-            const attacker = p.ownerIndex === 0 ? this.p1 : this.p2;
-            const defender = p.ownerIndex === 0 ? this.p2 : this.p1;
-            if (defender.invincibleFrames > 0 || defender.state === 'KO' || defender.state === 'KNOCKDOWN') {
-                continue;
-            }
-            const defLeft = defender.x - defender.hurtbox.width / 2;
-            const defRight = defender.x + defender.hurtbox.width / 2;
-            const defTop = defender.y - defender.hurtbox.height;
-            const defBottom = defender.y;
-            if (p.x + p.radius > defLeft &&
-                p.x - p.radius < defRight &&
-                p.y + p.radius > defTop &&
-                p.y - p.radius < defBottom) {
-                const defInput = defender.index === 0 ? this.p1Input : this.p2Input;
-                const validGuard = this.canGuardAttack(defender, defInput, p.height);
-                if (validGuard && this.frameCount - defender.blockPressFrame <= 4) {
-                    SoundFX_1.soundFX.parry();
-                    this.addMeter(defender, 15);
-                    this.parryBursts.push({ x: p.x, y: p.y, life: 11, facing: defender.facing });
-                    this.addCallout(defender.x, defender.y - 150, 'PARRY!', '#38bdf8');
-                    this.projectiles.splice(i, 1);
+            const attacker = this.getFighterByIndex(p.ownerIndex);
+            for (const defender of this.getFighters()) {
+                if (defender.index === attacker.index || defender.hp <= 0 || !this.canDamage(attacker, defender))
+                    continue;
+                if (defender.invincibleFrames > 0 || defender.state === 'KO' || defender.state === 'KNOCKDOWN') {
                     continue;
                 }
-                if (validGuard) {
-                    SoundFX_1.soundFX.block();
-                    defender.hp = Math.max(1, defender.hp - Math.ceil(p.damage * 0.12));
-                    defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
-                    defender.blockstunFrames = 7;
-                    this.applyCornerAwarePushback(attacker, defender, 8);
-                    this.spawnHitSparks(p.x, p.y, '#60a5fa', 10);
+                const defLeft = defender.x - defender.hurtbox.width / 2;
+                const defRight = defender.x + defender.hurtbox.width / 2;
+                const defTop = defender.y - defender.hurtbox.height;
+                const defBottom = defender.y;
+                if (p.x + p.radius > defLeft &&
+                    p.x - p.radius < defRight &&
+                    p.y + p.radius > defTop &&
+                    p.y - p.radius < defBottom) {
+                    const defInput = this.getInputFor(defender.index);
+                    const validGuard = this.canGuardAttack(defender, defInput, p.height);
+                    if (validGuard && this.frameCount - defender.blockPressFrame <= 4) {
+                        SoundFX_1.soundFX.parry();
+                        this.addMeter(defender, 15);
+                        this.parryBursts.push({ x: p.x, y: p.y, life: 11, facing: defender.facing });
+                        this.addCallout(defender.x, defender.y - 150, 'PARRY!', '#38bdf8');
+                        this.projectiles.splice(i, 1);
+                        continue;
+                    }
+                    if (validGuard) {
+                        SoundFX_1.soundFX.block();
+                        defender.hp = Math.max(1, defender.hp - Math.ceil(p.damage * 0.12));
+                        defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
+                        defender.blockstunFrames = 7;
+                        this.applyCornerAwarePushback(attacker, defender, 8);
+                        this.spawnHitSparks(p.x, p.y, '#60a5fa', 10);
+                        this.projectiles.splice(i, 1);
+                        continue;
+                    }
+                    const dmg = Math.max(10, Math.round(p.damage * attacker.damageScaling));
+                    defender.hp = Math.max(0, defender.hp - dmg);
+                    this.onDamage(attacker, defender, dmg);
+                    attacker.comboCount++;
+                    attacker.comboDamage += dmg;
+                    attacker.comboTimer = 55;
+                    attacker.damageScaling = Math.max(0.45, attacker.damageScaling - 0.08);
+                    if (attacker.profile.passiveTrait === 'VAMPIRIC_ON_SPECIAL') {
+                        const heal = Math.round(dmg * 0.25);
+                        attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
+                    }
+                    this.addMeter(attacker, 10);
+                    this.addMeter(defender, 7);
+                    this.hitstopFrames = 5;
+                    this.shakeIntensity = p.mechanic === 'TRAP_MINE_DROP' ? 11 : 7;
+                    SoundFX_1.soundFX.heavyHit();
+                    if (p.mechanic === 'TRAP_MINE_DROP') {
+                        this.shockwaves.push({
+                            x: p.x,
+                            y: p.y,
+                            radius: 12,
+                            maxRadius: 110,
+                            color: p.color,
+                            alpha: 0.95,
+                        });
+                    }
+                    this.spawnHitSparks(p.x, p.y, p.color, 18, p.vx >= 0 ? 1 : -1);
+                    if (defender.hp <= 0) {
+                        this.triggerKnockout(attacker, defender);
+                    }
+                    else if (p.mechanic === 'TRAP_MINE_DROP') {
+                        defender.state = 'KNOCKDOWN';
+                        defender.stateFrame = 0;
+                        defender.vy = -10.5;
+                        defender.y -= 2;
+                    }
+                    else {
+                        defender.state = 'HURT';
+                        defender.stateFrame = 0;
+                        defender.hitstunFrames = attacker.comboCount >= 3 ? 9 : p.hitstun;
+                        defender.vx = (p.vx >= 0 ? 1 : -1) * 6.5;
+                    }
                     this.projectiles.splice(i, 1);
-                    continue;
+                    break;
                 }
-                const dmg = Math.max(10, Math.round(p.damage * attacker.damageScaling));
-                defender.hp = Math.max(0, defender.hp - dmg);
-                attacker.comboCount++;
-                attacker.comboDamage += dmg;
-                attacker.comboTimer = 55;
-                attacker.damageScaling = Math.max(0.45, attacker.damageScaling - 0.08);
-                if (attacker.profile.passiveTrait === 'VAMPIRIC_ON_SPECIAL') {
-                    const heal = Math.round(dmg * 0.25);
-                    attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
-                }
-                this.addMeter(attacker, 10);
-                this.addMeter(defender, 7);
-                this.hitstopFrames = 5;
-                this.shakeIntensity = p.mechanic === 'TRAP_MINE_DROP' ? 11 : 7;
-                SoundFX_1.soundFX.heavyHit();
-                if (p.mechanic === 'TRAP_MINE_DROP') {
-                    this.shockwaves.push({
-                        x: p.x,
-                        y: p.y,
-                        radius: 12,
-                        maxRadius: 110,
-                        color: p.color,
-                        alpha: 0.95,
-                    });
-                }
-                this.spawnHitSparks(p.x, p.y, p.color, 18, p.vx >= 0 ? 1 : -1);
-                if (defender.hp <= 0) {
-                    this.triggerKnockout(attacker, defender);
-                }
-                else if (p.mechanic === 'TRAP_MINE_DROP') {
-                    defender.state = 'KNOCKDOWN';
-                    defender.stateFrame = 0;
-                    defender.vy = -10.5;
-                    defender.y -= 2;
-                }
-                else {
-                    defender.state = 'HURT';
-                    defender.stateFrame = 0;
-                    defender.hitstunFrames = attacker.comboCount >= 3 ? 9 : p.hitstun;
-                    defender.vx = (p.vx >= 0 ? 1 : -1) * 6.5;
-                }
-                this.projectiles.splice(i, 1);
-            }
+            } // End defender candidates
         }
     }
     triggerKnockout(winner, loser) {
@@ -2138,10 +2153,12 @@ class FightEngine {
         }
         const arena = (0, stages_1.getLargeArena)(this.stage);
         if (arena) {
-            const distance = Math.abs(this.p1.x - this.p2.x);
-            const midpoint = (this.p1.x + this.p2.x) / 2;
-            const sameSide = (this.p1.x < 450 && this.p2.x < 450) ||
-                (this.p1.x > 510 && this.p2.x > 510);
+            const active = this.getFighters().filter(f => f.hp > 0);
+            const minX = active.length ? Math.min(...active.map(f => f.x)) : exports.STAGE_WIDTH / 2;
+            const maxX = active.length ? Math.max(...active.map(f => f.x)) : exports.STAGE_WIDTH / 2;
+            const distance = maxX - minX;
+            const midpoint = (minX + maxX) / 2;
+            const sameSide = maxX < 450 || minX > 510;
             const desiredZoom = sameSide && distance < 330
                 ? 1 + 0.1 * Math.max(0, Math.min(1, (330 - distance) / 230))
                 : 1;
@@ -2162,12 +2179,12 @@ class FightEngine {
         }
         this.renderStage(ctx);
         if (this.superFlashFrames > 0) {
-            (0, ArcadeVFX_1.drawSuperFlashFX)(ctx, this.superFlashOwner === 0 ? this.p1 : this.p2, this.superFlashFrames, this.frameCount);
+            (0, ArcadeVFX_1.drawSuperFlashFX)(ctx, this.getFighterByIndex(this.superFlashOwner), this.superFlashFrames, this.frameCount);
         }
-        this.renderShadow(ctx, this.p1);
-        this.renderShadow(ctx, this.p2);
+        for (const fighter of this.getFighters().filter(f => this.shouldRenderFighter(f)))
+            this.renderShadow(ctx, fighter);
         for (const img of this.afterimages) {
-            const owner = Math.abs(img.x - this.p1.x) < Math.abs(img.x - this.p2.x) ? this.p1 : this.p2;
+            const owner = this.getFighters().reduce((best, f) => Math.abs(f.x - img.x) < Math.abs(best.x - img.x) ? f : best);
             if (owner.spriteSheet) {
                 ctx.save();
                 ctx.globalAlpha = img.alpha;
@@ -2175,10 +2192,9 @@ class FightEngine {
                 ctx.restore();
             }
         }
-        const first = this.p1.state === 'ATTACK' ? this.p2 : this.p1;
-        const second = first === this.p1 ? this.p2 : this.p1;
-        this.renderFighter(ctx, first);
-        this.renderFighter(ctx, second);
+        for (const fighter of this.getFighters().filter(f => this.shouldRenderFighter(f)).sort((a, b) => Number(a.state === 'ATTACK') - Number(b.state === 'ATTACK'))) {
+            this.renderFighter(ctx, fighter);
+        }
         for (const p of this.projectiles) {
             this.renderProjectile(ctx, p);
         }
@@ -2203,8 +2219,8 @@ class FightEngine {
         if (this.showArenaCollisions && (0, stages_1.getLargeArena)(this.stage))
             this.renderArenaCollisionDebug(ctx);
         if (this.showHitboxes) {
-            this.renderDebugBoxes(ctx, this.p1);
-            this.renderDebugBoxes(ctx, this.p2);
+            for (const fighter of this.getFighters())
+                this.renderDebugBoxes(ctx, fighter);
         }
         ctx.restore();
     }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LARGE_ARENAS = exports.STAGE_IDS = exports.STAGE_ART = void 0;
+exports.LARGE_ARENAS = exports.LARGE_ARENA_IDS = exports.STAGE_IDS = exports.STAGE_ART = void 0;
 exports.getLargeArena = getLargeArena;
 /** Stable identifiers: older rooms and saved selections remain compatible. */
 exports.STAGE_ART = {
@@ -15,6 +15,7 @@ exports.STAGE_ART = {
     VOLCANIC_FORTRESS: { name: 'FORTALEZA VOLCÁNICA', short: 'VOLCÁN', image: '/backgrounds/volcan.jpg' },
 };
 exports.STAGE_IDS = Object.keys(exports.STAGE_ART);
+exports.LARGE_ARENA_IDS = ['SUNKEN_ATLANTIS', 'SPIRIT_FOREST', 'CELESTIAL_TEMPLE', 'VOLCANIC_FORTRESS'];
 /**
  * V32 – hand-aligned collision planes for the four user-supplied panoramas.
  * Reference image: 2048×1143, fitted to the 960×540 canvas.

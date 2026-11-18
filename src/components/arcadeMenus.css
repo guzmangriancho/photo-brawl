@@ -535,3 +535,15 @@
 .pb-stage-pagination button:disabled{opacity:.3;cursor:default}
 @media (orientation:portrait){.pb-options-stage .pb-stage-grid{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1fr);height:clamp(75px,13vh,112px);gap:3px}.pb-options-stage .pb-stage-choice{padding:2px}.pb-options-stage .pb-stage-choice b{font-size:clamp(8px,2.1vw,11px)}}
 @media (orientation:landscape) and (max-height:420px){.pb-options-stage .pb-stage-grid{height:clamp(62px,21vh,90px)}.pb-stage-pagination{margin-top:1px}.pb-stage-pagination button{min-height:18px;padding:1px 8px}}
+
+/* V35: manage all four local seats without growing the main Home menu. */
+.pb-local-group-team{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:8px 0;border:1px solid #436487;background:#081629a8;padding:6px}
+.pb-local-group-slot{min-width:0;display:flex;align-items:center;flex-direction:column;gap:4px;padding:4px;border-left:3px solid #6b9ac0}
+.pb-local-group-slot:nth-child(odd){border-left-color:#ea6e70}
+.pb-local-group-slot:nth-child(even){border-left-color:#70b8f1}
+.pb-local-group-slot>span{font-size:6px;color:#e5d8ab;line-height:1.5;text-align:center}
+.pb-local-group-slot img{height:37px;width:37px;object-fit:cover;image-rendering:pixelated;border:1px solid #8aa8bc}
+.pb-local-group-slot strong{font-size:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-local-group-slot select{width:100%;max-width:120px;font-size:8px;border:1px solid #92a8c4;color:#f7f9ff;background:#19344c;padding:4px 0}
+.pb-local-group-slot small{font-size:5px;color:#93b2cb;text-align:center;line-height:1.6}
+@media(max-width:460px){.pb-local-group-team{grid-template-columns:repeat(2,minmax(0,1fr))}}

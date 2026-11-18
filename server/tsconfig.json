@@ -5,5 +5,5 @@
     "strict": true, "skipLibCheck": true, "esModuleInterop": true,
     "types": [], "noEmitOnError": true
   },
-  "include": ["../src/engine/FightEngine.ts", "../src/engine/SoundFX.ts", "../src/engine/SpriteProcessor.ts", "../src/network/protocol.ts", "../src/types/fighter.ts"]
+  "include": ["../src/engine/FightEngine.ts", "../src/engine/MultiFightEngine.ts", "../src/data/stages.ts", "../src/engine/SoundFX.ts", "../src/engine/SpriteProcessor.ts", "../src/network/protocol.ts", "../src/types/fighter.ts"]
 }

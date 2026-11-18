@@ -1,3 +1,11 @@
+# PHOTO BRAWL V35 · COMBATES 2 VS 2 Y FREE FOR ALL
+
+Se añaden combates de **cuatro luchadores** en las cuatro arenas multinivel, disponibles tanto en CPU/local como en salas online privadas. Hay tres vidas por luchador, marcador de KO y asistencias, victoria por eliminación o desempate de tiempo, equipos rojo/azul sin daño aliado y revancha cambiando luchadores. En **todos los combates con resultado**, la nueva pantalla ofrece retratos editables (2 o 4), botón de revancha y salir. El **1v1 clasificatorio y el ELO se mantienen sin mezclar con FFA/2v2**.
+
+**Despliegue:** actualiza **Vercel + Render**; sin SQL nuevo. Documentación y reglas completas: [`docs/COMBATE_4_JUGADORES_V35.md`](docs/COMBATE_4_JUGADORES_V35.md). Ejecuta `npm test`, `npm run test:v35`, `npm run build:server-engine` y `npm run build` con las dependencias instaladas.
+
+---
+
 # PHOTO BRAWL V31 · Mapas multinivel
 
 **Novedad:** cuatro arenas grandes con suelo continuo y plataformas jugables: **Atlántida, Bosque, Celestial y Volcán**. Selección disponibles en todos los combates existentes, incluida la sala online. Se juega en 1v1 como hasta ahora; sin implementar 2v2 ni FFA.
