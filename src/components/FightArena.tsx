@@ -628,7 +628,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 <div className="arena-pause-help" aria-label="Guía de controles">
                   <strong>CÓMO JUGAR</strong>
                   <span><b>IZQUIERDA · JOYSTICK</b> Camina con el joystick y usa CUBRIR para bloquear; abajo se agacha. Usa SALTO para saltar (solo luchadores con DOUBLE_JUMP pueden repetirlo en el aire).</span>
-                  <span><b>DESLIZAR ↔ RÁPIDO</b> Dash. También puedes hacer doble toque direccional en teclado. En mapas multinivel, ABAJO + SALTO permite bajar de la plataforma.</span>
+                  <span><b>DESLIZAR ↔ RÁPIDO</b> Dash. También puedes hacer doble toque direccional en teclado. En mapas multinivel, apunta RECTO ABAJO (no en diagonal) para bajar de la plataforma.</span>
                   <span><b>A · GOLPE</b> Toque = ataque inmediato; A → A → A = remate. Mantener enlaza con un golpe fuerte; adelante + A = avance; abajo + A = golpe bajo.</span>
                   <span><b>B · TÉCNICA</b> Neutro = técnica propia · Adelante + B = avance · Arriba + B = antiaéreo.</span>
                   <span><b>ENLAZA</b> A → A → A → B; A → A → B; abajo + A → B; adelante + A → A → B. Encadena al conectar y anticipa las pulsaciones.</span>

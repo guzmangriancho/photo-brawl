@@ -20,14 +20,14 @@ export const STAGE_ART: Record<StageId, { name: string; short: string; image: st
 export const STAGE_IDS = Object.keys(STAGE_ART) as StageId[];
 
 /**
- * V31 – hand-aligned collision planes for the four user-supplied panoramas.
+ * V32 – hand-aligned collision planes for the four user-supplied panoramas.
  * Reference image: 2048×1143, fitted to the 960×540 canvas.
  * Platforms are pass-through on ascent, solid on descent. The main floor is
- * continuous and solid. Tweak these values using Training > COLISIONES.
+ * continuous and solid. Main floor aligned near the visual middle of its perspectival ground. Tweak using Training > COLISIONES.
  */
 export const LARGE_ARENAS: Partial<Record<StageId, LargeArena>> = {
   SUNKEN_ATLANTIS: {
-    floorY: 454, fighterScale: 0.64,
+    floorY: 482, fighterScale: 0.64,
     platforms: [
       { id: 'LEFT_LOW', x1: 0, x2: 240, y: 325, type: 'one_way' },
       { id: 'LEFT_HIGH', x1: 189, x2: 385, y: 211, type: 'one_way' },
@@ -36,7 +36,7 @@ export const LARGE_ARENAS: Partial<Record<StageId, LargeArena>> = {
     ],
   },
   SPIRIT_FOREST: {
-    floorY: 453, fighterScale: 0.64,
+    floorY: 488, fighterScale: 0.64,
     platforms: [
       { id: 'LEFT_BRANCH', x1: 0, x2: 352, y: 302, type: 'one_way' },
       { id: 'CENTER_BRANCH', x1: 351, x2: 610, y: 171, type: 'one_way' },
@@ -44,7 +44,7 @@ export const LARGE_ARENAS: Partial<Record<StageId, LargeArena>> = {
     ],
   },
   CELESTIAL_TEMPLE: {
-    floorY: 446, fighterScale: 0.64,
+    floorY: 489, fighterScale: 0.64,
     platforms: [
       { id: 'LEFT_TERRACE', x1: 128, x2: 345, y: 329, type: 'one_way' },
       { id: 'CENTER_TERRACE', x1: 370, x2: 591, y: 202, type: 'one_way' },
@@ -52,7 +52,7 @@ export const LARGE_ARENAS: Partial<Record<StageId, LargeArena>> = {
     ],
   },
   VOLCANIC_FORTRESS: {
-    floorY: 436, fighterScale: 0.64,
+    floorY: 478, fighterScale: 0.64,
     platforms: [
       { id: 'LEFT_BATTLEMENT', x1: 0, x2: 219, y: 214, type: 'one_way' },
       { id: 'CENTER_BRIDGE', x1: 290, x2: 669, y: 316, type: 'one_way' },

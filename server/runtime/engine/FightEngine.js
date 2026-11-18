@@ -768,8 +768,13 @@ class FightEngine {
         // Jump & Double Jump
         const upPressed = input.up && !f.prevInput.up;
         const queuedJump = f.bufferedJumpFrame !== null && this.frameCount - f.bufferedJumpFrame <= 14;
-        // DOWN + JUMP passes through the CURRENT one-way platform, never the main floor.
-        if (!input.guard && (upPressed || queuedJump) && input.down && grounded &&
+        // V32: only a NEW straight-down direction (no horizontal component) drops
+        // through a one-way platform. Diagonal down-left/down-right NEVER drops.
+        // Comparing the pure-down state also detects a diagonal -> straight-down
+        // transition without requiring the player to release the joystick first.
+        const pureDown = input.down && !input.left && !input.right;
+        const prevPureDown = f.prevInput.down && !f.prevInput.left && !f.prevInput.right;
+        if (!input.guard && pureDown && !prevPureDown && grounded &&
             this.supportSurface(f) !== 'FLOOR' && (0, stages_1.getLargeArena)(this.stage)) {
             f.bufferedJumpFrame = null;
             f.dropThroughFrames = 18;
@@ -779,7 +784,7 @@ class FightEngine {
             f.stateFrame = 0;
             this.spawnDust(f.x, f.y, 3);
         }
-        else if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0) {
+        else if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0 && !pureDown) {
             f.bufferedJumpFrame = null;
             // A little more reach for big multi-tier arenas; even tanks can reach the first tier.
             const stageJump = (0, stages_1.getLargeArena)(this.stage) ? 1.22 : 1;

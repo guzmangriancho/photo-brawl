@@ -199,7 +199,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
       style={{ '--mobile-control-opacity': opacity / 100 } as React.CSSProperties}
       aria-label="Controles táctiles del combate">
       <div className="mobile-movement-zone" role="group"
-        aria-label="Joystick: mover en cualquier dirección y agacharse. Guardia y salto tienen botones propios."
+        aria-label="Joystick: mover en cualquier dirección. Apunta recto hacia abajo para bajar de una plataforma; en diagonal no bajas. Guardia y salto tienen botones propios."
         onPointerDown={(event) => {
           event.preventDefault();
           if (activeStick.current) return;

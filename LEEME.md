@@ -2,7 +2,7 @@
 
 **Novedad:** cuatro arenas grandes con suelo continuo y plataformas jugables: **Atlántida, Bosque, Celestial y Volcán**. Selección disponibles en todos los combates existentes, incluida la sala online. Se juega en 1v1 como hasta ahora; sin implementar 2v2 ni FFA.
 
-**Training:** el nuevo botón **COLISIONES ON/OFF** dibuja las líneas reales de colisión encima de la imagen. Puedes activar y enviar capturas. Plataformas cian, suelo verde, pies de luchadores amarillo/rosa. Para bajar de plataformas pulsa **ABAJO + SALTO**.
+**Training:** el nuevo botón **COLISIONES ON/OFF** dibuja las líneas reales de colisión encima de la imagen. Puedes activar y enviar capturas. Plataformas cian, suelo verde, pies de luchadores amarillo/rosa. Para bajar de plataformas apunta **RECTO ABAJO** (no en diagonal).
 
 **Tamaño y cámara:** los luchadores se dibujan/colisionan al 64 % de la escala normal; zoom adicional suave máximo 10 % cuando ambos se concentran en un lado. Los mapas clásicos mantienen su jugabilidad.
 

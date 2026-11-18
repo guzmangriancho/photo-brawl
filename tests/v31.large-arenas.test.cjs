@@ -41,7 +41,7 @@ test('each new arena has one continuous ground and platform tops aligned within 
   for(const id of newStages){
     const arena=getLargeArena(id);
     assert.ok(arena);
-    assert.ok(arena.floorY>420 && arena.floorY<470);
+    assert.ok(arena.floorY>470 && arena.floorY<510);
     assert.ok(arena.fighterScale<0.75 && arena.fighterScale>0.5);
     assert.ok(arena.platforms.length>=3 && arena.platforms.length<=4);
     const e=make(id);
@@ -76,7 +76,7 @@ test('landing on every elevated platform is solid; ascent never collides with un
     }
   }
 });
-test('DOWN+JUMP drops through platforms but never through the continuous floor',()=>{
+test('STRAIGHT DOWN drops through platforms but never through the continuous floor',()=>{
   for(const id of newStages){
     const arena=getLargeArena(id);
     const p=arena.platforms[0];
@@ -86,13 +86,12 @@ test('DOWN+JUMP drops through platforms but never through the continuous floor',
     e.p1.state='IDLE';
     e.p1.vy=0;
     e.p1Input.down=true;
-    e.queueTouchJump();
     tick(e,6);
     assert.ok(e.p1.y>p.y+5,`${id} dropped below ${p.id}`);
     e.p1Input.down=false;
     tick(e,130);
     assert.equal(e.p1.y,arena.floorY,`${id} drops onto continuous floor`);
-    e.queueTouchJump();e.p1Input.down=true;tick(e);
+    e.p1Input.down=true;tick(e);
     assert.ok(e.p1.y<=arena.floorY,`${id} cannot drop through the ground`);
   }
 });
@@ -112,11 +111,38 @@ test('training collision overlay and gentle camera zoom are only presentation co
 });
 test('online rematches switch map geometry and fighter scale as well as the background',()=>{
   const e=make('SPIRIT_FOREST');
-  assert.equal(e.p1.y,453);
+  assert.equal(e.p1.y,488);
   e.setStage('SKI_RESORT');
   assert.equal(e.p1.y,472);
   assert.equal(e.p1.scale,1);
   e.setStage('VOLCANIC_FORTRESS');
-  assert.equal(e.p1.y,436);
+  assert.equal(e.p1.y,478);
   assert.equal(e.p1.scale,0.64);
+});
+test('diagonal DOWN+LEFT or DOWN+RIGHT never drops; straight-down transition does',()=>{
+  for(const id of newStages){
+    const a=getLargeArena(id), p=a.platforms[0], e=make(id);
+    e.p1.x=(p.x1+p.x2)/2;
+    e.p1.y=p.y;
+    e.p1.state='IDLE';
+    e.p1Input.down=true;
+    e.p1Input.left=true;
+    tick(e,8);
+    assert.equal(e.p1.y,p.y,`${id}: down-left does not drop`);
+    e.p1Input.left=false;
+    e.p1Input.right=true;
+    tick(e,8);
+    assert.equal(e.p1.y,p.y,`${id}: down-right does not drop`);
+    e.p1Input.right=false;
+    tick(e,5);
+    assert.ok(e.p1.y>p.y+3,`${id}: pure down after diagonal drops`);
+  }
+});
+test('keeping stick straight down on the main floor never drops through it',()=>{
+ for(const id of newStages){
+  const a=getLargeArena(id), e=make(id);
+  e.p1Input.down=true;
+  tick(e,60);
+  assert.equal(e.p1.y,a.floorY);
+ }
 });
