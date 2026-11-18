@@ -1,4 +1,4 @@
-import type { FighterProfile, StageId } from '../types/fighter';
+import type { FighterProfile, StageId, GroupBattleMode } from '../types/fighter';
 import type { InputState, MoveSlot } from '../engine/FightEngine';
 import { packControls } from './protocol';
 import { getOnlineAccessToken } from '../services/supabaseClient';

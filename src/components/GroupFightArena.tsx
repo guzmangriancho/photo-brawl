@@ -128,7 +128,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
           <small>{info?.eliminated?'ELIMINADO':`♥ ${info?.stocks??3} · KO ${info?.kos??0}`}</small></div>
         </div>;
       })}</div>
-      <div className="pb-group-time"><strong>{summary?.timeRemaining??240}s</strong><span>{battleMode==='2V2'?'2 VS 2':'FREE FOR ALL'}</span>
+      <div className="pb-group-time"><strong>{summary?.timeRemaining??240}s</strong><span>{battleMode==='2V2'?'2 CONTRA 2':'FREE FOR ALL'}</span>
         <button type="button" onClick={()=>setPaused(true)} aria-label="Pausar"><Pause size={16}/></button></div>
     </header>
     <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>

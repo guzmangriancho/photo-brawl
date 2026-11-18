@@ -547,3 +547,7 @@
 .pb-local-group-slot select{width:100%;max-width:120px;font-size:8px;border:1px solid #92a8c4;color:#f7f9ff;background:#19344c;padding:4px 0}
 .pb-local-group-slot small{font-size:5px;color:#93b2cb;text-align:center;line-height:1.6}
 @media(max-width:460px){.pb-local-group-team{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* V36: numerales claros para el formato de equipos. */
+.pb-mode-tile.pb-mode-teams strong{font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:.025em;font-size:clamp(15px,2vw,25px)}
+@media(max-width:420px){.pb-mode-tile.pb-mode-teams strong{font-size:clamp(12px,3.4vw,17px)}}
