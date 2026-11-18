@@ -1131,3 +1131,9 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 /* V35 · resultado compacto con selector de retratos para dos jugadores */
 .pb-v35-rematch-overlay{display:grid!important;place-items:center!important;overflow:hidden!important;padding:7px!important}
 .arena-result-detail-v35{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:clamp(6px,1.25vw,9px);color:#bce4ff;line-height:1.7;text-align:center}.arena-result-detail-v35 b{color:#f5d268}.arena-result-elo-v35{display:flex;flex-direction:column;gap:3px}
+
+/* V41 · SUPER aligns with the actual screen centre, not the right controls. */
+@media(orientation:portrait){
+ .mobile-controls .mobile-super-center{left:50%!important;right:auto!important;transform:translateX(-50%)!important;bottom:calc(100% + 7px)!important}
+ .mobile-controls .mobile-super-center.is-pressed{transform:translateX(-50%) translateY(3px)!important}
+}

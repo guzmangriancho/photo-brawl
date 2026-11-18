@@ -6,3 +6,20 @@
 .pb-replay-picker-backdrop{position:fixed;inset:0;z-index:2000;background:#030c19e0;display:grid;place-items:center;padding:10px}.pb-replay-picker{background:#0f223c;border:3px solid #86bcec;padding:12px;width:min(95vw,590px);max-height:80dvh;display:flex;flex-direction:column;gap:10px}.pb-replay-picker header{display:flex;justify-content:space-between;align-items:center;font:9px 'Press Start 2P',monospace}.pb-replay-picker header button{background:#1c3b57;color:white;border:1px solid #648cb4;padding:6px}.pb-replay-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;overflow:auto;min-height:0}.pb-replay-options button{display:flex;flex-direction:column;background:#183754;color:#e5f7ff;border:1px solid #62819d;padding:4px;gap:5px;min-width:0;align-items:center;font:7px 'Press Start 2P',monospace;cursor:pointer}.pb-replay-options button.is-active{border:2px solid #f5ca51}.pb-replay-options img{width:55px;height:55px;object-fit:cover;image-rendering:pixelated}.pb-replay-options span{max-width:100%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
 @media (max-height:500px){.pb-replay{gap:4px;padding:5px}.pb-replay-portrait{height:44px;width:44px}.pb-replay-detail{max-height:16vh}.pb-replay-title strong{font-size:13px}.pb-replay-go{padding:7px}.pb-replay-seat{padding:3px}}
 @media (max-width:400px){.pb-replay-seats.has-four{gap:3px}.pb-replay-seats.has-four .pb-replay-seat{padding:3px}.pb-replay-seats.has-four .pb-replay-portrait{width:43px;height:43px}.pb-replay-seats.has-four .pb-replay-seat-label{font-size:6px}.pb-replay-seats.has-four .pb-replay-seat b{font-size:5px}}
+
+/* V41 · Arcade-framed end-of-match panel consistent with main menus. */
+.pb-replay{border:3px solid #0c1731;outline:2px solid #869db7;border-radius:8px;background:linear-gradient(150deg,#102044f7,#091731f7 65%,#0e2247f7);box-shadow:inset 0 0 0 2px #426287,inset 0 5px #ffffff17,0 7px #000b,0 12px 24px #0005;font-family:'Pixelify Sans','Oxanium',sans-serif}
+.pb-replay-title small{font:900 clamp(9px,1.2vw,12px) 'Oxanium',sans-serif;letter-spacing:1px;color:#79e5ff}
+.pb-replay-title strong{font:900 clamp(19px,3vw,29px)/1 'Pixelify Sans',monospace;color:#ffe08b;text-shadow:2px 3px #5a301d}
+.pb-replay-detail{font:800 clamp(9px,1.3vw,12px)/1.35 'Oxanium',sans-serif}
+.pb-replay-seat{border:2px solid #56789e;background:linear-gradient(#193758,#0c203b);border-radius:4px;box-shadow:inset 0 2px #ffffff16}
+.pb-replay-seat-label{font:900 clamp(9px,1.1vw,12px)/1 'Oxanium',sans-serif;color:#a6dafa}
+.pb-replay-seat b{font:900 clamp(10px,1.15vw,14px)/1 'Pixelify Sans',monospace;color:#fff0c9}
+.pb-replay-portrait{border:2px solid #6d93b7;border-radius:3px}.pb-replay-portrait.can-change{border-color:#ffe08b;box-shadow:0 0 0 1px #be8b3e}
+.pb-replay-portrait span{font:900 9px 'Pixelify Sans',monospace}
+.pb-replay-go,.pb-replay-exit{font:900 clamp(12px,1.5vw,17px)/1 'Pixelify Sans',monospace;border-radius:5px;box-shadow:inset 0 2px #fff5,inset 0 -3px #0005}
+.pb-replay-picker{border:3px solid #0c1731;outline:2px solid #869db7;border-radius:7px;background:linear-gradient(#142d51,#0a1a34);box-shadow:inset 0 0 0 2px #426287,0 10px 30px #000a}
+.pb-replay-picker header{font:900 clamp(15px,2vw,20px) 'Pixelify Sans',monospace;color:#ffe08b}
+.pb-replay-options button{border:2px solid #567fa6;border-radius:4px;background:#123052;font:900 11px 'Pixelify Sans',monospace}
+.pb-replay-options button.is-active{border-color:#ffe08b}
+@media(max-width:400px){.pb-replay-seats.has-four .pb-replay-seat-label{font-size:8px}.pb-replay-seats.has-four .pb-replay-seat b{font-size:9px}}

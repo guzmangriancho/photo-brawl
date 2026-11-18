@@ -554,3 +554,74 @@
 .pb-team-digit{font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:0}
 .pb-team-vs{font-family:'Press Start 2P',monospace;font-size:.58em;letter-spacing:0}
 @media(max-width:420px){.pb-mode-tile.pb-mode-teams strong{font-size:clamp(12px,3.4vw,17px)}}
+
+/* V41 · A single character gallery serves whichever participant is selected. */
+.pb-group-roster-select{flex:1;min-height:0;display:flex;flex-direction:column;gap:5px;justify-content:center}
+.pb-group-roster-help{font:800 clamp(9px,1.12vw,12px)/1.3 'Oxanium',sans-serif;letter-spacing:.4px;color:#8dddfc;text-align:center}
+.pb-group-roster-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(3px,.6vw,7px);min-height:0}
+.pb-group-roster-slot{min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;border:2px solid #6282a5;border-radius:4px;background:linear-gradient(#173353,#0d1d38);padding:clamp(3px,.5vw,6px);box-shadow:inset 0 2px #ffffff20,0 3px #030c19}
+.pb-group-roster-slot.is-active{border-color:#ffdf79;background:linear-gradient(#315275,#183051);box-shadow:inset 0 0 0 1px #f7d279,0 3px #030c19}
+.pb-group-roster-slot.is-red{border-left:4px solid #eb646a}.pb-group-roster-slot.is-blue{border-left:4px solid #63baf6}
+.pb-group-roster-slot span{font:900 clamp(9px,1vw,12px)/1.2 'Oxanium',sans-serif;color:#a9dffc;white-space:nowrap}
+.pb-group-roster-slot img{width:clamp(32px,8vh,76px);height:clamp(32px,8vh,76px);max-width:100%;object-fit:cover;image-rendering:pixelated;border:2px solid #8baed0}
+.pb-group-roster-slot strong{font-size:clamp(10px,1.2vw,15px);color:#fff1c8;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(orientation:portrait){.pb-group-roster-help{font-size:9px}.pb-group-roster-slots{gap:3px}.pb-group-roster-slot{padding:3px}.pb-group-roster-slot img{width:clamp(28px,9vw,46px);height:clamp(28px,9vw,46px)}.pb-group-roster-slot strong{font-size:9px}}
+@media(max-height:500px){.pb-group-roster-slot img{width:32px;height:32px}.pb-group-roster-select{gap:2px}.pb-group-roster-slot{padding:2px}}
+
+
+/* V43: 1 VS 1 / 2 VS 2 share the original arcade title font and a 2-2-1 layout. */
+.pb-home-modes {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1.23fr);
+  grid-auto-flow:row;
+  gap:clamp(4px,.85vh,10px);
+  min-height:0;
+}
+.pb-home-modes > .pb-mode-tile {
+  grid-column:auto;
+  grid-row:auto;
+  min-height:0;
+  height:100%;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+.pb-home-modes > .pb-mode-tile > span:nth-child(2) {
+  align-items:center;
+  text-align:center;
+}
+.pb-home-modes > .pb-mode-online {
+  grid-column:1 / -1;
+  grid-row:3;
+  min-height:0;
+}
+.pb-home-modes .pb-mode-tile strong,
+.pb-home-modes .pb-mode-tile.pb-mode-teams strong {
+  font-family:'Pixelify Sans','Oxanium',sans-serif;
+  font-weight:700;
+  font-size:clamp(13px,1.85vw,24px);
+  line-height:1.05;
+  letter-spacing:0;
+}
+.pb-match-option {
+  background:linear-gradient(115deg,#404957f5,#2d3645fa);
+  border-color:#85919f;
+  color:#f0f2f5;
+  box-shadow:inset 0 2px #ffffff21,0 3px #080c15;
+}
+.pb-match-option small {color:#c4ceda}
+.pb-match-option > svg {color:#d4dbe5}
+@media (orientation:portrait) {
+  .pb-home-modes {grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1.23fr)}
+  .pb-home-modes > .pb-mode-online {grid-column:1 / -1;grid-row:3}
+  .pb-home-modes .pb-mode-tile strong,
+  .pb-home-modes .pb-mode-tile.pb-mode-teams strong {font-size:clamp(12px,3.7vw,20px)}
+  .pb-home-modes .pb-mode-tile small {font-size:clamp(7px,2vw,10px)}
+}
+@media (orientation:landscape) and (max-height:430px) {
+  .pb-home-modes {gap:clamp(3px,.8vh,6px)}
+  .pb-home-modes .pb-mode-tile strong,
+  .pb-home-modes .pb-mode-tile.pb-mode-teams strong {font-size:clamp(11px,1.55vw,17px)}
+  .pb-home-modes .pb-mode-tile small {font-size:clamp(7px,.9vw,9px)}
+}

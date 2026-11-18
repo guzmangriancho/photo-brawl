@@ -47,7 +47,7 @@ const PASSIVES: Record<string, string> = {
 };
 const STAGES = STAGE_IDS.map(id => ({ id, title: STAGE_ART[id].name, short: STAGE_ART[id].short }));
 const GAME_MODES: { id: GameMode; title: string; detail: string; icon: React.ReactNode }[] = [
-  { id: '1P_VS_CPU', title: 'COMBATE 1V1', detail: 'CONTRA LA CPU', icon: <Swords size={22}/> },
+  { id: '1P_VS_CPU', title: '1 VS 1', detail: 'CONTRA LA CPU', icon: <Swords size={22}/> },
   { id: '2V2', title: '2 VS 2', detail: 'EQUIPOS · 4 LUCHADORES', icon: <UsersRound size={22}/> },
   { id: 'FREE_FOR_ALL', title: 'FREE FOR ALL', detail: 'TODOS CONTRA TODOS', icon: <Swords size={22}/> },
   { id: 'TRAINING', title: 'TRAINING', detail: 'PRACTICA COMBOS', icon: <Target size={22}/> },
@@ -86,6 +86,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [p2Id, setP2Id] = useState('');
   const [p3Id,setP3Id] = useState('');
   const [p4Id,setP4Id] = useState('');
+  const [activeGroupSeat,setActiveGroupSeat] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showAccount,setShowAccount]=useState(false);
   const [transferring,setTransferring]=useState<FighterProfile|null>(null);
@@ -129,6 +130,15 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const extraP3 = fighters.find(f=>f.id===p3Id) || fighters.find(f=>f.id!==featured?.id&&f.id!==rival?.id) || featured;
   const extraP4 = fighters.find(f=>f.id===p4Id) || fighters.find(f=>f.id!==featured?.id&&f.id!==rival?.id&&f.id!==extraP3?.id) || rival;
   const isGroupMode = mode==='2V2'||mode==='FREE_FOR_ALL';
+  const groupSeats=[featured,rival,extraP3,extraP4];
+  const selectGroupFighter=(fighter:FighterProfile)=>{
+    if(activeGroupSeat===0)setP1Id(fighter.id);
+    else if(activeGroupSeat===1)setP2Id(fighter.id);
+    else if(activeGroupSeat===2)setP3Id(fighter.id);
+    else setP4Id(fighter.id);
+    soundFX.selectBeep();
+  };
+
   const tutorialFighter = TUTORIAL_FIGHTERS.find(f => f.id === tutorialId) || TUTORIAL_FIGHTERS[0];
   const selectedMode = GAME_MODES.find(m => m.id === mode) || GAME_MODES[0];
   const rosterPages = Math.max(1, Math.ceil(fighters.length / 6));
@@ -361,7 +371,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small></div>
         <div className="pb-mode-heading">{featured ? 'ELIGE UN MODO' : 'DESCUBRE LOS MODOS'}</div>
         <div className="pb-home-modes" role="group" aria-label="Modo de juego">
-          {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.id === '2V2' ? <span className="pb-team-format"><span className="pb-team-digit">2</span><span className="pb-team-vs">VS</span><span className="pb-team-digit">2</span></span> : item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
+          {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
         </div>
         {featured ? <>
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
@@ -383,17 +393,20 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
 
     {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><FighterPortrait fighter={featured}/><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
 
-    {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">{isGroupMode?"LOS 4 LUCHADORES":"RIVAL"}</PanelTitle><div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>JUGADOR 1</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div>{isGroupMode&&extraP3&&extraP4&&<div className="pb-local-group-team" aria-label="Gestionar los cuatro luchadores">
-        {[{f:featured,seat:0,label:'P1 · ROJO'},{f:rival,seat:1,label:'P2 · AZUL'},{f:extraP3,seat:2,label:mode==='2V2'?'P3 · ROJO':'P3 · LIBRE'},{f:extraP4,seat:3,label:mode==='2V2'?'P4 · AZUL':'P4 · LIBRE'}].map(({f,seat,label})=><div className="pb-local-group-slot" key={seat}>
-          <span>{mode==='FREE_FOR_ALL'?`P${seat+1} · SOLO`:label}</span>
-          <img src={f.portraitDataUrl} alt=""/><strong>{f.fighterName}</strong>
-          {seat>=2&&<select aria-label={`Luchador de P${seat+1}`} value={f.id} onChange={e=>seat===2?setP3Id(e.target.value):setP4Id(e.target.value)}>
-            {fighters.map(item=><option value={item.id} key={item.id}>{item.fighterName}</option>)}
-          </select>}
-          {seat===0&&<small>CAMBIAR EN MIS LUCHADORES</small>}
-          {seat===1&&<small>CAMBIAR ABAJO</small>}
-        </div>)}</div>}
-      <div className="pb-mini-label">{isGroupMode?'SELECCIONAR JUGADOR 2':'SELECCIONAR RIVAL'}</div><div className="pb-rival-grid">{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => { setP2Id(f.id); soundFX.selectBeep(); }} className={f.id === rival.id ? 'is-selected' : ''}><FighterPortrait fighter={f}/><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
+    {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">{isGroupMode?"LOS 4 LUCHADORES":"RIVAL"}</PanelTitle>{!isGroupMode&&<div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>JUGADOR 1</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div>}
+      {isGroupMode&&<div className="pb-group-roster-select" aria-label="Seleccionar los cuatro luchadores">
+        <div className="pb-group-roster-help">1. ELIGE P1, P2, P3 O P4 · 2. TOCA UN LUCHADOR ABAJO</div>
+        <div className="pb-group-roster-slots" role="group" aria-label="Elegir jugador a configurar">
+          {groupSeats.map((fighter,seat)=><button key={seat} type="button" className={`pb-group-roster-slot ${activeGroupSeat===seat?'is-active':''} ${mode==='2V2'?(seat%2===0?'is-red':'is-blue'):`is-player-${seat+1}`}`}
+            aria-pressed={activeGroupSeat===seat} aria-label={`Elegir P${seat+1} para cambiar luchador`} onClick={()=>{setActiveGroupSeat(seat);setRivalPage(0);soundFX.selectBeep();}}>
+            <span>P{seat+1}{mode==='2V2'?` · ${seat%2===0?'ROJO':'AZUL'}`:''}</span>
+            {fighter&&<img src={fighter.portraitDataUrl} alt=""/>}
+            <strong>{fighter?.fighterName||'VACÍO'}</strong>
+          </button>)}
+        </div>
+      </div>}
+      <div className="pb-mini-label">{isGroupMode?`ELIGE LUCHADOR PARA P${activeGroupSeat+1}`:'SELECCIONAR RIVAL'}</div>
+      <div className="pb-rival-grid" aria-label={isGroupMode?`Luchadores disponibles para P${activeGroupSeat+1}`:'Seleccionar rival'}>{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => {if(isGroupMode)selectGroupFighter(f);else {setP2Id(f.id);soundFX.selectBeep();}}} className={(isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id)?'is-selected':''} aria-pressed={isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id}><FighterPortrait fighter={f}/><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
       <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><span>Todos los combates se inician desde Inicio.</span></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={() => go('HOME')}><Check size={17}/> GUARDAR Y VOLVER</button></section></div>}
 
     {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)}/> }

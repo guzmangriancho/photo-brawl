@@ -163,8 +163,19 @@
   .pb-group-touch .mobile-super-center { right: calc(max(11px,env(safe-area-inset-right)) + 72px); }
 }
 @media (orientation: landscape) {
-  /* Match classic 1v1: FULLSCREEN canvas, never shrink it for a separate header. */
-  .pb-group-stage { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+  /* V42: fill the available HEIGHT, preserving the native 16:9 battlefield.
+     On narrower displays the excess width is cropped symmetrically, never stretched. */
+  .pb-group-stage {
+    position: absolute; inset: auto; top: 0; left: 50%;
+    width: calc(100dvh * 16 / 9); max-width: none;
+    height: 100dvh; aspect-ratio: 16 / 9;
+    transform: translateX(-50%);
+  }
+  /* Keep the HUD inside the visible viewport even if the scene is cropped. */
+  .pb-group-hud {
+    left: 50%; right: auto; width: min(100vw, 100%);
+    transform: translateX(-50%);
+  }
   .pb-group-hud { padding-top: max(3px,env(safe-area-inset-top)); }
   .pb-group-touch { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
   .pb-group-touch .mobile-controls { pointer-events: none; background: transparent; border: 0; }
@@ -205,3 +216,18 @@
 .pb-group-elo small { font-size: 9px; color: #cbe5f5; }
 .pb-group-elo b { margin-left: 5px; }
 .pb-group-elo .is-plus {color:#89ffb0;} .pb-group-elo .is-minus {color:#ff8e9b;}
+
+/* V41 · Group combat menus share the original 16-bit framed panels. */
+.pb-group-touch .mobile-super-center{left:50%;right:auto;transform:translateX(-50%)}
+@media(orientation:portrait){
+ .pb-group-touch .mobile-super-center{left:50%!important;right:auto!important;transform:translateX(-50%)!important;bottom:calc(clamp(148px,25dvh,190px) + 8px)!important}
+ .pb-group-touch .mobile-super-center.is-pressed{transform:translateX(-50%) translateY(3px)!important}
+}
+.pb-group-pause{backdrop-filter:blur(2px);background:#030a1aab}
+.pb-group-pause section{box-sizing:border-box;width:min(94vw,390px);max-height:92dvh;gap:clamp(5px,1.5vh,12px);padding:clamp(10px,2.2vh,18px);border:3px solid #0c1731;outline:2px solid #869db7;border-radius:8px;background:linear-gradient(150deg,#101d3ff5,#091731f5);box-shadow:inset 0 0 0 2px #426287,inset 0 4px #ffffff18,0 7px #0009}
+.pb-group-pause h2{font:900 clamp(21px,4vw,30px)/1 'Pixelify Sans',monospace;color:#ffe08b;text-shadow:2px 3px #653819}
+.pb-group-pause p{font:800 clamp(10px,1.3vw,13px)/1.5 'Oxanium',sans-serif;color:#a8d7f1}
+.pb-group-pause button{width:100%;justify-content:center;border:2px solid #719cc8;border-radius:5px;background:linear-gradient(#2476b0,#164478);box-shadow:inset 0 2px #fff5,inset 0 -3px #0005;font:900 clamp(12px,2vw,16px)/1 'Pixelify Sans',monospace;padding:clamp(6px,1.7vh,10px)}
+.pb-group-pause button:first-of-type{color:#fff0b8;border-color:#efc36c;background:linear-gradient(#d5a64c,#9b5e20)}
+.pb-group-result-overlay{background:#030917b5;backdrop-filter:blur(2px)}
+.pb-group-score{gap:3px}.pb-group-score small{font:800 clamp(8px,1.1vw,11px)/1.4 'Oxanium',sans-serif}.pb-group-score>span{font:900 11px 'Pixelify Sans',monospace;color:#ffe08b}
