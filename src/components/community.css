@@ -142,3 +142,13 @@
 .pb-transfer-footnote{font-size:clamp(9px,1.1vw,11px)}
 @media(max-height:430px){.pb-transfer-hero{padding:3px 6px}.pb-transfer-hero img{width:40px;height:40px}.pb-transfer-card{padding:2px 6px}.pb-transfer-card-actions button{padding:2px 5px;min-height:23px}.pb-transfer-inbox{gap:3px}.pb-transfer-card-copy{gap:0}.pb-transfer-footnote{font-size:9px}}
 @media(max-width:510px){.pb-transfer-card-actions{gap:3px}.pb-transfer-card-actions button{padding:3px 5px;font-size:9px}.pb-transfer-card-copy span{font-size:9px}}
+
+/* V29 · Archivo de administracion: solo vista, sin afectar galeria publica. */
+.pb-admin-gallery-note{display:flex;justify-content:center;align-items:center;gap:5px;flex-shrink:0;color:#ffd88e;border:1px solid #866c48;background:#342d37;font:900 clamp(9px,1.1vw,11px) Oxanium,system-ui;padding:3px 6px;min-height:20px}
+.pb-private-art-placeholder{display:grid;place-items:center;width:100%;min-height:0;flex:1;aspect-ratio:1;color:#91bddb;font:900 10px Oxanium,system-ui;background:repeating-linear-gradient(45deg,#132b4c,#132b4c 7px,#0b203c 7px,#0b203c 14px);border:1px solid #47688b}
+.pb-community-card em{font:900 clamp(8px,.95vw,10px)/1 Oxanium,system-ui;font-style:normal;max-width:100%;flex-shrink:0}
+.pb-community-card .pb-admin-private{color:#ffc58f}
+.pb-community-card .pb-admin-public{color:#8fe2ba}
+.pb-community-detail-main>.pb-private-art-placeholder{width:min(30%,155px);min-height:54px;max-height:28vh;flex:0 1 auto}
+.pb-admin-detail-status{color:#ffc88d!important}
+@media(max-height:430px){.pb-admin-gallery-note{min-height:16px;padding:1px 4px}.pb-community-card em{font-size:8px}}

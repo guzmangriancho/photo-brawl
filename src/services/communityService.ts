@@ -45,6 +45,7 @@ export type CloudFighter = {
 };
 export type CommunityFighter = Pick<CloudFighter,'id'|'owner_id'|'fighter_name'|'archetype'|'fighter_data'|'public_portrait_path'|'public_sheet_path'|'created_at'> & {
   player_profiles?:{username:string;display_name:string}|null;
+  is_public?:boolean; private_portrait_path?:string; private_sheet_path?:string;
 };
 export type LeaderboardPlayer = {id:string;username:string;display_name:string;rating:number;wins:number;losses:number};
 
@@ -192,6 +193,36 @@ export async function listCommunity(search='',page=0,pageSize=6):Promise<Communi
   if(error)throw error;
   return (data||[]) as unknown as CommunityFighter[];
 }
+/** La autorización la determina auth.uid() en una función SECURITY DEFINER.
+ *  Nunca se basa en el username ni en parámetros enviados por el cliente. */
+export async function currentUserIsAdmin():Promise<boolean> {
+  if(!supabase)return false;
+  const {data,error}=await supabase.rpc('pb_is_admin');
+  if(error)throw error;
+  return data===true;
+}
+
+/** Devuelve luchadores públicos y privados SOLO cuando lo permite RLS.
+ * No se usa una service key en el navegador ni se cambia la visibilidad real. */
+export async function listAllFightersForAdmin(search='',page=0,pageSize=6):Promise<CommunityFighter[]> {
+  const db=needDb();
+  let q=db.from('fighters')
+    .select('id,owner_id,fighter_name,archetype,fighter_data,is_public,private_portrait_path,private_sheet_path,public_portrait_path,public_sheet_path,created_at,player_profiles!fighters_owner_id_fkey(username,display_name)')
+    .order('created_at',{ascending:false}).range(page*pageSize,(page+1)*pageSize-1);
+  if(search.trim())q=q.ilike('fighter_name',`%${search.trim().replace(/[%_,().]/g,'').slice(0,40)}%`);
+  const {data,error}=await q;
+  if(error)throw error;
+  return (data||[]) as unknown as CommunityFighter[];
+}
+
+/** Cada descarga está protegida por la política de storage; nunca se publica
+ * una URL con permisos de acceso ni se guarda el archivo en IndexedDB. */
+export async function downloadAdminFighterImage(path:string):Promise<Blob> {
+  const {data,error}=await needDb().storage.from('fighter-private').download(path);
+  if(error || !data)throw error||new Error('No se pudo descargar la imagen privada.');
+  return data;
+}
+
 export function fighterPublicUrl(path:string|null|undefined):string {
   return !path?'':needDb().storage.from('fighter-public').getPublicUrl(path).data.publicUrl;
 }

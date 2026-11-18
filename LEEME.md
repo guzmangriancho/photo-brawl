@@ -1,3 +1,13 @@
+# PHOTO BRAWL V29 · Archivo privado de administracion
+
+Esta versión incluye V28 y anteriores. Solo para la cuenta admin designada como **@guzmangriancho**, dentro de **INICIO → AJUSTES**, aparece el interruptor **VER TODOS LOS LUCHADORES**. Apagado mantiene la Comunidad habitual; encendido muestra los luchadores privados y públicos sincronizados, en **COMUNIDAD → EXPLORAR**, sin posibilidad de modificarlos.
+
+**IMPORTANTE: Ejecuta `supabase/migrations/202611180003_admin_fighter_gallery.sql` en SQL Editor, con la cuenta @guzmangriancho ya creada.** Verifica el ID asignado siguiendo `docs/ADMIN_GALERIA_V29.md`. El control estará oculto hasta que se aplique la migración. No hace falta cambiar el servidor online.
+
+Para compilar: `npm ci && npm test && npm run build`. Se conserva IndexedDB y la información de los usuarios.
+
+---
+
 # PHOTO BRAWL V27 · Escuela Arcade avanzada
 
 Incluye íntegramente los cambios de V24 a V26. Se añaden **14 ejercicios guiados** para aprender los controles del combate, con validación de las acciones reales, práctica de bloqueo/parry contra un muñeco que avisa antes de golpear, y una tarjeta pixel art compacta adaptada a móvil. En el menú: **Inicio → Tutorial**.

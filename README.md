@@ -1,3 +1,11 @@
+## V29 · Archivo privado de luchadores para @guzmangriancho
+
+- Nuevo interruptor **INICIO → AJUSTES → VER TODOS LOS LUCHADORES**, visible únicamente después de comprobar en Supabase que la cuenta es la administradora designada.
+- Apagado: la galería pública funciona exactamente igual. Encendido: **COMUNIDAD → EXPLORAR** permite ver publicados y no publicados guardados en Supabase, con retratos, sprites, estadísticas, ataques, búsqueda y paginación. Solo lectura.
+- Seguridad real: rol fijado por ID de usuario, RLS `SELECT` para el admin y acceso privado autenticado a imágenes. No concede modificación ni publica personajes. Los luchadores no sincronizados (solo guardados localmente) no son visibles.
+- **OBLIGATORIO: ejecutar `supabase/migrations/202611180003_admin_fighter_gallery.sql` en Supabase → SQL Editor después de que exista @guzmangriancho** y verificar que el ID asignado es el correcto. Sin la migración, no aparece el interruptor.
+- Guía: [`docs/ADMIN_GALERIA_V29.md`](docs/ADMIN_GALERIA_V29.md). No requiere actualizar Render.
+
 ## V27 · Escuela Arcade avanzada (14 retos)
 
 - El tutorial gratuito ahora enseña **caminar, dash, salto, guardia en movimiento, jab certero, cadena de golpes, remate, golpe bajo contra guardia alta, tres técnicas direccionales, bloqueo de jab, parry y súper**.

@@ -17,7 +17,8 @@ import type { OnlineStart, RoomView } from '../network/protocol';
 import { PwaInstallPrompt } from './PwaInstallPrompt';
 import { markCreatorOpen, wasCreatorOpen } from '../services/creatorDraftService';
 import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter } from '../services/storageService';
-import { syncRenamedFighter } from '../services/communityService';
+import { currentUserIsAdmin, syncRenamedFighter } from '../services/communityService';
+import { usePlayerAccount } from '../services/usePlayerAccount';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
 import { requestAutomaticMigration } from '../services/automaticFighterMigration';
@@ -75,6 +76,10 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
+  const {user:accountUser}=usePlayerAccount();
+  const [verifiedAdminId,setVerifiedAdminId]=useState<string|null>(null);
+  const adminAllowed=Boolean(accountUser?.id && accountUser.id===verifiedAdminId);
+  const [showAllFighters,setShowAllFighters]=useState(false);
   const [p1Id, setP1Id] = useState(() => { try { return localStorage.getItem('pb-menu-fighter') || ''; } catch { return ''; } });
   const [p2Id, setP2Id] = useState('');
   const [showTutorial, setShowTutorial] = useState(false);
@@ -113,6 +118,18 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const rosterPages = Math.max(1, Math.ceil(fighters.length / 6));
   const rivalPages = Math.max(1, Math.ceil(fighters.length / 6));
 
+  // Solo mostrar el interruptor tras verificar el ID en Supabase; no confiar
+  // en user_metadata, localStorage ni en un username modificable.
+  useEffect(()=>{
+    let active=true;
+    setVerifiedAdminId(null);
+    setShowAllFighters(false);
+    if(accountUser?.id){
+      void currentUserIsAdmin().then(ok=>{if(active && ok)setVerifiedAdminId(accountUser.id);})
+        .catch(error=>{if(active)console.warn('No se pudo comprobar el rol de administrador',error);});
+    }
+    return()=>{active=false;};
+  },[accountUser?.id]);
   useEffect(() => { try { localStorage.setItem('pb-control-opacity', String(controlOpacity)); } catch {} }, [controlOpacity]);
   useEffect(() => { try { localStorage.setItem('pb-sound-muted', String(muted)); } catch {} }, [muted]);
   useEffect(() => { try { localStorage.setItem('pb-stick-fixed', String(stickFixed)); } catch {} }, [stickFixed]);
@@ -302,11 +319,12 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">RIVAL</PanelTitle><div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>JUGADOR 1</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div><div className="pb-mini-label">SELECCIONAR RIVAL</div><div className="pb-rival-grid">{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => { setP2Id(f.id); soundFX.selectBeep(); }} className={f.id === rival.id ? 'is-selected' : ''}><FighterPortrait fighter={f}/><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
       <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div>{mode === '1P_VS_CPU' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><span>Todos los combates se inician desde Inicio.</span></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={() => go('HOME')}><Check size={17}/> GUARDAR Y VOLVER</button></section></div>}
 
-    {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} fighters={fighters} onAccount={()=>setShowAccount(true)}/> }
+    {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)}/> }
 
     {page === 'SETTINGS' && <div className="pb-subpage pb-settings-layout pb-page-anim"><section className="pb-frame pb-settings-controls"><PanelTitle label="PERSONALIZA LA EXPERIENCIA">AJUSTES</PanelTitle>
       <div className="pb-setting-row"><div><SlidersHorizontal size={16}/><span>TRANSPARENCIA BOTONES</span></div><label className="pb-opacity"><input aria-label="Transparencia controles" type="range" min="35" max="100" step="5" value={controlOpacity} onChange={e => setControlOpacity(Number(e.target.value))}/><b>{controlOpacity}%</b></label></div>
       {([['JOYSTICK FIJO', stickFixed, () => setStickFixed(!stickFixed)], ['MODO ZURDOS', southpaw, () => setSouthpaw(!southpaw)], ['VIBRACIÓN TÁCTIL', haptics, () => setHaptics(!haptics)], ['SONIDO', !muted, () => { soundFX.muted = !soundFX.muted; setMuted(soundFX.muted); }]] as [string, boolean, () => void][]).map(([title, value, action], i) => <div className="pb-setting-row" key={title}><div>{i === 3 ? (muted ? <VolumeX size={16}/> : <Volume2 size={16}/>) : i === 2 ? <Zap size={16}/> : <Gamepad2 size={16}/>}<span>{title}</span></div><button type="button" className={`pb-toggle ${value ? 'is-on' : ''}`} aria-label={title} aria-pressed={value} onClick={action}><i/></button></div>)}
+      {adminAllowed&&<div className="pb-setting-row pb-admin-setting"><div><ShieldCheck size={16}/><span>VER TODOS LOS LUCHADORES</span></div><button type="button" className={`pb-toggle ${showAllFighters?'is-on':''}`} role="switch" aria-label="Ver también luchadores no publicados en Comunidad" aria-checked={showAllFighters} onClick={()=>setShowAllFighters(v=>!v)}><i/></button></div>}
     </section><section className="pb-frame pb-settings-info"><PanelTitle label="INFORMACIÓN Y HERRAMIENTAS">MÓVIL Y TECLADO</PanelTitle><div className="pb-control-help"><strong>MÓVIL</strong><span>Joystick · A golpear · B técnica · SALTAR</span><strong>TECLADO P1</strong><span>WASD mover · F golpe · G técnica · H fuerte · ESC pausa</span></div><div className="pb-gemini-status"><KeyRound size={16}/><span>GEMINI: {getGeminiApiKey() ? 'CONFIGURADO' : 'SIN CLAVE'}</span></div><button type="button" className="pb-mini-button pb-purple pb-key-button" onClick={openKey}><KeyRound size={16}/> CONFIGURAR CLAVE GEMINI</button><button type="button" className="pb-mini-button pb-blue pb-pwa-settings-button" onClick={() => { setPage('HOME'); setInstallRequest(n=>n+1); }}><Gamepad2 size={15}/> INSTALAR JUEGO COMO APP</button><small className="pb-settings-hint">Para crear otro personaje, vuelve a Inicio y entra en «Elegir luchador».</small></section></div>}
   </div>
 

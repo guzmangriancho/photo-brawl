@@ -474,3 +474,9 @@
 @media (prefers-reduced-motion: reduce) {
   .pb-fighter-idle { animation: none; background-position: 0% 0%; }
 }
+
+/* V29 · Solo aparece tras verificar la cuenta administradora contra Supabase. */
+.pb-admin-setting{border-top:1px solid #866c4f}
+.pb-admin-setting>div svg{color:#ffe0a5}
+.pb-admin-setting>div span{font-size:clamp(10px,1.35vw,15px);color:#ffe0a5}
+@media(max-width:620px){.pb-admin-setting>div span{font-size:clamp(10px,2.8vw,13px)}}
