@@ -48,7 +48,7 @@ const PASSIVES: Record<string, string> = {
 const STAGES = STAGE_IDS.map(id => ({ id, title: STAGE_ART[id].name, short: STAGE_ART[id].short }));
 const GAME_MODES: { id: GameMode; title: string; detail: string; icon: React.ReactNode }[] = [
   { id: '1P_VS_CPU', title: 'COMBATE 1V1', detail: 'CONTRA LA CPU', icon: <Swords size={22}/> },
-  { id: '2V2', title: '2 CONTRA 2', detail: 'EQUIPOS · 4 LUCHADORES', icon: <UsersRound size={22}/> },
+  { id: '2V2', title: '2 VS 2', detail: 'EQUIPOS · 4 LUCHADORES', icon: <UsersRound size={22}/> },
   { id: 'FREE_FOR_ALL', title: 'FREE FOR ALL', detail: 'TODOS CONTRA TODOS', icon: <Swords size={22}/> },
   { id: 'TRAINING', title: 'TRAINING', detail: 'PRACTICA COMBOS', icon: <Target size={22}/> },
   { id: 'ONLINE', title: 'VERSUS ONLINE', detail: 'DOS MÓVILES · CÓDIGO', icon: <Globe2 size={22}/> },
@@ -361,7 +361,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small></div>
         <div className="pb-mode-heading">{featured ? 'ELIGE UN MODO' : 'DESCUBRE LOS MODOS'}</div>
         <div className="pb-home-modes" role="group" aria-label="Modo de juego">
-          {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
+          {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.id === '2V2' ? <span className="pb-team-format"><span className="pb-team-digit">2</span><span className="pb-team-vs">VS</span><span className="pb-team-digit">2</span></span> : item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
         </div>
         {featured ? <>
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>

@@ -71,8 +71,8 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
       {!room ? <div className="pb-online-setup">
         <div className="pb-online-identity"><img src={fighter.portraitDataUrl} alt=""/><div><small>TU LUCHADOR</small><strong>{fighter.fighterName}</strong><span>Elige amistoso o clasificatorio. Ambos modos son privados por código.</span></div></div>
         <div className="pb-online-format" role="group" aria-label="Formato de combate">
-          {([['1V1','1 VS 1'],['2V2','2 CONTRA 2'],['FREE_FOR_ALL','FREE FOR ALL']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={battleMode===id} className={battleMode===id?'on':''}
-            onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{label}</button>)}
+          {([['1V1','1 VS 1'],['2V2','2 VS 2'],['FREE_FOR_ALL','FREE FOR ALL']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={battleMode===id} className={battleMode===id?'on':''}
+            onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{id==='2V2'?<span className="pb-team-format"><span className="pb-team-digit">2</span><span className="pb-team-vs">VS</span><span className="pb-team-digit">2</span></span>:label}</button>)}
         </div>
         {battleMode!=='1V1'&&<small className="pb-online-ranked-help">4 JUGADORES · 3 VIDAS CADA UNO · SOLO MAPAS MULTINIVEL · SIN ELO</small>}
         <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={battleMode!=='1V1'||!user||!supabaseConfigured} onClick={()=>setRanked(true)}>CLASIFICATORIO</button></div>

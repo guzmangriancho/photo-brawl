@@ -15,6 +15,19 @@ const fixed=1000/60;
 const blank=():InputState=>({left:false,right:false,up:false,down:false,guard:false,light:false,heavy:false,spNeutral:false,spForward:false,spUp:false,superBtn:false,romanCancel:false,dashLeft:false,dashRight:false});
 const KEYS1:Record<string,keyof InputState>={KeyA:'left',KeyD:'right',KeyW:'up',KeyS:'down',KeyQ:'guard',KeyF:'light',KeyH:'heavy',KeyR:'spForward',KeyT:'spUp',KeyY:'superBtn'};
 const KEYS2:Record<string,keyof InputState>={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',KeyN:'guard',KeyJ:'light',KeyL:'heavy',KeyU:'spForward',KeyI:'spUp',KeyO:'superBtn'};
+// Sixteen square pixels, ordered clockwise: each filled tile represents 1/16 of SUPER.
+// Rendering them as a ring keeps the original 16-bit HUD language without another bar.
+const SUPER_RING_TILES = [
+  [1,1],[1,2],[1,3],[1,4],[1,5],
+  [2,5],[3,5],[4,5],[5,5],
+  [5,4],[5,3],[5,2],[5,1],
+  [4,1],[3,1],[2,1],
+] as const;
+const matchClock=(seconds:number)=>{
+  const remaining=Math.max(0,Math.ceil(seconds));
+  return `${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;
+};
+
 interface Props{
   fighters:[FighterProfile,FighterProfile,FighterProfile,FighterProfile];
   roster:FighterProfile[]; battleMode:GroupBattleMode;stage:StageId;difficulty:CpuDifficulty;
@@ -114,22 +127,63 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   },[fighters,battleMode,stage,difficulty,online,onRematch]);
   const summary=snapshot?.multi;
   const myPlayer=summary?.players[mySeat];
+  // 2v2: teammates on the same side of the clock. FFA: seating order.
+  const hudSeats=battleMode==='2V2'?[0,2,1,3]:[0,1,2,3];
   const goRematch=(profiles:FighterProfile[])=>{
     if(online){online.requestRematch(profiles[mySeat]);setRequested(true);}
     else onRematch(profiles);
   };
   return <main className="pb-group-screen">
-    <header className="pb-group-hud">
-      <div className="pb-group-hud-grid">{fighters.map((f,i)=>{
-        const info=summary?.players[i];const own=online?i===mySeat:i===0||humanP2&&i===1;
-        return <div className={`pb-group-player ${battleMode==='2V2'?(i%2===0?'team-red':'team-blue'):''} ${info?.eliminated?'is-eliminated':''}`} key={i}>
-          <img src={f.portraitDataUrl} alt=""/><div><strong>{own?'★ ':''}{f.fighterName}</strong>
-          <div className="pb-group-hp"><i style={{width:`${info?Math.max(0,100*info.hp/info.maxHp):100}%`}}/></div>
-          <small>{info?.eliminated?'ELIMINADO':`♥ ${info?.stocks??3} · KO ${info?.kos??0}`}</small></div>
-        </div>;
-      })}</div>
-      <div className="pb-group-time"><strong>{summary?.timeRemaining??240}s</strong><span>{battleMode==='2V2'?'2 CONTRA 2':'FREE FOR ALL'}</span>
-        <button type="button" onClick={()=>setPaused(true)} aria-label="Pausar"><Pause size={16}/></button></div>
+    <header className="pb-group-hud" aria-label="Estado de los cuatro luchadores">
+      <div className="pb-group-hud-grid">
+        {hudSeats.map((seat,column)=>{
+          const fighter=fighters[seat];
+          const info=summary?.players[seat];
+          const own=online?seat===mySeat:seat===0||(humanP2&&seat===1);
+          const meter=Math.max(0,Math.min(100,info?.meter??0));
+          const hpPct=Math.max(0,Math.min(100,Math.round(info?100*info.hp/Math.max(1,info.maxHp):100)));
+          const lives=info?.stocks??3;
+          return <React.Fragment key={seat}>
+            {column===2&&<div className="pb-group-clock">
+              <span className="pb-group-clock-caption">TIEMPO</span>
+              <span className={`pb-group-clock-time ${(summary?.timeRemaining??240)<=10?'is-urgent':''}`}
+                role="timer" aria-label={`Tiempo restante: ${summary?.timeRemaining??240} segundos`}>
+                {matchClock(summary?.timeRemaining??240)}
+              </span>
+              <div className="pb-group-clock-bottom">
+                <span className="pb-group-mode-label">{battleMode==='2V2'?<span className="pb-team-format"><span className="pb-team-digit">2</span><span className="pb-team-vs">VS</span><span className="pb-team-digit">2</span></span>:'FFA'}</span>
+                <button type="button" className="pb-group-pause-button" onClick={()=>setPaused(true)} aria-label="Pausar" title="Pausa (Esc)"><Pause size={14}/></button>
+              </div>
+            </div>}
+            <div className={`pb-group-player ${battleMode==='2V2'?(seat%2===0?'team-red':'team-blue'):`seat-${seat+1}`} ${own?'is-own':''} ${info?.eliminated?'is-eliminated':''}`}>
+              <div className="pb-group-face">
+                <div className={`pb-group-super-ring ${meter>=100?'is-ready':''}`} role="progressbar"
+                  aria-label={`Súper de ${fighter.fighterName}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={meter}
+                  title={`SÚPER ${meter}%${meter>=100?' · LISTO':''}`}>
+                  {SUPER_RING_TILES.map(([row,col],i)=><i key={i} className={meter>=((i+1)*100/SUPER_RING_TILES.length)?'is-filled':''}
+                    style={{gridRow:row,gridColumn:col}} aria-hidden="true"/>)}
+                  <img src={fighter.portraitDataUrl} alt="" />
+                  {meter>=100&&<span className="pb-group-super-ready" aria-hidden="true">S</span>}
+                </div>
+                <span className="pb-group-seat">{own?'★ ':''}P{seat+1}</span>
+              </div>
+              <div className="pb-group-info">
+                <strong className="pb-group-name" title={fighter.fighterName}>{fighter.fighterName}</strong>
+                <div className={`pb-group-health ${hpPct<=25?'is-critical':''}`} role="progressbar"
+                  aria-label={`Vida de ${fighter.fighterName}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={hpPct}>
+                  {info?.eliminated?'KO':<>{hpPct}<small>%</small></>}
+                </div>
+                <div className="pb-group-bottom-line">
+                  <span className="pb-group-lives" aria-label={`${lives} vidas restantes`}>
+                    {[0,1,2].map(i=><i key={i} className={i<lives?'is-active':''} aria-hidden="true"/>)}
+                  </span>
+                  <span className="pb-group-kos" aria-label={`${info?.kos??0} eliminaciones`}>KO {info?.kos??0}</span>
+                </div>
+              </div>
+            </div>
+          </React.Fragment>;
+        })}
+      </div>
     </header>
     <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
       {online&&<span className="pb-group-ping" aria-label="Latencia online">{latency===null?'●':`${latency} ms`}</span>}
