@@ -181,3 +181,16 @@
 .pb-online-stages>div,.pb-online-dialog .pb-online-stages>div{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;min-width:0}
 .pb-online-dialog .pb-online-stages button{font-size:clamp(8px,1.2vw,10px);padding:3px 1px;min-height:22px;overflow:hidden;text-overflow:ellipsis}
 @media (orientation:portrait){.pb-online-stages>div,.pb-online-dialog .pb-online-stages>div{grid-template-columns:repeat(5,minmax(0,1fr))}.pb-online-dialog .pb-online-stages button{font-size:clamp(7px,2vw,9px);min-height:21px;padding:3px 0}}
+
+/* V33: online room uses ONE swipeable row, with no pagination and no wrapped maps. */
+.pb-online-stages,.pb-online-dialog .pb-online-stages{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+.pb-online-stages>span{font-size:9px;line-height:1;color:#a3ddfd}
+.pb-online-stages>div.pb-online-stage-strip,.pb-online-dialog .pb-online-stages>div.pb-online-stage-strip{display:flex;flex-wrap:nowrap;gap:5px;min-width:0;width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#6f98c1 #102643;padding:2px 2px 5px;touch-action:pan-x}
+.pb-online-dialog .pb-online-stages .pb-online-stage-strip button{flex:0 0 clamp(74px,17vw,112px);width:clamp(74px,17vw,112px);min-width:0;min-height:0;padding:2px;display:flex;flex-direction:column;align-items:stretch;gap:2px;scroll-snap-align:start;background:#102a48;border:2px solid #4b7298;border-radius:2px;color:#e3f3ff;box-sizing:border-box}
+.pb-online-dialog .pb-online-stages .pb-online-stage-strip button.is-active{background:#514024;border-color:#ffdd7a;color:#fff4bb}
+.pb-online-stage-strip button img{display:block;width:100%;height:clamp(31px,7vh,55px);object-fit:cover;image-rendering:pixelated;pointer-events:none}
+.pb-online-stage-strip button span{display:block;max-width:100%;font:900 10px/1.1 'Pixelify Sans','Oxanium',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-online-dialog .pb-online-stages .pb-online-stage-strip button.pb-online-stage-random{justify-content:center;border-color:#a18bc6;background:#34274a}
+.pb-online-stage-random span:first-child{font-size:24px;line-height:1;color:#e5cdff}
+@media (orientation:portrait){.pb-online-stages,.pb-online-dialog .pb-online-stages{display:flex;flex-direction:column}.pb-online-stages>div.pb-online-stage-strip,.pb-online-dialog .pb-online-stages>div.pb-online-stage-strip{display:flex;flex-wrap:nowrap}.pb-online-dialog .pb-online-stages .pb-online-stage-strip button{flex-basis:clamp(72px,24vw,105px);width:clamp(72px,24vw,105px)}}
+@media (max-height:420px){.pb-online-stages>span{display:none}.pb-online-stage-strip button img{height:27px}.pb-online-dialog .pb-online-stages .pb-online-stage-strip button{padding:1px}.pb-online-stage-strip button span{font-size:9px}}

@@ -12,7 +12,7 @@
     "test:engine": "node tests/fightEngine.test.cjs",
     "test:creator": "node tests/creatorDesign.test.cjs",
     "test:pwa": "node tests/pwaDraft.test.cjs",
-    "test": "npm run test:engine && npm run test:creator && npm run test:pwa && npm run test:v14 && npm run test:v15 && npm run test:online && npm run test:v16 && npm run test:rename && npm run test:vfx && npm run test:v18 && npm run test:v19 && npm run test:v19-1 && npm run test:v19-2 && npm run test:v19-6 && npm run test:transfers && npm run test:ranked-rematches && npm run test:result-summary && npm run test:mobile-ux && npm run test:v25 && npm run test:v26 && npm run test:v27 && npm run test:v28 && npm run test:v29 && npm run test:v30 && npm run test:v31",
+    "test": "npm run test:engine && npm run test:creator && npm run test:pwa && npm run test:v14 && npm run test:v15 && npm run test:online && npm run test:v16 && npm run test:rename && npm run test:vfx && npm run test:v18 && npm run test:v19 && npm run test:v19-1 && npm run test:v19-2 && npm run test:v19-6 && npm run test:transfers && npm run test:ranked-rematches && npm run test:result-summary && npm run test:mobile-ux && npm run test:v25 && npm run test:v26 && npm run test:v27 && npm run test:v28 && npm run test:v29 && npm run test:v30 && npm run test:v31 && npm run test:v33 && npm run test:v34",
     "build:server-engine": "tsc -p server/tsconfig.json && node server/prepare.cjs",
     "dev:server": "npm run build:server-engine && node server/index.cjs",
     "dev:online": "node server/dev-online.cjs",
@@ -35,7 +35,9 @@
     "test:v28": "node --test tests/v28.tutorial-pacing.test.cjs",
     "test:v29": "node --test tests/v29.admin-gallery.test.cjs",
     "test:v30": "node --test tests/v30.edit-fighter-art.test.cjs",
-    "test:v31": "npm run build:server-engine && node --test tests/v31.large-arenas.test.cjs"
+    "test:v31": "npm run build:server-engine && node --test tests/v31.large-arenas.test.cjs",
+    "test:v33": "node --test tests/v33.stage-picker.test.cjs",
+    "test:v34": "node --test tests/v34.portrait-combat-layout.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

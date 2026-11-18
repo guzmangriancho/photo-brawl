@@ -1061,3 +1061,69 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .arena-collision-tools button.is-active{border-color:#8dfaff;background:#135067;color:#fff}
 .arena-collision-tools small{display:block;color:#eaffff;background:#06131ece;padding:2px 4px;font:700 clamp(8px,.75vw,10px)/1.1 monospace;max-width:70vw;white-space:normal}
 @media (orientation:landscape) and (max-height:420px){.arena-collision-tools{top:clamp(40px,22%,65px)}.arena-collision-tools button{padding:2px 4px;font-size:9px}.arena-collision-tools small{font-size:8px}}
+
+/* V34 · Portrait mobile combat: dedicate a separate header strip to the HUD,
+   remove the large teaching panel, and park SUPER above the right-hand pad.
+   Landscape retains its original full-screen fighting layout. */
+@media (orientation: portrait) and (max-width: 750px),
+       (orientation: portrait) and (pointer: coarse) {
+  .arena-screen {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: max(6px, env(safe-area-inset-top)) 0 0;
+  }
+  .arena-shell {
+    /* The HUD used to cover the first 60px of the stage artwork. */
+    padding-top: 65px;
+    background: #09172b;
+  }
+  .arena-stage {
+    /* Allow the HUD to sit in the reserved strip above the canvas. */
+    overflow: visible;
+    position: relative;
+    margin: 0;
+  }
+  .arena-canvas { overflow: hidden; }
+  .arena-hud {
+    top: -65px;
+    min-height: 61px;
+    padding: 7px 6px 5px;
+    align-items: start;
+    background: linear-gradient(180deg,#182944 0%,#0c1c34 100%);
+    border-bottom: 2px solid #59748c;
+  }
+  .arena-mobile-guide { display: none !important; }
+  .mobile-controls {
+    position: fixed;
+    inset: auto 0 0;
+    min-height: 162px;
+    padding-bottom: max(21px, env(safe-area-inset-bottom));
+    background: linear-gradient(#0e2034,#11243a);
+  }
+  .mobile-super-center {
+    /* Centre on the four-button cluster, NOT on the whole viewport.
+       It stays above CUBRIR/SALTO, without covering any of the controls. */
+    left: auto;
+    right: calc(max(11px, env(safe-area-inset-right)) + clamp(144px, 44vw, 204px) / 2);
+    bottom: calc(100% + 10px);
+    transform: translateX(50%);
+    width: clamp(78px, 24vw, 100px);
+    height: clamp(64px, 10dvh, 82px);
+    z-index: 23;
+  }
+  .mobile-super-center.is-pressed { transform: translateX(50%) translateY(3px); }
+}
+@media (orientation: portrait) and (max-width: 345px) {
+  .mobile-super-center {
+    right: calc(max(11px, env(safe-area-inset-right)) + 72px);
+    width: 78px;
+    height: 62px;
+  }
+}
+@media (orientation: portrait) and (max-height: 620px) {
+  .arena-shell { padding-top: 57px; }
+  .arena-hud { top: -57px; min-height: 55px; padding-top: 3px; }
+  .mobile-super-center { height: 58px; bottom: calc(100% + 5px); }
+  .mobile-controls { min-height: 148px; }
+}

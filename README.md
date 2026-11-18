@@ -1,3 +1,7 @@
+## V33 — Selector de escenarios en una fila
+
+Ver `docs/SELECTOR_ESCENARIOS_V33.md`.
+
 ## V31 · Cuatro escenarios multinivel con colisiones y zoom suave
 
 - Se añaden **ATLÁNTIDA SUMERGIDA, BOSQUE DE LOS ESPÍRITUS, TEMPLO CELESTIAL y FORTALEZA VOLCÁNICA** usando las imágenes JPG originales entregadas (2048×1143). Disponibles en **selección de escenario, 1P vs CPU, 1P vs 2P, CPU vs CPU, Training y salas online, incluidas las revanchas y el escenario aleatorio**. No se introduce ningún nuevo modo de juego.
