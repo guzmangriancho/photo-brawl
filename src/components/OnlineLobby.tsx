@@ -72,9 +72,8 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
         <div className="pb-online-identity"><img src={fighter.portraitDataUrl} alt=""/><div><small>TU LUCHADOR</small><strong>{fighter.fighterName}</strong><span>Elige amistoso o clasificatorio. Ambos modos son privados por código.</span></div></div>
         <div className="pb-online-format" role="group" aria-label="Formato de combate">
           {([['1V1','1 VS 1'],['2V2','2 VS 2'],['FREE_FOR_ALL','FREE FOR ALL']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={battleMode===id} className={battleMode===id?'on':''}
-            onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{id==='2V2'?<span className="pb-team-format"><span className="pb-team-digit">2</span><span className="pb-team-vs">VS</span><span className="pb-team-digit">2</span></span>:label}</button>)}
+            onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{label}</button>)}
         </div>
-        {battleMode!=='1V1'&&<small className="pb-online-ranked-help">4 JUGADORES · 3 VIDAS · MAPAS MULTINIVEL · ELO OPCIONAL</small>}
         <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={!user||!supabaseConfigured} onClick={()=>setRanked(true)}>CLASIFICATORIO</button></div>
         {!user&&<small className="pb-online-ranked-help">Para jugar clasificatorias, inicia sesión desde CUENTA. Puedes unirte a salas amistosas sin cuenta.</small>}
         <button type="button" className="pb-online-primary" disabled={busy} onClick={()=>creating(true)}><UsersRound size={20}/> CREAR SALA</button>

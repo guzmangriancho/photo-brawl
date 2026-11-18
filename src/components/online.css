@@ -207,3 +207,17 @@
 /* V37: restore pixel VS; crisp digits remain in the readable font. */
 .pb-online-format button:has(.pb-team-format){font-family:'Press Start 2P',monospace}
 .pb-online-format .pb-team-format{font-size:clamp(12px,2.4vw,15px)}
+
+/* V44 — Modos online: la misma fuente de títulos arcade que el menú V43. */
+.pb-online-format button,
+.pb-online-format button:has(.pb-team-format) {
+  font-family: 'Pixelify Sans','Oxanium',sans-serif;
+  font-weight: 700;
+  font-size: clamp(12px,2.35vw,18px);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+@media (max-width:400px) {
+  .pb-online-format button,
+  .pb-online-format button:has(.pb-team-format) { font-size: clamp(11px,3.25vw,14px); }
+}
