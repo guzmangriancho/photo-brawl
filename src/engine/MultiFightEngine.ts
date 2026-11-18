@@ -2,6 +2,7 @@ import { FightEngine, type FighterRuntime, type InputState, type MoveSlot, type 
 import type { FighterProfile, GroupBattleMode, CpuDifficulty, StageId } from '../types/fighter';
 import type { NetworkFighter, NetworkState } from '../network/protocol';
 import { getLargeArena } from '../data/stages';
+import { soundFX } from './SoundFX';
 
 /** V35: Four-seat stock combat on the SAME movement, attacks, hitboxes and platform physics as 1v1.
  *  Server runs the authoritative instance. No ranked/ELO integration is permitted. */
@@ -21,6 +22,7 @@ export interface MultiMatchSummary {
   teamKOs: [number,number];
   timeRemaining: number;
   countdown: '3' | '2' | '1' | 'YA' | null;
+  lastKnockout?: {frame:number;winnerSeat:number;loserSeat:number;eliminated:boolean} | null;
 }
 const LOCATIONS = [150, 810, 375, 585];
 const NEW_STAGES = ['SUNKEN_ATLANTIS','SPIRIT_FOREST','CELESTIAL_TEMPLE','VOLCANIC_FORTRESS'];
@@ -36,6 +38,7 @@ export class MultiFightEngine extends FightEngine {
   private assists = [0,0,0,0];
   private lastDamaged: {attacker:number;frame:number}[][]=[[],[],[],[]];
   private lastKOFrame=[-999,-999,-999,-999];
+  private lastKnockout:MultiMatchSummary['lastKnockout']=null;
   private eliminatedAt=[-1,-1,-1,-1];
   private countdownFrames=210; // 3, 2, 1 and a short YA! beat, with the arena visible.
   private damageDealt = [0,0,0,0];
@@ -88,7 +91,7 @@ export class MultiFightEngine extends FightEngine {
   override resetRound():void {
     this.stocks=[3,3,3,3];this.kos=[0,0,0,0];this.deaths=[0,0,0,0];
     this.damageDealt=[0,0,0,0];this.assists=[0,0,0,0];this.lastDamaged=[[],[],[],[]];
-    this.lastKOFrame=[-999,-999,-999,-999];this.respawnAt=[0,0,0,0];
+    this.lastKOFrame=[-999,-999,-999,-999];this.lastKnockout=null;this.respawnAt=[0,0,0,0];
     this.eliminatedAt=[-1,-1,-1,-1];this.countdownFrames=210;
     this.winnerSeat=null;this.winningTeam=null;this.isDraw=false;this.endReason=null;
     super.resetRound();
@@ -119,7 +122,7 @@ export class MultiFightEngine extends FightEngine {
       .sort((a,b)=>Math.abs(a.x-f.x)-Math.abs(b.x-f.x))[0] || this.getFighters().find(o=>o!==f) || f;
   }
   override shouldRenderFighter(f:FighterRuntime):boolean {
-    return f.hp>0 || this.frameCount-this.lastKOFrame[f.index]<37;
+    return f.hp>0 || this.frameCount-this.lastKOFrame[f.index]<(this.roundOver?95:37);
   }
   protected override onDamage(a:FighterRuntime,b:FighterRuntime,amount:number):void {
     this.damageDealt[a.index]+=Math.max(0,amount);
@@ -144,17 +147,25 @@ export class MultiFightEngine extends FightEngine {
     this.stocks[seat]--;this.deaths[seat]++;this.kos[winner.index]++;
     if(this.stocks[seat]===0)this.eliminatedAt[seat]=this.frameCount;
     this.lastKOFrame[seat]=this.frameCount;
+    this.lastKnockout={frame:this.frameCount,winnerSeat:winner.index,loserSeat:seat,eliminated:this.stocks[seat]===0};
     for(const hit of this.lastDamaged[seat])if(hit.attacker!==winner.index&&this.canDamage(this.getFighters()[hit.attacker],loser))this.assists[hit.attacker]++;
     this.lastDamaged[seat]=[];
     loser.hp=0;loser.state='KO';loser.stateFrame=0;loser.vy=-7;
     this.respawnAt[seat]=this.stocks[seat]>0?this.frameCount+100:0;
     this.hitstopFrames=9;this.shakeIntensity=10;
     this.announceText=`K.O. · ${winner.profile.fighterName}`;this.announceTimer=72;
+    soundFX.koImpact();
     this.checkWinner();
   }
   private finish(winnerSeat:number|null,team:TeamColor,reason:'KOS'|'TIME',draw=false){
     if(this.roundOver)return;
-    this.roundOver=true;this.endReason=reason;this.winnerSeat=winnerSeat;this.winningTeam=team;this.isDraw=draw;
+    this.roundOver=true;this.endPresentationFrames=96;
+    if(!draw){for(const fighter of this.getFighters())if(this.stocks[fighter.index]>0 &&
+      (team===null?fighter.index===winnerSeat:(fighter.index%2===(team==='RED'?0:1)))){
+      fighter.state='VICTORY';fighter.stateFrame=0;fighter.currentAttack=null;
+    }}
+    soundFX.victoryFanfare();
+    this.endReason=reason;this.winnerSeat=winnerSeat;this.winningTeam=team;this.isDraw=draw;
     this.winnerName=draw?null:team?`EQUIPO ${team==='RED'?'ROJO':'AZUL'}`:winnerSeat!==null?this.getFighters()[winnerSeat].profile.fighterName:null;
     this.announceText=draw?'EMPATE':`${this.winnerName} · ¡VICTORIA!`;this.announceTimer=200;
   }
@@ -192,7 +203,7 @@ export class MultiFightEngine extends FightEngine {
   }
   override step():void {
     this.frameCount++;
-    if(this.roundOver)return;
+    if(this.roundOver){this.advanceEndPresentation();return;}
     if(this.countdownFrames>0){
       this.countdownFrames--;
       // Input held during countdown is not queued or executed at ¡YA!.
@@ -294,6 +305,7 @@ export class MultiFightEngine extends FightEngine {
       reason:this.endReason,
       teamKOs:[this.kos[0]+this.kos[2],this.kos[1]+this.kos[3]],
       timeRemaining:Math.max(0,Math.ceil(this.roundTimerFrames/60)),countdown,
+      lastKnockout:this.lastKnockout,
     };
   }
   override getSnapshot():EngineSnapshot {return {...super.getSnapshot(),multi:this.getMultiSummary()};}
@@ -324,6 +336,7 @@ export class MultiFightEngine extends FightEngine {
         this.respawnAt[s.seat]=s.respawnIn?this.frameCount+s.respawnIn*60:0;
         if(s.hp<=0&&this.lastKOFrame[s.seat]<this.frameCount-37)this.lastKOFrame[s.seat]=this.frameCount;
       });
+      this.lastKnockout=summary.lastKnockout??null;
       this.winnerSeat=summary.winnerSeat;this.winningTeam=summary.winningTeam;
       this.isDraw=summary.isDraw;this.endReason=summary.reason;
     }

@@ -1137,3 +1137,23 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
  .mobile-controls .mobile-super-center{left:50%!important;right:auto!important;transform:translateX(-50%)!important;bottom:calc(100% + 7px)!important}
  .mobile-controls .mobile-super-center.is-pressed{transform:translateX(-50%) translateY(3px)!important}
 }
+/* V46: the winner is visible before the rematch UI arrives. */
+.arena-victory-moment {
+ position:absolute;z-index:15;left:50%;top:47%;transform:translate(-50%,-50%);
+ display:flex;align-items:center;flex-direction:column;gap:8px;text-align:center;
+ max-width:92%;width:max-content;pointer-events:none;
+ animation:arena-victory-pop .5s steps(5,end) both;
+ filter:drop-shadow(3px 4px 0 #07101f);
+}
+.arena-victory-moment strong {font:clamp(12px,2.35vw,25px)/1.5 'Press Start 2P',monospace;color:#ffe87f;text-shadow:3px 3px 0 #932940,5px 5px 0 #071124;}
+.arena-victory-moment span {font:clamp(9px,1.5vw,14px)/1.4 'Pixelify Sans',monospace;color:#fff7d5;background:#0a1833a6;border:1px solid #8da9c2;padding:4px 10px;}
+@keyframes arena-victory-pop {0%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.arena-victory-moment{animation:none}}
+.arena-ko-first {position:absolute;left:50%;top:-36px;transform:translateX(-50%);color:#fff7c7;
+ font:clamp(24px,5vw,52px)/1 'Press Start 2P',monospace;font-style:normal;
+ text-shadow:3px 4px 0 #db334b,5px 6px 0 #061124;
+ animation:arena-ko-first .65s steps(4,end) both;}
+.arena-win-second,.arena-victory-moment>span {animation:arena-winner-enter .48s steps(4,end) .63s both;}
+@keyframes arena-ko-first {0%{opacity:0;transform:translateX(-50%) scale(1.5)}23%,75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
+@keyframes arena-winner-enter {0%{opacity:0}100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.arena-ko-first{animation:none;display:none}.arena-win-second,.arena-victory-moment>span{animation:none}}

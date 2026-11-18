@@ -173,6 +173,12 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [showHitboxes, setShowHitboxes] = useState(mode === 'TRAINING' && !tutorial);
   const [showArenaCollisions, setShowArenaCollisions] = useState(false);
   const [muted, setMuted] = useState(soundFX.muted);
+  const [resultVisible,setResultVisible]=useState(false);
+  useEffect(()=>{
+    if(!snapshot.roundOver){setResultVisible(false);return;}
+    const timer=window.setTimeout(()=>setResultVisible(true),1450);
+    return()=>window.clearTimeout(timer);
+  },[snapshot.roundOver]);
   const [showLab, setShowLab] = useState(false);
   const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT'>('IDLE');
   const [activeSp1, setActiveSp1] = useState<string>(p1Profile.moveset.specialNeutral.mechanic);
@@ -198,6 +204,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   }, []);
 
   useEffect(() => {
+    soundFX.setCrowdedCombat(false);
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
     engine.showHitboxes = mode === 'TRAINING' && !tutorial;
     engine.showArenaCollisions = false;
@@ -209,11 +216,13 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const unsubscribeOnline = online ? [
       online.on('state',(state:NetworkState)=>{
         const last=lastNetSnapshot.current;
-        if(state.snapshot.p1Hp<last.p1Hp || state.snapshot.p2Hp<last.p2Hp){
+        const knockout=(state.snapshot.p1Hp<=0&&last.p1Hp>0)||(state.snapshot.p2Hp<=0&&last.p2Hp>0);
+        if(knockout)soundFX.koImpact();
+        else if(state.snapshot.p1Hp<last.p1Hp || state.snapshot.p2Hp<last.p2Hp){
           const damage=(last.p1Hp-state.snapshot.p1Hp)+(last.p2Hp-state.snapshot.p2Hp);
           if(damage>35)soundFX.heavyHit();else soundFX.lightHit();
         }
-        if(!last.roundOver && state.snapshot.roundOver)soundFX.koFanfare();
+        if(!last.roundOver && state.snapshot.roundOver)soundFX.victoryFanfare();
         lastNetSnapshot.current=state.snapshot;
         engine.applyNetworkState(state);
         lastOnlineStateAt.current=performance.now();
@@ -561,7 +570,13 @@ export const FightArena: React.FC<FightArenaProps> = ({
           {snapshot.p2Combo >= 2 && <div className="arena-combo arena-combo-two"><strong>{snapshot.p2Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p2ComboDamage}</span></div>}
           {snapshot.announceText && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
 
-          {snapshot.roundOver && !paused && (
+          {snapshot.roundOver && !paused && !resultVisible &&
+            <div className="arena-victory-moment" role="status" aria-live="polite">
+              {(snapshot.p1Hp<=0||snapshot.p2Hp<=0)&&<em className="arena-ko-first">K.O.!</em>}
+              <strong className="arena-win-second">{snapshot.winnerName?`¡GANA ${snapshot.winnerName}!`:'¡EMPATE!'}</strong>
+              <span>{snapshot.winnerName?'¡VICTORIA!':'FIN DEL COMBATE'}</span>
+            </div>}
+          {snapshot.roundOver && !paused && resultVisible && (
             <div className="arena-result-overlay pb-v35-rematch-overlay">
               <RematchRoster players={[p1Profile,p2Profile]} roster={roster} allowCommunity={onlineMode&&!rankedOnline}
                 selectableSeats={onlineMode?[online?.slot??0]:[0,1]}

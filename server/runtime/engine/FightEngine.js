@@ -64,6 +64,8 @@ class FightEngine {
     roundTimerFrames = 99 * 60;
     /** roundOver means MATCH over; intermediate KOs trigger the next round automatically. */
     roundOver = false;
+    /** Short non-interactive victory/KO pose sequence after the actual result is locked. */
+    endPresentationFrames = 0;
     roundNumber = 1;
     p1RoundWins = 0;
     p2RoundWins = 0;
@@ -205,6 +207,7 @@ class FightEngine {
         this.p2Input = createEmptyInput();
         this.roundOver = false;
         this.winnerName = null;
+        this.endPresentationFrames = 0;
     }
     completeRound(winner) {
         // A timeout tie replays the round; wins are never awarded twice.
@@ -218,6 +221,8 @@ class FightEngine {
         const matchWinner = this.p1RoundWins === 2 ? this.p1.profile.fighterName : this.p2RoundWins === 2 ? this.p2.profile.fighterName : null;
         if (matchWinner) {
             this.roundOver = true;
+            this.endPresentationFrames = 96;
+            SoundFX_1.soundFX.victoryFanfare();
             this.winnerName = matchWinner;
             this.announceText = `${matchWinner} · ¡VICTORIA!`;
             this.announceTimer = 260;
@@ -454,8 +459,10 @@ class FightEngine {
             }
             return;
         }
-        if (this.roundOver)
+        if (this.roundOver) {
+            this.advanceEndPresentation();
             return;
+        }
         if (this.announceTimer > 0)
             this.announceTimer--;
         if (this.shakeIntensity > 0)
@@ -515,6 +522,29 @@ class FightEngine {
         this.p1.prevInput = { ...this.p1Input };
         this.p2.prevInput = { ...this.p2Input };
     }
+    /** Offline and authoritative server share identical non-interactive post-match poses. */
+    advanceEndPresentation() {
+        if (this.endPresentationFrames <= 0)
+            return;
+        this.endPresentationFrames--;
+        const floor = (0, stages_1.getLargeArena)(this.stage)?.floorY ?? exports.FLOOR_Y;
+        for (const fighter of this.getFighters()) {
+            if (fighter.state === 'VICTORY')
+                fighter.stateFrame++;
+            if (fighter.state === 'KO') {
+                fighter.stateFrame++;
+                fighter.vy = Math.min(12, fighter.vy + .73);
+                fighter.y = Math.min(floor, fighter.y + fighter.vy);
+                if (fighter.y >= floor) {
+                    fighter.vy = 0;
+                    fighter.vx *= .6;
+                }
+            }
+        }
+        if (this.shakeIntensity > 0)
+            this.shakeIntensity = Math.max(0, this.shakeIntensity - .65);
+        this.updateParticles();
+    }
     finishRoundByTimeout() {
         const p1Ratio = this.p1.hp / this.p1.maxHp;
         const p2Ratio = this.p2.hp / this.p2.maxHp;
@@ -522,7 +552,8 @@ class FightEngine {
         if (winner !== null)
             (winner === 0 ? this.p1 : this.p2).state = 'VICTORY';
         this.completeRound(winner);
-        SoundFX_1.soundFX.koFanfare();
+        // El final por tiempo no es un KO: la fanfarria, si corresponde,
+        // se activa una sola vez en completeRound.
     }
     getWalkSpeed(f) {
         const base = 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
@@ -1818,7 +1849,7 @@ class FightEngine {
             this.announceText = `K.O.! ${winner.profile.fighterName}`;
             this.announceTimer = 120;
         }
-        SoundFX_1.soundFX.koFanfare();
+        SoundFX_1.soundFX.koImpact();
         this.spawnHitSparks(loser.x, loser.y - 70, '#facc15', 32);
     }
     computeTrainingDummyInput(dummy, player) {

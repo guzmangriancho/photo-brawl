@@ -49,25 +49,51 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   const humanP2Ref=useRef(false);
   useEffect(()=>{humanP2Ref.current=humanP2;if(engineRef.current)engineRef.current.localHumanSeats=humanP2?2:1;},[humanP2]);
   const [muted,setMuted]=useState(soundFX.muted);
+  const [resultVisible,setResultVisible]=useState(false);
+  const [koToast,setKoToast]=useState<{frame:number;seat:number;eliminated:boolean}|null>(null);
   const [latency,setLatency]=useState<number|null>(null);
   const [settings,setSettings]=useState(()=>({
     fixed:localStorage.getItem('pb-stick-fixed')==='true',
     southpaw:localStorage.getItem('pb-southpaw')==='true',
     opacity:Math.max(35,Math.min(100,Number(localStorage.getItem('pb-control-opacity'))||80)),
   }));
+  useEffect(()=>{
+    if(!snapshot?.roundOver){setResultVisible(false);return;}
+    const timer=window.setTimeout(()=>setResultVisible(true),1450);
+    return()=>window.clearTimeout(timer);
+  },[snapshot?.roundOver]);
+  const lastToastFrame=useRef(-1);
+  useEffect(()=>{
+    const hit=snapshot?.multi?.lastKnockout;
+    if(!hit||lastToastFrame.current===hit.frame)return;
+    lastToastFrame.current=hit.frame;
+    setKoToast({frame:hit.frame,seat:hit.loserSeat,eliminated:hit.eliminated});
+    const timer=window.setTimeout(()=>setKoToast(v=>v?.frame===hit.frame?null:v),850);
+    return()=>window.clearTimeout(timer);
+  },[snapshot?.multi?.lastKnockout?.frame]);
   useEffect(()=>{stopRef.current=paused;touch.current=blank();if(paused)online?.neutral();},[paused,online]);
   useEffect(()=>{
     document.documentElement.classList.add('arena-touch-lock');
     return()=>document.documentElement.classList.remove('arena-touch-lock');
   },[]);
   useEffect(()=>{
+    soundFX.setCrowdedCombat(true);
     const eng=new MultiFightEngine(fighters,battleMode,stage,difficulty);
     eng.remoteHumanControls=onlineMode;
     eng.localHumanSeats=humanP2Ref.current?2:1;
     eng.viewerSeat=mySeat;
     engineRef.current=eng;
     void eng.loadAssets();setSnapshot(eng.getSnapshot());
-    const unsubscribe=online?[online.on('state',(state:NetworkState)=>{eng.applyNetworkState(state);setSnapshot(state.snapshot);}),
+    let previousOnline:EngineSnapshot|null=null;
+    const unsubscribe=online?[online.on('state',(state:NetworkState)=>{
+      if(previousOnline?.multi&&state.snapshot.multi){
+        const previous=previousOnline.multi;
+        const next=state.snapshot.multi;
+        if(next.players.some((player,i)=>player.stocks<previous.players[i].stocks))soundFX.koImpact();
+        if(!previousOnline.roundOver&&state.snapshot.roundOver)soundFX.victoryFanfare();
+      }
+      previousOnline=state.snapshot;
+      eng.applyNetworkState(state);setSnapshot(state.snapshot);}),
       online.on('connection',(ev:{reconnecting?:boolean;opponent?:boolean})=>setOnlineIssue(ev.reconnecting?'RECONEXIÓN EN CURSO…':'')),
       online.on('opponent_left',()=>setOnlineIssue('OTRO JUGADOR HA ABANDONADO LA SALA')),
       online.on('rematch',(event:{stage?:StageId;fighters?:FighterProfile[]})=>{
@@ -127,7 +153,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
     raf=requestAnimationFrame(loop);
     return()=>{cancelAnimationFrame(raf);unsubscribe.forEach(off=>off());if(ping)clearInterval(ping);
       window.removeEventListener('resize',size);window.removeEventListener('keydown',keydown);window.removeEventListener('keyup',keyup);
-      window.removeEventListener('blur',clear);clear();};
+      window.removeEventListener('blur',clear);clear();soundFX.setCrowdedCombat(false);};
   },[fighters,battleMode,stage,difficulty,online,onRematch]);
   const summary=snapshot?.multi;
   const myPlayer=summary?.players[mySeat];
@@ -196,6 +222,14 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       {summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
         <span key={summary.countdown}>{summary.countdown==='YA'?'¡YA!':summary.countdown}</span>
       </div>}
+      {koToast&&<div key={koToast.frame} className="pb-ko-moment" role="status" aria-live="off">
+        <strong>K.O.!</strong><span>P{koToast.seat+1} · {koToast.eliminated?'ELIMINADO':'-1 VIDA'}</span>
+      </div>}
+      {snapshot?.roundOver&&!resultVisible&&<div className="pb-victory-moment" role="status" aria-live="polite">
+        <strong>{summary?.isDraw?'¡EMPATE!':summary?.winningTeam?`¡EQUIPO ${summary.winningTeam==='RED'?'ROJO':'AZUL'} GANA!`:
+          summary?.winnerSeat!=null?`¡P${summary.winnerSeat+1} GANA!`:'¡FIN DEL COMBATE!'}</strong>
+        <span>¡VICTORIA!</span>
+      </div>}
       {online&&<span className="pb-group-ping" aria-label="Latencia online">{latency===null?'●':`${latency} ms`}</span>}
       {onlineIssue&&<div className="pb-group-disconnect">{onlineIssue}<button type="button" onClick={onExit}>SALIR</button></div>}
     </div>
@@ -213,7 +247,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       <button type="button" onClick={()=>{soundFX.muted=!soundFX.muted;setMuted(soundFX.muted);}}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>} SONIDO {muted?'OFF':'ON'}</button>
       <button type="button" onClick={onExit}><ArrowLeft size={15}/> SALIR</button>
     </section></div>}
-    {snapshot?.roundOver&&<div className="pb-group-result-overlay"><RematchRoster players={fighters} roster={roster} allowCommunity={!!online&&!online.room?.ranked}
+    {snapshot?.roundOver&&resultVisible&&<div className="pb-group-result-overlay"><RematchRoster players={fighters} roster={roster} allowCommunity={!!online&&!online.room?.ranked}
       selectableSeats={online?[mySeat]:[0,1,2,3]}
       onRematch={goRematch} onExit={onExit} requested={requested} votes={votes}
       labels={fighters.map((_,i)=>battleMode==='2V2'?`P${i+1} · ${i%2===0?'ROJO':'AZUL'}`:`JUGADOR ${i+1}`)}

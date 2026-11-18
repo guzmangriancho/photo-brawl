@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MultiFightEngine = void 0;
 const FightEngine_1 = require("./FightEngine");
 const stages_1 = require("../data/stages");
+const SoundFX_1 = require("./SoundFX");
 const LOCATIONS = [150, 810, 375, 585];
 const NEW_STAGES = ['SUNKEN_ATLANTIS', 'SPIRIT_FOREST', 'CELESTIAL_TEMPLE', 'VOLCANIC_FORTRESS'];
 const clearInput = () => ({ left: false, right: false, up: false, down: false, guard: false, light: false, heavy: false, spNeutral: false, spForward: false, spUp: false, superBtn: false, romanCancel: false, dashLeft: false, dashRight: false });
@@ -16,6 +17,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     assists = [0, 0, 0, 0];
     lastDamaged = [[], [], [], []];
     lastKOFrame = [-999, -999, -999, -999];
+    lastKnockout = null;
     eliminatedAt = [-1, -1, -1, -1];
     countdownFrames = 210; // 3, 2, 1 and a short YA! beat, with the arena visible.
     damageDealt = [0, 0, 0, 0];
@@ -85,6 +87,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.assists = [0, 0, 0, 0];
         this.lastDamaged = [[], [], [], []];
         this.lastKOFrame = [-999, -999, -999, -999];
+        this.lastKnockout = null;
         this.respawnAt = [0, 0, 0, 0];
         this.eliminatedAt = [-1, -1, -1, -1];
         this.countdownFrames = 210;
@@ -134,7 +137,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
             .sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x))[0] || this.getFighters().find(o => o !== f) || f;
     }
     shouldRenderFighter(f) {
-        return f.hp > 0 || this.frameCount - this.lastKOFrame[f.index] < 37;
+        return f.hp > 0 || this.frameCount - this.lastKOFrame[f.index] < (this.roundOver ? 95 : 37);
     }
     onDamage(a, b, amount) {
         this.damageDealt[a.index] += Math.max(0, amount);
@@ -167,6 +170,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         if (this.stocks[seat] === 0)
             this.eliminatedAt[seat] = this.frameCount;
         this.lastKOFrame[seat] = this.frameCount;
+        this.lastKnockout = { frame: this.frameCount, winnerSeat: winner.index, loserSeat: seat, eliminated: this.stocks[seat] === 0 };
         for (const hit of this.lastDamaged[seat])
             if (hit.attacker !== winner.index && this.canDamage(this.getFighters()[hit.attacker], loser))
                 this.assists[hit.attacker]++;
@@ -180,12 +184,24 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.shakeIntensity = 10;
         this.announceText = `K.O. · ${winner.profile.fighterName}`;
         this.announceTimer = 72;
+        SoundFX_1.soundFX.koImpact();
         this.checkWinner();
     }
     finish(winnerSeat, team, reason, draw = false) {
         if (this.roundOver)
             return;
         this.roundOver = true;
+        this.endPresentationFrames = 96;
+        if (!draw) {
+            for (const fighter of this.getFighters())
+                if (this.stocks[fighter.index] > 0 &&
+                    (team === null ? fighter.index === winnerSeat : (fighter.index % 2 === (team === 'RED' ? 0 : 1)))) {
+                    fighter.state = 'VICTORY';
+                    fighter.stateFrame = 0;
+                    fighter.currentAttack = null;
+                }
+        }
+        SoundFX_1.soundFX.victoryFanfare();
         this.endReason = reason;
         this.winnerSeat = winnerSeat;
         this.winningTeam = team;
@@ -241,8 +257,10 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     }
     step() {
         this.frameCount++;
-        if (this.roundOver)
+        if (this.roundOver) {
+            this.advanceEndPresentation();
             return;
+        }
         if (this.countdownFrames > 0) {
             this.countdownFrames--;
             // Input held during countdown is not queued or executed at ¡YA!.
@@ -396,6 +414,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
             reason: this.endReason,
             teamKOs: [this.kos[0] + this.kos[2], this.kos[1] + this.kos[3]],
             timeRemaining: Math.max(0, Math.ceil(this.roundTimerFrames / 60)), countdown,
+            lastKnockout: this.lastKnockout,
         };
     }
     getSnapshot() { return { ...super.getSnapshot(), multi: this.getMultiSummary() }; }
@@ -430,6 +449,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
                 if (s.hp <= 0 && this.lastKOFrame[s.seat] < this.frameCount - 37)
                     this.lastKOFrame[s.seat] = this.frameCount;
             });
+            this.lastKnockout = summary.lastKnockout ?? null;
             this.winnerSeat = summary.winnerSeat;
             this.winningTeam = summary.winningTeam;
             this.isDraw = summary.isDraw;
