@@ -35,4 +35,24 @@ async function recordResult({id,hostId,guestId,hostRounds,guestRounds,stage}){
   if(!response.ok){const text=(await response.text()).slice(0,240);throw new Error(`Supabase no aceptó el resultado (${response.status}): ${text}`);}
   return response.json();
 }
-module.exports={available,verifyUser,recordResult};
+/** Only ranked, authenticated four-human rooms may invoke this RPC. */
+async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam}){
+  if(!configured)throw new Error('ELO online no configurado.');
+  if(!uuid.test(id)||!['2V2','FREE_FOR_ALL'].includes(mode)||
+     !Array.isArray(accountIds)||accountIds.length!==4||
+     accountIds.some(a=>!uuid.test(a))||new Set(accountIds).size!==4||
+     !Array.isArray(places)||places.length!==4||places.some(v=>!Number.isInteger(v)||v<1||v>4))
+    throw new Error('Resultado de cuatro jugadores inválido.');
+  if(mode==='2V2' && ![null,'RED','BLUE'].includes(winningTeam))throw new Error('Equipo ganador inválido.');
+  const body={p_match_id:id,p_mode:mode,p_player_ids:accountIds,p_places:places,
+    p_stage:stage,p_winning_team:mode==='2V2'?winningTeam:null};
+  let response;
+  try{response=await fetch(URL_ROOT+'/rest/v1/rpc/record_group_ranked_match',{
+    method:'POST',headers:{apikey:SECRET_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(body),signal:AbortSignal.timeout(9000),
+  });}catch{throw new Error('No se pudo registrar el ELO del combate múltiple.');}
+  if(!response.ok){const detail=(await response.text()).slice(0,220);
+    throw new Error(`Supabase rechazó el ELO de grupos (${response.status}): ${detail}`);}
+  return response.json();
+}
+module.exports={available,verifyUser,recordResult,recordGroupResult};

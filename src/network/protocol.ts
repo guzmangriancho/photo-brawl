@@ -25,7 +25,7 @@ export interface NetworkFighter {
   hp: number; maxHp: number; meter: number; state: FighterState; stateFrame: number;
   hitstunFrames: number; blockstunFrames: number; invincibleFrames: number; projectileCooldownFrames: number;
   lightChainCount: number; comboCount: number; comboDamage: number; comboTimer: number;
-  jumpsRemaining: number; airDashUsed: boolean; hasArmorActive: boolean;
+  jumpsRemaining: number; airDashUsed: boolean; airUpSpecialUsed: boolean; hasArmorActive: boolean;
   currentAttack: Record<string, unknown> | null;
   grabbedBy: number | null; grabSlamTimer: number;
 }

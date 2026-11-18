@@ -44,6 +44,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   const [onlineIssue,setOnlineIssue]=useState('');
   const [requested,setRequested]=useState(false);
   const [votes,setVotes]=useState<boolean[]>([]);
+  const [groupRating,setGroupRating]=useState<{recorded?:boolean;reason?:string;players?:{seat:number;old_rating:number;new_rating:number;delta:number;place:number}[]}|null>(null);
   const [humanP2,setHumanP2]=useState(false);
   const humanP2Ref=useRef(false);
   useEffect(()=>{humanP2Ref.current=humanP2;if(engineRef.current)engineRef.current.localHumanSeats=humanP2?2:1;},[humanP2]);
@@ -63,6 +64,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
     const eng=new MultiFightEngine(fighters,battleMode,stage,difficulty);
     eng.remoteHumanControls=onlineMode;
     eng.localHumanSeats=humanP2Ref.current?2:1;
+    eng.viewerSeat=mySeat;
     engineRef.current=eng;
     void eng.loadAssets();setSnapshot(eng.getSnapshot());
     const unsubscribe=online?[online.on('state',(state:NetworkState)=>{eng.applyNetworkState(state);setSnapshot(state.snapshot);}),
@@ -71,7 +73,8 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       online.on('rematch',(event:{stage?:StageId;fighters?:FighterProfile[]})=>{
         if(event.fighters?.length===4)onRematch(event.fighters,event.stage);
       }),
-      online.on('rematch_vote',(msg:{votes?:boolean[]})=>setVotes(msg.votes||[]))]:[];
+      online.on('rematch_vote',(msg:{votes?:boolean[]})=>setVotes(msg.votes||[])),
+      online.on('ranked_result',(result:typeof groupRating)=>setGroupRating(result))]:[];
     const canvasEl=canvas.current;
     const size=()=>{if(!canvasEl)return;const dpr=Math.min(2,window.devicePixelRatio||1);
       canvasEl.width=Math.round(STAGE_WIDTH*dpr);canvasEl.height=Math.round(STAGE_HEIGHT*dpr);};
@@ -116,6 +119,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
         }
       }
       const ctx=canvasEl?.getContext('2d');if(ctx&&canvasEl){
+        eng.markerScale=Math.max(1,Math.min(2.2,640/Math.max(1,canvasEl.clientWidth)));
         const scale=canvasEl.width/STAGE_WIDTH;ctx.setTransform(scale,0,0,scale,0,0);eng.render(ctx);
       }
       raf=requestAnimationFrame(loop);
@@ -175,7 +179,10 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
                 </div>
                 <div className="pb-group-bottom-line">
                   <span className="pb-group-lives" aria-label={`${lives} vidas restantes`}>
-                    {[0,1,2].map(i=><i key={i} className={i<lives?'is-active':''} aria-hidden="true"/>)}
+                    {[0,1,2].map(i=><svg key={i} className={i<lives?'is-active':'is-lost'}
+                      viewBox="0 0 16 14" aria-hidden="true" focusable="false">
+                      <path d="M2 1H6V3H10V1H14V3H16V8H14V10H12V12H10V14H6V12H4V10H2V8H0V3H2Z"/>
+                    </svg>)}
                   </span>
                   <span className="pb-group-kos" aria-label={`${info?.kos??0} eliminaciones`}>KO {info?.kos??0}</span>
                 </div>
@@ -186,13 +193,16 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       </div>
     </header>
     <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
+      {summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
+        <span key={summary.countdown}>{summary.countdown==='YA'?'¡YA!':summary.countdown}</span>
+      </div>}
       {online&&<span className="pb-group-ping" aria-label="Latencia online">{latency===null?'●':`${latency} ms`}</span>}
       {onlineIssue&&<div className="pb-group-disconnect">{onlineIssue}<button type="button" onClick={onExit}>SALIR</button></div>}
     </div>
     {!snapshot?.roundOver&&<div className="pb-group-touch"><MobileControls inputRef={touch} superReady={(myPlayer?.meter??0)>=100}
       fixedStick={settings.fixed} southpaw={settings.southpaw} opacity={settings.opacity}
       comboStep={0} isFinisherReady={()=>false}
-      getFacing={()=>engineRef.current?.getFighters()[mySeat]?.facing||1}
+      manualAim getFacing={()=>engineRef.current?.getFighters()[mySeat]?.facing||1}
       onAction={slot=>{if(online)online.sendAction(slot);else engineRef.current?.queueTouchAction(slot);}}
       onDash={dir=>{if(online)online.sendDash(dir);else engineRef.current?.queueTouchDash(dir);}}
       onJump={()=>{if(online)online.sendJump();else engineRef.current?.queueTouchJump();}}/></div>}
@@ -210,6 +220,12 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       title={summary?.isDraw?'EMPATE':summary?.winningTeam?`GANA EQUIPO ${summary.winningTeam==='RED'?'ROJO':'AZUL'}`:
         summary?.winnerSeat!=null?`GANA ${fighters[summary.winnerSeat].fighterName}`:'FIN DEL COMBATE'}
       detail={<div className="pb-group-score"><span>{summary?.reason==='TIME'?'FIN DEL TIEMPO':'VICTORIA POR KO'}</span>
+        <div className="pb-group-placements">{summary?.players.slice().sort((a,b)=>(a.place??5)-(b.place??5)).map(p=><small key={p.seat}>
+          {p.place ? `#${p.place}` : '—'} · P{p.seat+1} · {p.name}</small>)}</div>
+        {online?.room?.ranked&&<div className="pb-group-elo" aria-live="polite">{groupRating?.recorded ?
+          groupRating.players?.map(p=><small key={p.seat}>P{p.seat+1} · ELO {p.old_rating} → {p.new_rating}
+            <b className={p.delta>=0?'is-plus':'is-minus'}>{p.delta>=0?'+':''}{p.delta}</b></small>)
+          :<small>{groupRating?.reason==='duplicate'?'RESULTADO YA REGISTRADO':groupRating?.reason==='server_error'?'ERROR AL REGISTRAR ELO':'REGISTRANDO ELO…'}</small>}</div>}
         {battleMode==='2V2'&&<strong className="pb-group-team-score">ROJO {summary?.teamKOs[0]??0} KO · AZUL {summary?.teamKOs[1]??0} KO</strong>}
         <div>{summary?.players.map(p=><small key={p.seat}>P{p.seat+1}: {p.kos} KO · {p.assists} ASIST. · {p.deaths} CAÍDAS · {p.stocks} VIDAS · {Math.round(p.damageDealt)} DAÑO</small>)}</div></div>}/></div>}
   </main>;

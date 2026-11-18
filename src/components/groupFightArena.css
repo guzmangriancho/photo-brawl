@@ -47,7 +47,7 @@
 .pb-group-super-ring.is-ready { border-color: #ffef9c; box-shadow: 0 0 0 1px #c38b3f,2px 2px 0 #020713; }
 .pb-group-super-ring.is-ready > i.is-filled { background: #ffd15b; box-shadow: inset 1px 1px 0 #fff6a7; }
 .pb-group-super-ring > img {
-  position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px);
+  position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
   display: block; object-fit: cover; object-position: center 35%; image-rendering: pixelated;
   border: 1px solid #d6e7f0; background: #1c304b;
 }
@@ -77,11 +77,9 @@
 .pb-group-health.is-critical { color: #ff7487; }
 .pb-group-bottom-line { min-width: 0; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .pb-group-lives { flex: none; display: inline-flex; gap: 2px; }
-.pb-group-lives i {
-  display: block; width: 6px; height: 7px; background: #263a51;
-  border: 1px solid #506982; box-shadow: 1px 1px #020916;
-}
-.pb-group-lives i.is-active { background: #ffcc61; border-color: #fff0a8; }
+.pb-group-lives svg { width: 11px; height: 10px; flex: none; image-rendering: pixelated; filter: drop-shadow(1px 1px #030714); }
+.pb-group-lives svg.is-active { fill: #f34e63; }
+.pb-group-lives svg.is-lost { fill: #10131d; stroke: #4b5260; stroke-width: .9; }
 .pb-group-kos { color: #a9d2e9; font: 700 10px/1 'Pixelify Sans',monospace; }
 .pb-group-clock {
   min-width: 0; align-self: center; display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -143,13 +141,13 @@
   .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 54px repeat(2,minmax(0,1fr)); gap: 3px; }
   .pb-group-player { flex-direction: column; gap: 1px; padding: 2px 1px; height: 82px; }
   .pb-group-face { width: 39px; height: 39px; }
-  .pb-group-super-ring > img { inset: 7px; width: calc(100% - 14px); height: calc(100% - 14px); }
+  .pb-group-super-ring > img { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
   .pb-group-info { width: 100%; flex: 0 0 auto; align-items: center; gap: 0; }
   .pb-group-name { max-width: 100%; font-size: 10px; line-height: 1.1; }
   .pb-group-health { font-size: 17px; line-height: 1; }
   .pb-group-bottom-line { justify-content: center; gap: 3px; }
   .pb-group-lives { gap: 1px; }
-  .pb-group-lives i { width: 5px; height: 5px; }
+  .pb-group-lives svg { width: 8px; height: 8px; }
   .pb-group-kos { font-size: 8px; }
   .pb-group-clock-time { min-height: 33px; font-size: 19px; }
   .pb-group-clock-caption { font-size: 9px; }
@@ -169,7 +167,7 @@
   .pb-group-hud { padding-top: 3px; padding-bottom: 3px; }
   .pb-group-player { height: calc(var(--group-hud-height) - 10px); }
   .pb-group-face { width: clamp(35px,11dvh,47px); height: clamp(35px,11dvh,47px); }
-  .pb-group-super-ring > img { inset: 7px; width: calc(100% - 14px); height: calc(100% - 14px); }
+  .pb-group-super-ring > img { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
   .pb-group-stage { flex: 0 1 auto; height: calc(100dvh - var(--group-hud-height)); max-height: calc(100dvh - var(--group-hud-height)); width: auto; max-width: 100%; margin: auto; }
   .pb-group-touch { position: absolute; inset: var(--group-hud-height) 0 0; z-index: 5; pointer-events: none; }
   .pb-group-touch .mobile-controls { pointer-events: none; }
@@ -206,3 +204,21 @@
 @media (orientation: portrait) and (max-width: 345px) {
   .pb-group-touch .mobile-super-center { right: calc(max(11px,env(safe-area-inset-right)) + 72px); }
 }
+
+/* V39: keep the background visible during a real server-synchronized countdown. */
+.pb-group-countdown {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  pointer-events: none; z-index: 4;
+}
+.pb-group-countdown > span {
+  font: 900 clamp(36px,10vh,75px)/1 'Press Start 2P',monospace;
+  color: #fff0a5; text-shadow: 4px 4px #0a122b,-3px -3px #0a122b,0 0 18px #e6a64a;
+  animation: pb-count-pop 420ms steps(4,end) both;
+}
+@keyframes pb-count-pop { from { transform: scale(1.45);opacity: .65; } to { transform: scale(1);opacity: 1; } }
+.pb-group-placements { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
+.pb-group-placements small { color: #ffe1a0; }
+.pb-group-elo { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; padding: 4px; border: 1px solid #526f9b; background: #101d32; }
+.pb-group-elo small { font-size: 9px; color: #cbe5f5; }
+.pb-group-elo b { margin-left: 5px; }
+.pb-group-elo .is-plus {color:#89ffb0;} .pb-group-elo .is-minus {color:#ff8e9b;}

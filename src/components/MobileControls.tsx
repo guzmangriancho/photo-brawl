@@ -10,6 +10,8 @@ interface MobileControlsProps {
   comboStep: number;
   isFinisherReady: () => boolean;
   getFacing: () => 1 | -1;
+  /** Group bouts aim with the stick: any held horizontal is forward. */
+  manualAim?: boolean;
   onAction: (slot: MoveSlot) => void;
   onDash: (dir: 1 | -1) => void;
   onJump: () => void;
@@ -37,7 +39,7 @@ type ActiveStick = {
  */
 export const MobileControls: React.FC<MobileControlsProps> = ({
   inputRef, superReady, fixedStick, southpaw, opacity, comboStep,
-  isFinisherReady, getFacing, onAction, onDash, onJump,
+  isFinisherReady, getFacing, manualAim = false, onAction, onDash, onJump,
 }) => {
   const activeStick = useRef<ActiveStick | null>(null);
   const buttonPointers = useRef<Partial<Record<ButtonId, number>>>({});
@@ -123,8 +125,9 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     }
   };
 
-  const isForward = () => (getFacing() === 1 && padRef.current.right) ||
-                          (getFacing() === -1 && padRef.current.left);
+  const isForward = () => manualAim
+    ? padRef.current.left !== padRef.current.right
+    : (getFacing() === 1 && padRef.current.right) || (getFacing() === -1 && padRef.current.left);
   const techniqueSlot = (): MoveSlot => padRef.current.up ? 'SP_UP' :
     isForward() ? 'SP_FORWARD' : 'SP_NEUTRAL';
   const strikeSlot = (): MoveSlot => padRef.current.down ? 'LOW' :
@@ -189,7 +192,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
     onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault(),
   });
 
-  const forwardHeld = (getFacing() === 1 && pad.right) || (getFacing() === -1 && pad.left);
+  const forwardHeld = manualAim ? pad.left !== pad.right : (getFacing() === 1 && pad.right) || (getFacing() === -1 && pad.left);
   const strikeLabel = pad.down ? 'BAJO' : forwardHeld ? 'AVANCE' :
     chargedHold ? 'FUERTE' : comboStep >= 2 ? '¡REMATA!' : comboStep === 1 ? '¡SIGUE!' : 'TAP / HOLD';
   const skillLabel = pad.up ? 'ANTIAÉREO' :

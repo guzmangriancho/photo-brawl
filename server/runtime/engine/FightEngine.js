@@ -115,6 +115,7 @@ class FightEngine {
             invincibleFrames: 0,
             jumpsRemaining: profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1,
             airDashUsed: false,
+            airUpSpecialUsed: false,
             dropThroughFrames: 0,
             lightChainCount: 0,
             comboCount: 0,
@@ -144,6 +145,10 @@ class FightEngine {
     getFighters() { return [this.p1, this.p2]; }
     getInputFor(index) { return index === 0 ? this.p1Input : this.p2Input; }
     getFighterByIndex(index) { return index === 0 ? this.p1 : this.p2; }
+    /** 1v1 faces the opponent automatically. Group combat follows the player joystick. */
+    usesAutomaticFacing() { return true; }
+    /** Render hook for tiny player/team identification marks in four-player modes. */
+    drawFighterIndicator(_ctx, _fighter) { }
     async loadAssets() {
         const [img1, img2] = await Promise.all([
             (0, SpriteProcessor_1.loadImage)(this.p1.profile.spriteSheetDataUrl).catch(() => null),
@@ -286,7 +291,7 @@ class FightEngine {
             blockstunFrames: f.blockstunFrames, invincibleFrames: f.invincibleFrames,
             projectileCooldownFrames: f.projectileCooldownFrames,
             lightChainCount: f.lightChainCount, comboCount: f.comboCount, comboDamage: f.comboDamage,
-            comboTimer: f.comboTimer, jumpsRemaining: f.jumpsRemaining, airDashUsed: f.airDashUsed,
+            comboTimer: f.comboTimer, jumpsRemaining: f.jumpsRemaining, airDashUsed: f.airDashUsed, airUpSpecialUsed: f.airUpSpecialUsed,
             hasArmorActive: f.hasArmorActive, currentAttack: f.currentAttack,
             grabbedBy: f.grabbedBy, grabSlamTimer: f.grabSlamTimer,
         });
@@ -523,7 +528,7 @@ class FightEngine {
         return 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
     }
     getGravity(f) {
-        return f.profile.archetype === 'GRAPPLER_TANK' ? 0.78 : 0.68;
+        return f.profile.archetype === 'GRAPPLER_TANK' ? ((0, stages_1.getLargeArena)(this.stage) ? 0.72 : 0.78) : 0.68;
     }
     getPowerMultiplier(f) {
         return 0.85 + ((f.profile.stats.power - 15) / 20) * 0.45;
@@ -609,7 +614,10 @@ class FightEngine {
             f.bufferedActions = [];
             f.bufferedDash = null;
         }
-        if (grounded &&
+        if (!this.usesAutomaticFacing() && input.left !== input.right && f.grabbedBy === null) {
+            f.facing = input.right ? 1 : -1;
+        }
+        if (this.usesAutomaticFacing() && grounded &&
             !this.roundOver &&
             (f.state === 'IDLE' ||
                 f.state === 'CROUCH' ||
@@ -791,7 +799,7 @@ class FightEngine {
         else if (!input.guard && (upPressed || queuedJump) && f.jumpsRemaining > 0 && !pureDown) {
             f.bufferedJumpFrame = null;
             // A little more reach for big multi-tier arenas; even tanks can reach the first tier.
-            const stageJump = (0, stages_1.getLargeArena)(this.stage) ? 1.22 : 1;
+            const stageJump = (0, stages_1.getLargeArena)(this.stage) ? (f.profile.archetype === 'GRAPPLER_TANK' ? 1.27 : 1.10) : 1;
             f.vy = (f.profile.archetype === 'GRAPPLER_TANK' ? -13.2 : -14.8) * stageJump;
             f.y -= 2;
             f.jumpsRemaining--;
@@ -867,6 +875,7 @@ class FightEngine {
                 if (!wasSupported) {
                     f.jumpsRemaining = f.profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1;
                     f.airDashUsed = false;
+                    f.airUpSpecialUsed = false;
                     this.spawnDust(f.x, f.y, 5);
                     if (f.state === 'JUMP') {
                         f.state = 'IDLE';
@@ -897,6 +906,7 @@ class FightEngine {
             if (wasAirborne) {
                 f.jumpsRemaining = f.profile.passiveTrait === 'DOUBLE_JUMP' ? 2 : 1;
                 f.airDashUsed = false;
+                f.airUpSpecialUsed = false;
                 this.spawnDust(f.x, exports.FLOOR_Y, 5);
                 if (f.state === 'JUMP') {
                     f.state = 'IDLE';
@@ -943,6 +953,11 @@ class FightEngine {
         }
         if (current === 'LIGHT' || current === 'HEAVY' || current === 'LOW' || current === 'RUSH') {
             if (next === 'SP_UP' || next === 'SP_FORWARD' || next === 'SP_NEUTRAL') {
+                // Never allow another rising special before the fighter lands again.
+                if (next === 'SP_UP' && f.airUpSpecialUsed && !this.isGrounded(f)) {
+                    f.bufferedActions.shift();
+                    return false;
+                }
                 if (next === 'SP_NEUTRAL' &&
                     (f.projectileCooldownFrames > 0 ||
                         (f.profile.moveset.specialNeutral.mechanic !== 'SHORT_SHOTGUN_BLAST' && this.projectiles.some(p => p.ownerIndex === f.index)))) {
@@ -970,6 +985,8 @@ class FightEngine {
         const next = this.takeCommand(f);
         if (!next)
             return false;
+        if (next === 'SP_UP' && f.airUpSpecialUsed && !this.isGrounded(f))
+            return false;
         if (next === 'SP_NEUTRAL' &&
             (f.projectileCooldownFrames > 0 ||
                 (f.profile.moveset.specialNeutral.mechanic !== 'SHORT_SHOTGUN_BLAST' && this.projectiles.some(p => p.ownerIndex === f.index))))
@@ -980,7 +997,8 @@ class FightEngine {
         return true;
     }
     startMove(f, opp, slot) {
-        f.facing = opp.x >= f.x ? 1 : -1;
+        if (this.usesAutomaticFacing())
+            f.facing = opp.x >= f.x ? 1 : -1;
         f.state = 'ATTACK';
         f.stateFrame = 0;
         f.hasArmorActive = false;
@@ -1124,7 +1142,8 @@ class FightEngine {
             if (isTeleport) {
                 this.spawnHitSparks(f.x, f.y - 75, '#a855f7', 16);
                 f.x = Math.max(WALL_MARGIN + 20, Math.min(exports.STAGE_WIDTH - WALL_MARGIN - 20, opp.x + opp.facing * -72));
-                f.facing = opp.x >= f.x ? 1 : -1;
+                if (this.usesAutomaticFacing())
+                    f.facing = opp.x >= f.x ? 1 : -1;
                 this.spawnHitSparks(f.x, f.y - 75, '#a855f7', 16);
                 SoundFX_1.soundFX.dash();
             }
@@ -1156,6 +1175,7 @@ class FightEngine {
             };
         }
         else if (slot === 'SP_UP') {
+            f.airUpSpecialUsed = true;
             const mech = f.profile.moveset.specialUp.mechanic;
             const isInvincible = mech === 'INVINCIBLE_UPPERCUT';
             const isDive = mech === 'DIVE_KICK_FROM_AIR';
@@ -2194,6 +2214,7 @@ class FightEngine {
         }
         for (const fighter of this.getFighters().filter(f => this.shouldRenderFighter(f)).sort((a, b) => Number(a.state === 'ATTACK') - Number(b.state === 'ATTACK'))) {
             this.renderFighter(ctx, fighter);
+            this.drawFighterIndicator(ctx, fighter);
         }
         for (const p of this.projectiles) {
             this.renderProjectile(ctx, p);

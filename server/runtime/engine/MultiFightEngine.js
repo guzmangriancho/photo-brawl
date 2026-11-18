@@ -16,6 +16,8 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     assists = [0, 0, 0, 0];
     lastDamaged = [[], [], [], []];
     lastKOFrame = [-999, -999, -999, -999];
+    eliminatedAt = [-1, -1, -1, -1];
+    countdownFrames = 210; // 3, 2, 1 and a short YA! beat, with the arena visible.
     damageDealt = [0, 0, 0, 0];
     respawnAt = [0, 0, 0, 0];
     winnerSeat = null;
@@ -37,8 +39,10 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
             this.createFighterRuntime(3, profiles[3], LOCATIONS[3], -1)];
         this.roundTimerFrames = 4 * 60 * 60;
         this.announceText = battleMode === '2V2' ? '¡EQUIPOS LISTOS!' : '¡TODOS CONTRA TODOS!';
-        this.announceTimer = 90;
+        this.announceTimer = 0;
+        this.announceText = null;
     }
+    usesAutomaticFacing() { return false; }
     getFighters() { return [this.p1, this.p2, ...this.extras]; }
     getInputFor(index) { return this.inputs[index] || clearInput(); }
     getFighterByIndex(index) { return this.getFighters()[index] || this.p1; }
@@ -82,6 +86,8 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.lastDamaged = [[], [], [], []];
         this.lastKOFrame = [-999, -999, -999, -999];
         this.respawnAt = [0, 0, 0, 0];
+        this.eliminatedAt = [-1, -1, -1, -1];
+        this.countdownFrames = 210;
         this.winnerSeat = null;
         this.winningTeam = null;
         this.isDraw = false;
@@ -94,12 +100,12 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.winnerName = null;
         this.roundBreakFrames = 0;
         this.roundIntroFrames = 0;
-        this.announceText = '¡COMBATE!';
-        this.announceTimer = 70;
+        this.announceText = null;
+        this.announceTimer = 0;
     }
     queueNetworkAction(index, slot) {
         const f = this.getFighters()[index];
-        if (!f || this.roundOver || this.stocks[index] === 0 || this.respawnAt[index])
+        if (!f || this.roundOver || this.countdownFrames > 0 || this.stocks[index] === 0 || this.respawnAt[index])
             return;
         if (slot === 'SUPER' && f.meter < 100)
             return;
@@ -109,12 +115,12 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     }
     queueNetworkJump(index) {
         const f = this.getFighters()[index];
-        if (f && !this.roundOver && this.stocks[index] > 0 && !this.respawnAt[index])
+        if (f && !this.roundOver && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
             f.bufferedJumpFrame = this.frameCount;
     }
     queueNetworkDash(index, dir) {
         const f = this.getFighters()[index];
-        if (f && !this.roundOver && this.stocks[index] > 0 && !this.respawnAt[index])
+        if (f && !this.roundOver && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
             f.bufferedDash = { dir, frame: this.frameCount };
     }
     setSeatInput(index, input) {
@@ -158,6 +164,8 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.stocks[seat]--;
         this.deaths[seat]++;
         this.kos[winner.index]++;
+        if (this.stocks[seat] === 0)
+            this.eliminatedAt[seat] = this.frameCount;
         this.lastKOFrame[seat] = this.frameCount;
         for (const hit of this.lastDamaged[seat])
             if (hit.attacker !== winner.index && this.canDamage(this.getFighters()[hit.attacker], loser))
@@ -235,6 +243,16 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         this.frameCount++;
         if (this.roundOver)
             return;
+        if (this.countdownFrames > 0) {
+            this.countdownFrames--;
+            // Input held during countdown is not queued or executed at ¡YA!.
+            this.inputs.forEach((_, i) => {
+                this.getFighters()[i].bufferedActions = [];
+                this.getFighters()[i].bufferedJumpFrame = null;
+                this.getFighters()[i].bufferedDash = null;
+            });
+            return;
+        }
         if (this.announceTimer > 0)
             this.announceTimer--;
         if (this.shakeIntensity > 0)
@@ -299,19 +317,85 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         for (const f of this.getFighters())
             f.prevInput = { ...this.inputs[f.index] };
     }
+    /** Ranks are only final after a KO/timeout. Tied exits share a placement. */
+    placements() {
+        if (!this.roundOver)
+            return [-1, -1, -1, -1];
+        if (this.battleMode === '2V2')
+            return this.isDraw ? [1, 1, 1, 1] :
+                this.winningTeam === 'RED' ? [1, 2, 1, 2] : [2, 1, 2, 1];
+        const fs = this.getFighters();
+        const compare = (a, b) => {
+            if (this.endReason === 'TIME') {
+                if (this.stocks[a] !== this.stocks[b])
+                    return this.stocks[b] - this.stocks[a];
+                if (this.stocks[a] > 0) {
+                    const hpA = fs[a].hp / Math.max(1, fs[a].maxHp), hpB = fs[b].hp / Math.max(1, fs[b].maxHp);
+                    if (Math.abs(hpA - hpB) > 0.0001)
+                        return hpB - hpA;
+                }
+            }
+            else if ((this.stocks[a] > 0) !== (this.stocks[b] > 0))
+                return this.stocks[a] > 0 ? -1 : 1;
+            return this.eliminatedAt[b] - this.eliminatedAt[a];
+        };
+        const order = [0, 1, 2, 3].sort(compare);
+        const result = [0, 0, 0, 0];
+        order.forEach((seat, i) => {
+            result[seat] = i > 0 && compare(order[i - 1], seat) === 0 ? result[order[i - 1]] : i + 1;
+        });
+        return result;
+    }
+    drawFighterIndicator(ctx, f) {
+        if (f.hp <= 0)
+            return;
+        const colors = this.battleMode === '2V2' ? ['#ff626b', '#6bbefb', '#ff626b', '#6bbefb'] :
+            ['#ff686e', '#5dbdff', '#ce9aff', '#7de7a7'];
+        const scale = this.markerScale;
+        const x = Math.round(f.x), y = Math.round(f.y - f.hurtbox.height - 14 * scale), c = colors[f.index];
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.imageSmoothingEnabled = false;
+        // Pixel-art pointer, 14×12 world units, follows the fighter through zoom and jumps.
+        ctx.fillStyle = '#020815';
+        ctx.fillRect(-8, -6, 16, 12);
+        ctx.fillStyle = c;
+        ctx.fillRect(-7, -5, 14, 9);
+        ctx.fillStyle = '#fff5d3';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(f.index + 1), 0, -0.5);
+        ctx.fillStyle = c;
+        ctx.fillRect(-2, 6, 4, 3);
+        if (f.index === this.viewerSeat) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-9, -7, 3, 3);
+            ctx.fillRect(6, -7, 3, 3);
+        }
+        ctx.restore();
+    }
+    /** Local P1 / the connected online seat receives white identification corners. */
+    viewerSeat = 0;
+    /** Keep tiny markers readable even when the 960px world is fitted into portrait. */
+    markerScale = 1;
     getMultiSummary() {
         const fs = this.getFighters();
+        const places = this.placements();
+        const countdown = this.countdownFrames > 30 ? String(Math.ceil((this.countdownFrames - 30) / 60)) : this.countdownFrames > 0 ? 'YA' : null;
         return {
             mode: this.battleMode,
             players: fs.map(f => ({ seat: f.index, team: this.battleMode === '2V2' ? (f.index % 2 === 0 ? 'RED' : 'BLUE') : null,
                 name: f.profile.fighterName, hp: f.hp, maxHp: f.maxHp, meter: Math.floor(f.meter),
                 stocks: this.stocks[f.index], kos: this.kos[f.index], deaths: this.deaths[f.index], assists: this.assists[f.index],
                 damageDealt: this.damageDealt[f.index], eliminated: this.stocks[f.index] === 0,
-                respawnIn: this.respawnAt[f.index] > 0 ? Math.max(0, Math.ceil((this.respawnAt[f.index] - this.frameCount) / 60)) : 0 })),
+                respawnIn: this.respawnAt[f.index] > 0 ? Math.max(0, Math.ceil((this.respawnAt[f.index] - this.frameCount) / 60)) : 0,
+                place: places[f.index] > 0 ? places[f.index] : null })),
             winnerSeat: this.winnerSeat, winningTeam: this.winningTeam, isDraw: this.isDraw,
             reason: this.endReason,
             teamKOs: [this.kos[0] + this.kos[2], this.kos[1] + this.kos[3]],
-            timeRemaining: Math.max(0, Math.ceil(this.roundTimerFrames / 60)),
+            timeRemaining: Math.max(0, Math.ceil(this.roundTimerFrames / 60)), countdown,
         };
     }
     getSnapshot() { return { ...super.getSnapshot(), multi: this.getMultiSummary() }; }
@@ -322,7 +406,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
             state: f.state, stateFrame: f.stateFrame, hitstunFrames: f.hitstunFrames, blockstunFrames: f.blockstunFrames,
             invincibleFrames: f.invincibleFrames, projectileCooldownFrames: f.projectileCooldownFrames,
             lightChainCount: f.lightChainCount, comboCount: f.comboCount, comboDamage: f.comboDamage, comboTimer: f.comboTimer,
-            jumpsRemaining: f.jumpsRemaining, airDashUsed: f.airDashUsed, hasArmorActive: f.hasArmorActive,
+            jumpsRemaining: f.jumpsRemaining, airDashUsed: f.airDashUsed, airUpSpecialUsed: f.airUpSpecialUsed, hasArmorActive: f.hasArmorActive,
             currentAttack: f.currentAttack, grabbedBy: f.grabbedBy, grabSlamTimer: f.grabSlamTimer,
         });
         return { ...base, snapshot: this.getSnapshot(), fighters: this.getFighters().map(fields) };
@@ -334,6 +418,8 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
         }
         if (state.snapshot.multi) {
             const summary = state.snapshot.multi;
+            // Snapshot countdown controls the client overlay; local engine never advances an online round.
+            this.countdownFrames = summary.countdown === '3' ? 210 : summary.countdown === '2' ? 150 : summary.countdown === '1' ? 90 : summary.countdown === 'YA' ? 30 : 0;
             summary.players.forEach(s => {
                 this.stocks[s.seat] = s.stocks;
                 this.kos[s.seat] = s.kos;

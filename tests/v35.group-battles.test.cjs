@@ -69,7 +69,7 @@ test('reconnect state replication preserves four actors and tournament score',()
  assert.equal(peer.getFighters()[2].x,371);assert.equal(peer.getMultiSummary().players[3].stocks,2);
  assert.equal(peer.getMultiSummary().players[0].kos,1);
 });
-test('four-player lobbies validate capacity, team swaps, stage whitelist and no ELO',()=>{
+test('four-player lobbies validate capacity, team swaps, stage whitelist and ranked configuration',()=>{
  const makePeer=()=>({messages:[],send(m){this.messages.push(m);return true;},close(){}});
  const peers=Array.from({length:5},makePeer);
  group.handle(peers[0],{type:'create',profile:profile(0),battleMode:'2V2',stage:stages[0]});
@@ -84,7 +84,7 @@ test('four-player lobbies validate capacity, team swaps, stage whitelist and no 
  assert.deepEqual(room.players.map(p=>p.ready),[false,false,false,false]);
  group.handle(peers[0],{type:'leave'});assert.equal(group.rooms.has(code),false);
  const forbidden=makePeer();group.handle(forbidden,{type:'create',profile:profile(1),ranked:true,battleMode:'2V2'});
- assert.equal(forbidden.room,undefined);assert.match(forbidden.messages.at(-1).message,/clasificatorios/);
+ assert.equal(forbidden.room,undefined);assert.match(forbidden.messages.at(-1).message,/ELO no configurado/);
 });
 test('UI exposes new modes, 4-seat result and reusable fighter-switch rematch',()=>{
  const read=path=>fs.readFileSync(require('node:path').join(__dirname,'..',path),'utf8');

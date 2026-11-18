@@ -175,7 +175,6 @@ export class OnlineSession {
   static async create(profile:FighterProfile,stage:StageId,ranked=false,battleMode?:GroupBattleMode):Promise<OnlineSession>{
     const accessToken=ranked?await getOnlineAccessToken():null;
     if(ranked&&!accessToken)throw new Error('Inicia sesión en CUENTA para crear una sala clasificatoria.');
-    if(battleMode&&ranked)throw new Error('El 2v2 y FFA no son clasificatorios.');
     const s=new OnlineSession();await s.connect({type:'create',profile,stage,ranked,accessToken,battleMode});return s;
   }
   static async join(code:string,profile:FighterProfile):Promise<OnlineSession>{
