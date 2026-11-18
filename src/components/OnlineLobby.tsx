@@ -6,10 +6,12 @@ import type { RoomView } from '../network/protocol';
 import { OnlineSession } from '../network/OnlineSession';
 import { usePlayerAccount } from '../services/usePlayerAccount';
 import { supabaseConfigured } from '../services/supabaseClient';
+import { PublishedFighterPicker } from './PublishedFighterPicker';
+import { ensureRankedOwnFighter } from '../services/publishedFighters';
 import './online.css';
 
 interface Props {
-  fighter: FighterProfile; fighters: FighterProfile[]; stage: StageId;
+  fighter: FighterProfile|null; fighters: FighterProfile[]; stage: StageId;
   session: OnlineSession|null; room: RoomView|null; externalError?:string;
   onSession: (s:OnlineSession|null)=>void; onFighterChange:(fighter:FighterProfile)=>void; onClose:()=>void;
 }
@@ -23,6 +25,7 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
   const [battleMode,setBattleMode]=useState<'1V1'|GroupBattleMode>('1V1');
   const [pickerOpen,setPickerOpen]=useState(false);
   const [fighterPage,setFighterPage]=useState(0);
+  const [source,setSource]=useState<'OWN'|'PUBLIC'>('OWN');
   const {user}=usePlayerAccount();
   useEffect(()=>{
     if(room?.status!=='countdown'||!room.countdownEndsAt)return;
@@ -31,28 +34,39 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
   },[room?.status,room?.countdownEndsAt]);
   const creating=async(isHost:boolean)=>{
     if(busy)return;
+    if(!fighter){setError('Primero elige un luchador propio o uno publicado en la comunidad.');setPickerOpen(true);return;}
+    if(ranked&&fighter.id.startsWith('community_')){setError('En clasificatorias solo puedes competir con tus propios luchadores.');setPickerOpen(true);setSource('OWN');return;}
     if(!isHost&&code.replace(/[^A-Za-z0-9]/g,'').length!==6){setError('Introduce un código de 6 caracteres.');return;}
     setBusy(true);setError('');
     try{
+      if((isHost&&ranked)||(!isHost&&ranked&&user))await ensureRankedOwnFighter(fighter);
       const next=isHost?await OnlineSession.create(fighter,battleMode==='1V1'?stage:(LARGE_ARENA_IDS.includes(stage)?stage:LARGE_ARENA_IDS[0]),ranked,battleMode==='1V1'?undefined:battleMode):await OnlineSession.join(code,fighter);
       onSession(next);
     }catch(e){setError(e instanceof Error?e.message:'No se pudo abrir la sala.');}
     finally{setBusy(false);}
   };
   const myReady=room ? room.players?!!room.players.find(p=>p.seat===room.slot)?.ready:(room.role==='host'?room.host.ready:room.guest?.ready) : false;
-  const ownFighterId=fighter.id;
+  const ownFighterId=fighter?.id;
+  const effectiveRanked=room?.ranked??ranked;
   const availableFighters=fighters.filter(item=>!item.isPreset&&!item.id.startsWith('preset_'));
-  const canChangeFighter=!!room&&(room.status==='waiting'||room.status==='countdown');
+  const canChangeFighter=!room||room.status==='waiting'||room.status==='countdown';
   const fighterPageCount=Math.max(1,Math.ceil(availableFighters.length/6));
   const visibleFighters=availableFighters.slice(Math.min(fighterPage,fighterPageCount-1)*6,(Math.min(fighterPage,fighterPageCount-1)+1)*6);
   useEffect(()=>{if(!canChangeFighter)setPickerOpen(false);},[canChangeFighter]);
-  const chooseFighter=(next:FighterProfile)=>{
-    if(!canChangeFighter||next.id===ownFighterId)return;
-    setError('');
-    session?.choose(next);
-    onFighterChange(next);
-    setPickerOpen(false);
+  const chooseFighter=async(next:FighterProfile)=>{
+    if(busy||!canChangeFighter||next.id===ownFighterId)return;
+    if(effectiveRanked&&next.id.startsWith('community_')){setError('Clasificatorio: solo luchadores propios.');return;}
+    setError('');setBusy(true);
+    try{
+      if(effectiveRanked)await ensureRankedOwnFighter(next);
+      if(room)session?.choose(next);
+      onFighterChange(next);setPickerOpen(false);
+    }catch(err){setError(err instanceof Error?err.message:'No se pudo preparar el luchador.');}
+    finally{setBusy(false);}
   };
+  useEffect(()=>{if(room)setRanked(room.ranked===true);},[room?.ranked]);
+  useEffect(()=>{if(effectiveRanked)setSource('OWN');},[effectiveRanked]);
+  const openPicker=()=>{setFighterPage(0);setSource('OWN');setPickerOpen(true);};
   const copy=async()=>{
     const text=room?.code||'';
     try{await navigator.clipboard.writeText(text);setCopied(true);}catch{setCode(text);setError('Selecciona el código para copiarlo.');}
@@ -69,15 +83,16 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
     <section className="pb-online-dialog pb-frame" role="dialog" aria-modal="true" aria-label="Sala online">
       <div className="pb-online-head"><div><span>VERSUS PRIVADO · EN DIRECTO</span><h2><Globe2 size={21}/> SALA ONLINE</h2></div><button type="button" aria-label="Cerrar" onClick={onClose}><X size={19}/></button></div>
       {!room ? <div className="pb-online-setup">
-        <div className="pb-online-identity"><img src={fighter.portraitDataUrl} alt=""/><div><small>TU LUCHADOR</small><strong>{fighter.fighterName}</strong><span>Elige amistoso o clasificatorio. Ambos modos son privados por código.</span></div></div>
+        <div className="pb-online-identity"><button type="button" className="pb-online-identity-avatar" onClick={openPicker} aria-label="Elegir luchador" title="Elegir luchador">
+          {fighter?<img src={fighter?.portraitDataUrl||''} alt=""/>:<Gamepad2 size={28}/>}</button><div><small>{fighter?.id.startsWith('community_')?'COMUNIDAD · AMISTOSO':'TU LUCHADOR'}</small><strong>{fighter?.fighterName||'ELIGE LUCHADOR'}</strong><span>Toca el retrato para elegir entre tus luchadores y los publicados (solo amistosos).</span></div></div>
         <div className="pb-online-format" role="group" aria-label="Formato de combate">
           {([['1V1','1 VS 1'],['2V2','2 VS 2'],['FREE_FOR_ALL','FREE FOR ALL']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={battleMode===id} className={battleMode===id?'on':''}
             onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{label}</button>)}
         </div>
-        <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={!user||!supabaseConfigured} onClick={()=>setRanked(true)}>CLASIFICATORIO</button></div>
+        <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={!user||!supabaseConfigured} onClick={()=>{setRanked(true);if(fighter?.id.startsWith('community_')){if(availableFighters[0])onFighterChange(availableFighters[0]);setError('En clasificatorio debes elegir un luchador propio.');setPickerOpen(true);}}}>CLASIFICATORIO</button></div>
         {!user&&<small className="pb-online-ranked-help">Para jugar clasificatorias, inicia sesión desde CUENTA. Puedes unirte a salas amistosas sin cuenta.</small>}
-        <button type="button" className="pb-online-primary" disabled={busy} onClick={()=>creating(true)}><UsersRound size={20}/> CREAR SALA</button>
-        <div className="pb-online-join"><label htmlFor="pb-room-code">CÓDIGO DE INVITACIÓN</label><div><input id="pb-room-code" maxLength={6} value={code} autoComplete="off" spellCheck={false} placeholder="ABC234" onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))}/><button type="button" disabled={busy} onClick={()=>creating(false)}><Link size={16}/> UNIRSE</button></div></div>
+        <button type="button" className="pb-online-primary" disabled={busy||!fighter} onClick={()=>creating(true)}><UsersRound size={20}/> CREAR SALA</button>
+        <div className="pb-online-join"><label htmlFor="pb-room-code">CÓDIGO DE INVITACIÓN</label><div><input id="pb-room-code" maxLength={6} value={code} autoComplete="off" spellCheck={false} placeholder="ABC234" onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))}/><button type="button" disabled={busy||!fighter} onClick={()=>creating(false)}><Link size={16}/> UNIRSE</button></div></div>
         {busy&&<p className="pb-online-message"><Loader2 size={15}/> Conectando al servidor…</p>}
       </div> : <div className="pb-online-ready">
         <div className="pb-online-code"><small>{room.battleMode?`${room.battleMode==='2V2'?'EQUIPOS 2V2':'FREE FOR ALL'} · 4 JUGADORES · ${room.ranked?'ELO':'AMISTOSO'}`:room.ranked?'CLASIFICATORIA · 2 RONDAS PARA GANAR':'AMISTOSO · CÓDIGO DE SALA'}</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> INVITAR</button></div></div>
@@ -87,7 +102,7 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
             const own=seat===room.slot;
             return <div key={seat} className={`pb-online-group-seat ${room.battleMode==='2V2'?(seat%2===0?'team-red':'team-blue'):''}`}>
               <span>{room.battleMode==='2V2'?(seat%2===0?'EQUIPO ROJO':'EQUIPO AZUL'):'TODOS CONTRA TODOS'}</span>
-              {own?<button type="button" className="pb-online-player-avatar is-mine" disabled={!canChangeFighter} onClick={()=>{setFighterPage(0);setPickerOpen(true);}} aria-label="Cambiar mi luchador"><img src={fighter.portraitDataUrl} alt=""/><small>CAMBIAR</small></button>:
+              {own?<button type="button" className="pb-online-player-avatar is-mine" disabled={!canChangeFighter} onClick={openPicker} aria-label="Cambiar mi luchador"><img src={fighter?.portraitDataUrl||''} alt=""/><small>CAMBIAR</small></button>:
                 <span className="pb-online-player-avatar is-rival"><Gamepad2 size={20}/></span>}
               <strong>P{seat+1} · {p?.name||'ESPERANDO…'}</strong>
               <small>{p?(p.connected?(p.ready?'✓ LISTO':'PREPARANDO'):'RECONECTANDO'):'INVITA A OTRO JUGADOR'}</small>
@@ -97,12 +112,12 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
             <button type="button" className="pb-online-team-swap" onClick={()=>session?.swapTeams(1,2)}>⇄ INTERCAMBIAR P2 Y P3 DE EQUIPO</button>}
         </div>:<div className="pb-online-players">
           <div className="pb-online-player">
-            {room.role==='host' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={()=>{setFighterPage(0);setPickerOpen(true);}} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter.portraitDataUrl} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><ShieldCheck size={24}/></span>}
+            {room.role==='host' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={openPicker} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter?.portraitDataUrl||''} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><ShieldCheck size={24}/></span>}
             <strong>{room.host.name}</strong><small>{room.host.connected?(room.host.ready?'✓ LISTO':'PREPARANDO'):'RECONECTANDO'}</small>
           </div>
           <b>VS</b>
           <div className="pb-online-player">
-            {room.role==='guest' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={()=>{setFighterPage(0);setPickerOpen(true);}} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter.portraitDataUrl} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><Gamepad2 size={24}/></span>}
+            {room.role==='guest' ? <button type="button" className="pb-online-player-avatar is-mine" onClick={openPicker} disabled={!canChangeFighter} aria-label="Cambiar mi luchador" aria-expanded={pickerOpen} title="Cambiar luchador"><img src={fighter?.portraitDataUrl||''} alt=""/><span>CAMBIAR</span></button> : <span className="pb-online-player-avatar is-rival"><Gamepad2 size={24}/></span>}
             <strong>{room.guest?.name||'ESPERANDO RIVAL'}</strong><small>{!room.guest?'COMPARTE EL CÓDIGO':!room.guest.connected?'RECONECTANDO':room.guest.ready?'✓ LISTO':'PREPARANDO'}</small>
           </div>
         </div>}
@@ -117,15 +132,22 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
       </div>}
       {pickerOpen && canChangeFighter && <div className="pb-online-picker-shade" onPointerDown={e=>{if(e.target===e.currentTarget)setPickerOpen(false);}}>
         <section className="pb-online-picker-dialog" role="dialog" aria-modal="true" aria-label="Elegir luchador">
-          <div className="pb-online-picker-top"><div><small>TU EQUIPO</small><strong>ELIGE LUCHADOR</strong></div><button type="button" onClick={()=>setPickerOpen(false)} aria-label="Cerrar selector"><X size={18}/></button></div>
+          <div className="pb-online-picker-top"><div><small>{effectiveRanked?'CLASIFICATORIA · SOLO PROPIOS':'AMISTOSO · TODOS LOS PUBLICADOS'}</small><strong>ELIGE LUCHADOR</strong></div><button type="button" onClick={()=>setPickerOpen(false)} aria-label="Cerrar selector"><X size={18}/></button></div>
+          {!effectiveRanked&&<div className="pb-online-roster-tabs" role="group" aria-label="Origen del luchador">
+            <button type="button" className={source==='OWN'?'is-active':''} aria-pressed={source==='OWN'} onClick={()=>setSource('OWN')}>MIS LUCHADORES</button>
+            <button type="button" className={source==='PUBLIC'?'is-active':''} aria-pressed={source==='PUBLIC'} onClick={()=>setSource('PUBLIC')}>COMUNIDAD</button>
+          </div>}
+          {source==='PUBLIC'&&!effectiveRanked?<PublishedFighterPicker onSelect={next=>{void chooseFighter(next);}}/>:<>
           <div className="pb-online-fighter-list" aria-label="Elegir luchador para la sala">
-            {visibleFighters.map(item=><button key={item.id} type="button" className={item.id===ownFighterId?'is-active':''} aria-pressed={item.id===ownFighterId} onClick={()=>chooseFighter(item)}>
+            {visibleFighters.map(item=><button key={item.id} type="button" className={item.id===ownFighterId?'is-active':''} aria-pressed={item.id===ownFighterId} onClick={()=>{void chooseFighter(item);}}>
               <img src={item.portraitDataUrl} alt=""/><span>{item.fighterName}</span>{item.id===ownFighterId&&<Check size={14}/>}
             </button>)}
             {!availableFighters.length&&<p className="pb-online-picker-empty">No hay luchadores propios disponibles.</p>}
           </div>
           <div className="pb-online-picker-pages"><button type="button" disabled={fighterPage===0} onClick={()=>setFighterPage(p=>p-1)} aria-label="Página anterior"><ChevronLeft size={17}/></button><span>{fighterPage+1} / {fighterPageCount}</span><button type="button" disabled={fighterPage>=fighterPageCount-1} onClick={()=>setFighterPage(p=>p+1)} aria-label="Página siguiente"><ChevronRight size={17}/></button></div>
-          <small className="pb-online-picker-note">Cambiar luchador reinicia los votos «Estoy listo» de la sala.</small>
+          </>}
+          {busy&&<small role="status" className="pb-online-picker-note">SINCRONIZANDO LUCHADOR…</small>}
+          <small className="pb-online-picker-note">{effectiveRanked?'Clasificatorio: usa un luchador de tu colección.':'Los publicados se pueden usar sin importarlos.'} {room?'Cambiar luchador reinicia «Estoy listo».':''}</small>
         </section>
       </div>}
       {(error||externalError)&&<p className="pb-online-error" role="alert">{error||externalError}</p>}

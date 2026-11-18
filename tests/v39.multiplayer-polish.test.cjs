@@ -92,7 +92,7 @@ test('group ranked RPC accepts four distinct verified participants and server-su
 
 test('server checks four distinct account tokens and records team ELO exactly once',async()=>{
  const ranked=require('../server/ranked.cjs');
- const originals={available:ranked.available,verifyUser:ranked.verifyUser,recordGroupResult:ranked.recordGroupResult};
+ const originals={available:ranked.available,verifyUser:ranked.verifyUser,verifyRankedFighter:ranked.verifyRankedFighter,recordGroupResult:ranked.recordGroupResult};
  const ids=Array.from({length:5},(_,i)=>`00000000-0000-4000-8000-00000000001${i}`);
  let submissions=[];
  const {setTimeout:delay}=require('node:timers/promises');
@@ -103,6 +103,7 @@ test('server checks four distinct account tokens and records team ELO exactly on
   ranked.available=()=>true;
   ranked.verifyUser=async token=>{const n=Number(String(token).replace('token',''));
     if(!Number.isInteger(n)||n<0||n>4)throw Error('Token inválido');return ids[n];};
+  ranked.verifyRankedFighter=async()=>true; // Mock cloud ownership for this pre-existing ranked scenario.
   ranked.recordGroupResult=async data=>{submissions.push(data);return {recorded:true,players:[]};};
   groupRooms.handle(peers[0],{type:'create',profile:profile(0),battleMode:'2V2',ranked:true,accessToken:'token0'});
   await delay(0);const room=peers[0].room;assert.equal(room.ranked,true);

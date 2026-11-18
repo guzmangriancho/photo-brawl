@@ -77,8 +77,8 @@ test('Training and 1v1 selection never opens a blank options screen without a fi
   buttons(tree,'TRAINING')[0].props.onClick();tree=h.render();
   assert.match(text(css(tree,'pb-play-unavailable')[0]),/TRAINING/);
   assert.equal(css(tree,'pb-options-layout').length,0);
-  buttons(tree,'COMBATE 1V1')[0].props.onClick();tree=h.render();
-  assert.match(text(css(tree,'pb-play-unavailable')[0]),/COMBATE 1V1/);
+  buttons(tree,'1 VS 1')[0].props.onClick();tree=h.render();
+  assert.match(text(css(tree,'pb-play-unavailable')[0]),/1 VS 1/);
   assert.equal(css(tree,'pb-options-layout').length,0);
 });
 test('After creating a fighter, home shows play controls; game options is no longer blank',()=>{

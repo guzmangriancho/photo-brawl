@@ -24,7 +24,7 @@ test('group HUD is inside the stage overlay, not a separate header that consumes
   assert.match(css,/\.pb-group-hud\s*\{[^}]*position:\s*absolute/s);
   assert.match(css,/\.pb-group-hud\s*\{[^}]*background:\s*linear-gradient\([^;]*rgba/s);
   assert.match(css,/\.pb-group-stage\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*9/s);
-  assert.match(css,/@media \(orientation: landscape\)\s*\{[^}]*\.pb-group-stage\s*\{[^}]*inset:\s*0/s);
+  assert.match(css,/@media \(orientation: landscape\)\s*\{[\s\S]*?\.pb-group-stage\s*\{[^}]*width: calc\(100dvh \* 16 \/ 9\)/s);
   assert.doesNotMatch(css,/--group-hud-height/);
   assert.doesNotMatch(css,/calc\([^;]*group-hud-height/);
 });

@@ -31,13 +31,14 @@ test('clock is MM:SS and recreates 2 VS 2 glyph split from V37',()=>{
   assert.match(hud,/Math\.floor\(remaining\/60\)/);
   assert.match(hud,/pb-team-digit/);
   assert.match(hud,/pb-team-vs/);
-  assert.match(css,/\.pb-group-team-vs \{ font: 400 7px\/1 'Press Start 2P'/);
+  assert.match(css,/\.pb-team-vs \{ font: 400 7px\/1 'Press Start 2P'/);
   assert.match(css,/\.pb-group-clock-time[\s\S]*#ffdb5a/);
 });
-test('all four HUD cards occupy a single isolated strip outside the arena in both orientations',()=>{
+test('all four HUD cards float over the full arena without reserving a fixed header height',()=>{
   assert.match(css,/\.pb-group-hud-grid[\s\S]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\).*repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(css,/\.pb-group-stage[\s\S]*var\(--group-hud-height\)/);
+  assert.match(css,/\.pb-group-hud\s*\{[^}]*position: absolute/);
+  assert.doesNotMatch(css,/--group-hud-height/);
   assert.match(css,/@media \(orientation: portrait\)/);
   assert.match(css,/@media \(orientation: landscape\)/);
-  assert.match(css,/\.pb-group-touch \.mobile-controls \{ background: transparent; border: 0; \}/);
+  assert.match(css,/\.pb-group-touch \.mobile-controls \{ pointer-events: none; background: transparent; border: 0; \}/);
 });

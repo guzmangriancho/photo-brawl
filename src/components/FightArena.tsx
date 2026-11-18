@@ -563,7 +563,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
           {snapshot.roundOver && !paused && (
             <div className="arena-result-overlay pb-v35-rematch-overlay">
-              <RematchRoster players={[p1Profile,p2Profile]} roster={roster}
+              <RematchRoster players={[p1Profile,p2Profile]} roster={roster} allowCommunity={onlineMode&&!rankedOnline}
                 selectableSeats={onlineMode?[online?.slot??0]:[0,1]}
                 requested={rematchRequested}
                 labels={onlineMode?[online?.slot===0?'TÚ':'RIVAL',online?.slot===1?'TÚ':'RIVAL']:[mode==='1P_VS_2P'?'P1':'TÚ',mode==='1P_VS_2P'?'P2':'CPU']}

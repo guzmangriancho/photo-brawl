@@ -20,6 +20,33 @@ async function verifyUser(accessToken){
   if(!uuid.test(payload?.id||''))throw new Error('La cuenta verificada no es válida.');
   return payload.id;
 }
+/** Ranked fighters must belong to the JWT-verified account, NOT merely be
+ * tagged as local by a browser. The service key is server-only. */
+async function verifyRankedFighter(accountId,profile){
+  if(!configured)throw new Error('Clasificatorias no configuradas.');
+  if(!uuid.test(accountId)||!profile||typeof profile.id!=='string'||
+     profile.id.startsWith('community_')||profile.id.length>70)
+    throw new Error('Clasificatorio: solo puedes usar tus propios luchadores.');
+  const params=new URLSearchParams({select:'fighter_data',owner_id:`eq.${accountId}`,local_id:`eq.${profile.id}`,limit:'1'});
+  const headers={apikey:SECRET_KEY};
+  // Older service_role JWTs need Authorization; modern sb_secret keys don't.
+  if(!SECRET_KEY.startsWith('sb_secret_'))headers.Authorization=`Bearer ${SECRET_KEY}`;
+  let response;
+  try{response=await fetch(`${URL_ROOT}/rest/v1/fighters?${params}`,{
+    headers,signal:AbortSignal.timeout(6500),
+  });}catch{throw new Error('No se pudo comprobar la propiedad del luchador.');}
+  if(!response.ok)throw new Error(`No se pudo comprobar el luchador (${response.status}).`);
+  const rows=await response.json();
+  const original=Array.isArray(rows)?rows[0]?.fighter_data:null;
+  if(!original)throw new Error('Este luchador aún no está sincronizado en tu cuenta. Sincronízalo antes de jugar clasificatorias.');
+  const sameStats=['hp','speed','power','technique'].every(k=>original.stats?.[k]===profile.stats?.[k]);
+  const specs=[['lightNormal','style'],['heavyNormal','style'],['specialNeutral','mechanic'],
+    ['specialForward','mechanic'],['specialUp','mechanic'],['ultimateSuper','mechanic']];
+  const sameMoves=specs.every(([key,field])=>original.moveset?.[key]?.[field]===profile.moveset?.[key]?.[field]);
+  if(!sameStats||!sameMoves||original.archetype!==profile.archetype||original.passiveTrait!==profile.passiveTrait)
+    throw new Error('Los movimientos o estadísticas no coinciden con tu luchador guardado. Sincroniza tu colección.');
+  return true;
+}
 async function recordResult({id,hostId,guestId,hostRounds,guestRounds,stage}){
   if(!configured)throw new Error('Clasificatorias no configuradas.');
   if(!uuid.test(id)||!uuid.test(hostId)||!uuid.test(guestId)||hostId===guestId)throw new Error('Identidades de partida inválidas.');
@@ -55,4 +82,4 @@ async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam}){
     throw new Error(`Supabase rechazó el ELO de grupos (${response.status}): ${detail}`);}
   return response.json();
 }
-module.exports={available,verifyUser,recordResult,recordGroupResult};
+module.exports={available,verifyUser,verifyRankedFighter,recordResult,recordGroupResult};

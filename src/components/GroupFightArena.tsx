@@ -213,7 +213,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       <button type="button" onClick={()=>{soundFX.muted=!soundFX.muted;setMuted(soundFX.muted);}}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>} SONIDO {muted?'OFF':'ON'}</button>
       <button type="button" onClick={onExit}><ArrowLeft size={15}/> SALIR</button>
     </section></div>}
-    {snapshot?.roundOver&&<div className="pb-group-result-overlay"><RematchRoster players={fighters} roster={roster}
+    {snapshot?.roundOver&&<div className="pb-group-result-overlay"><RematchRoster players={fighters} roster={roster} allowCommunity={!!online&&!online.room?.ranked}
       selectableSeats={online?[mySeat]:[0,1,2,3]}
       onRematch={goRematch} onExit={onExit} requested={requested} votes={votes}
       labels={fighters.map((_,i)=>battleMode==='2V2'?`P${i+1} · ${i%2===0?'ROJO':'AZUL'}`:`JUGADOR ${i+1}`)}

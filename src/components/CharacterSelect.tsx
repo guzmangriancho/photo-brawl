@@ -94,6 +94,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [tutorialId, setTutorialId] = useState(TUTORIAL_FIGHTERS[0].id);
   const [mode, setMode] = useState<GameMode>(()=>new URLSearchParams(location.search).has('room')?'ONLINE':'1P_VS_CPU');
   const [onlineSession,setOnlineSession]=useState<OnlineSession|null>(null);
+  const [onlineFighter,setOnlineFighter]=useState<FighterProfile|null>(null);
   const [onlineRoom,setOnlineRoom]=useState<RoomView|null>(null);
   const [showOnlineLobby,setShowOnlineLobby]=useState(()=>new URLSearchParams(location.search).has('room')); 
   const [onlineError,setOnlineError]=useState('');
@@ -205,7 +206,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     return ()=>{current=false;};
   },[]);
   useEffect(()=>{
-    if(onlineSession && (onlineSession.room?.status==='waiting'||onlineSession.room?.status==='countdown') && featured)onlineSession.choose(featured);
+    if(onlineSession && (onlineSession.room?.status==='waiting'||onlineSession.room?.status==='countdown') && featured && !onlineFighter)onlineSession.choose(featured);
   },[featured?.id]);
   useEffect(()=>{if(onlineSession?.room?.role==='host' && onlineSession.room.status==='waiting')onlineSession.stage(stage);},[stage]);
   const setOnlineSessionSafe=(session:OnlineSession|null)=>{
@@ -242,12 +243,10 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showApiKey, showTutorial, showAccount, transferring]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
+    if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
     if (!featured) { openCreator(); return; }
     if (!rival) return;
     soundFX.confirmBeep();
-    if(mode==='ONLINE'){
-      setShowOnlineLobby(true);return;
-    }
     onStartMatch(featured,rival,mode,stage,difficulty,isGroupMode&&extraP3&&extraP4?[extraP3,extraP4]:undefined);
   };
   const pickFighter = (fighter: FighterProfile) => { setP1Id(fighter.id); soundFX.selectBeep(); };
@@ -373,7 +372,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-home-modes" role="group" aria-label="Modo de juego">
           {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
         </div>
-        {featured ? <>
+        {(featured||mode==='ONLINE') ? <>
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
@@ -419,7 +418,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   </div>
 
   {showTutorial && page === 'HOME' && <div className="pb-modal-backdrop pb-tutorial-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget)setShowTutorial(false);}}><section className="pb-modal pb-frame pb-tutorial-modal" role="dialog" aria-modal="true" aria-label="Tutorial gratuito"><button type="button" className="pb-modal-close" onClick={()=>setShowTutorial(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="ESCUELA ARCADE · GRATIS PARA SIEMPRE">APRENDE A COMBATIR</PanelTitle><p className="pb-tutorial-intro">Aprende 14 técnicas: dash, combos, golpe bajo, guardia móvil, parry y súper con ejercicios interactivos. Usa uno de estos cuatro luchadores de entrenamiento. No aparecen en tu colección ni en los modos normales.</p><div className="pb-tutorial-choices">{TUTORIAL_FIGHTERS.map(f=><button type="button" key={f.id} className={`pb-tutorial-choice ${tutorialId===f.id?'is-selected':''}`} aria-pressed={tutorialId===f.id} onClick={()=>setTutorialId(f.id)}><FighterPortrait fighter={f}/><strong>{f.fighterName}</strong>{tutorialId===f.id&&<Check size={15}/>}</button>)}</div><div className="pb-tutorial-bottom"><span><BookOpen size={15}/> 14 RETOS · COMBOS · PARRY · SÚPER</span><button type="button" className="pb-arcade-button pb-gold" onClick={()=>{setShowTutorial(false);onStartTutorial(tutorialFighter.id);}}><Gamepad2 size={17}/> EMPEZAR TUTORIAL</button></div></section></div>}
-  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && featured && <OnlineLobby fighter={featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>setP1Id(next.id)} onClose={()=>setShowOnlineLobby(false)}/>}
+  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && <OnlineLobby fighter={onlineFighter||featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>{if(fighters.some(f=>f.id===next.id)){setP1Id(next.id);setOnlineFighter(null);}else setOnlineFighter(next);}} onClose={()=>setShowOnlineLobby(false)}/>}
   {onlineError && mode==='ONLINE' && !showOnlineLobby && <div className="pb-online-notice" role="status" onClick={()=>setOnlineError('')}>{onlineError} · Toca para cerrar</div>}
   {renamingId && editingFighter && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!renamingBusy&&!artBusy)setRenamingId(null);}}><form className="pb-modal pb-frame pb-rename-modal pb-edit-fighter-modal" role="dialog" aria-modal="true" aria-label="Editar luchador" onSubmit={submitRename}>
     <button type="button" className="pb-modal-close" onClick={()=>setRenamingId(null)} disabled={renamingBusy||artBusy} aria-label="Cerrar"><X size={18}/></button>

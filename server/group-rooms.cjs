@@ -86,7 +86,7 @@ function handle(peer,msg){
         countdownEndsAt:null,tick:null,engine:null,created:Date.now(),matchId:null,resultRecorded:false};
       rooms.set(r.code,r);bind(peer,r,host);lobby(r);
     };
-    if(ranked)void rankedApi.verifyUser(msg.accessToken).then(finish).catch(error=>fail(peer,error.message));
+    if(ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
     else finish(null);
     return;
   }
@@ -104,7 +104,7 @@ function handle(peer,msg){
       r.players.forEach(p=>p.ready=false);
       bind(peer,r,player);lobby(r);
     };
-    if(r.ranked)void rankedApi.verifyUser(msg.accessToken).then(finish).catch(error=>fail(peer,error.message));
+    if(r.ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
     else finish(null);
     return;
   }
@@ -143,10 +143,22 @@ function handle(peer,msg){
   if(msg.type==='choose'){
     if(room.status!=='waiting'&&room.status!=='countdown')return fail(peer,'No puedes cambiar durante el combate.');
     const profile=validateProfile(msg.profile);if(!profile)return fail(peer,'Luchador no válido.');
-    if(room.status==='countdown')cancelCountdown(room);
-    if(profile.id!==p.profile.id){p.profile=profile;room.players.forEach(p=>p.ready=false);lobby(room);}return;
+    if(profile.id===p.profile.id)return;
+    const commit=()=>{
+      if(peer.room!==room||(room.status!=='waiting'&&room.status!=='countdown'))return;
+      if(room.status==='countdown')cancelCountdown(room);
+      p.profile=profile;room.players.forEach(p=>p.ready=false);lobby(room);
+    };
+    if(room.ranked){
+      if(p.verifying)return fail(peer,'Comprobando luchador.');
+      p.verifying=true;
+      void rankedApi.verifyRankedFighter(p.accountId,profile).then(commit)
+        .catch(error=>fail(peer,error.message)).finally(()=>{p.verifying=false;});
+    }else commit();
+    return;
   }
   if(msg.type==='ready'){
+    if(room.ranked&&room.players.some(p=>p.verifying))return fail(peer,'Comprobando luchador.');
     if(room.status!=='waiting'&&room.status!=='countdown')return;
     if(room.status==='countdown'&&msg.ready!==true)cancelCountdown(room);
     p.ready=msg.ready===true;maybeStart(room);lobby(room);return;
@@ -170,10 +182,14 @@ function handle(peer,msg){
   }
   if(msg.type==='rematch'){
     if(room.status!=='playing'||!room.engine?.roundOver)return;
-    const profile=validateProfile(msg.profile);if(profile)p.profile=profile;
-    p.vote=true;
-    each(room,{type:'rematch_vote',votes:room.players.map(p=>p.vote),fighters:room.players.map(p=>p.profile)});
-    if(room.players.length===4&&room.players.every(p=>p.vote&&p.peer)){
+    const profile=msg.profile?validateProfile(msg.profile):null;
+    if(msg.profile&&!profile)return fail(peer,'Luchador de revancha no válido.');
+    const vote=()=>{
+      if(peer.room!==room||room.status!=='playing'||!room.engine?.roundOver)return;
+      if(profile)p.profile=profile;
+      p.vote=true;
+      each(room,{type:'rematch_vote',votes:room.players.map(p=>p.vote),fighters:room.players.map(p=>p.profile)});
+      if(room.players.length===4&&room.players.every(p=>p.vote&&p.peer)){
       if(room.randomStage){const remaining=GROUP_STAGES.filter(s=>s!==room.stage);room.stage=remaining[randomInt(remaining.length)];}
       room.engine=new MultiFightEngine(room.players.map(p=>p.profile),room.mode,room.stage,'NORMAL');
       room.engine.remoteHumanControls=true;
@@ -181,7 +197,15 @@ function handle(peer,msg){
       for(const p of room.players){p.vote=false;p.mask=0;p.lastSeq=-1;}
       each(room,{type:'rematch',fighters:room.players.map(p=>p.profile),stage:room.stage});
       each(room,{type:'state',state:room.engine.exportNetworkState()});
-    }return;
+      }
+    };
+    if(room.ranked&&profile){
+      if(p.verifying)return fail(peer,'Comprobando luchador.');
+      p.verifying=true;
+      void rankedApi.verifyRankedFighter(p.accountId,profile).then(vote)
+        .catch(error=>fail(peer,error.message)).finally(()=>{p.verifying=false;});
+    }else vote();
+    return;
   }
   fail(peer,'Acción no reconocida.');
 }

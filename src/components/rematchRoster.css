@@ -23,3 +23,9 @@
 .pb-replay-options button{border:2px solid #567fa6;border-radius:4px;background:#123052;font:900 11px 'Pixelify Sans',monospace}
 .pb-replay-options button.is-active{border-color:#ffe08b}
 @media(max-width:400px){.pb-replay-seats.has-four .pb-replay-seat-label{font-size:8px}.pb-replay-seats.has-four .pb-replay-seat b{font-size:9px}}
+
+/* V45: community selector for friendly online rematches only. */
+.pb-replay-roster-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-bottom:3px}
+.pb-replay-roster-tabs button{background:#142c4d;color:#e2f2ff;border:2px solid #547fa7;padding:6px;font:900 12px 'Pixelify Sans',monospace}
+.pb-replay-roster-tabs button.is-active{border-color:#ffdc7d;background:#574627;color:#fff0ca}
+.pb-replay-picker{overflow-y:auto;max-height:95dvh}

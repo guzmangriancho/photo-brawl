@@ -10,7 +10,8 @@ const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 test('online room only reveals the fighter roster after touching own avatar',()=>{
   const room=read('src/components/OnlineLobby.tsx');
   assert.match(room,/className="pb-online-player-avatar is-mine"/);
-  assert.match(room,/onClick=\{\(\)=>\{setFighterPage\(0\);setPickerOpen\(true\);\}\}/);
+  assert.match(room,/const openPicker=\(\)=>\{setFighterPage\(0\);.*setPickerOpen\(true\)/);
+  assert.match(room,/onClick=\{openPicker\}/);
   assert.match(room,/\{pickerOpen && canChangeFighter &&/);
   assert.match(room,/\.slice\(Math\.min\(fighterPage,fighterPageCount-1\)\*6/);
   assert.match(room,/aria-label="Página siguiente"/);
