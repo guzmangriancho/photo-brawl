@@ -132,7 +132,7 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
       </div>}
       {pickerOpen && canChangeFighter && <div className="pb-online-picker-shade" onPointerDown={e=>{if(e.target===e.currentTarget)setPickerOpen(false);}}>
         <section className="pb-online-picker-dialog" role="dialog" aria-modal="true" aria-label="Elegir luchador">
-          <div className="pb-online-picker-top"><div><small>{effectiveRanked?'CLASIFICATORIA · SOLO PROPIOS':'AMISTOSO · TODOS LOS PUBLICADOS'}</small><strong>ELIGE LUCHADOR</strong></div><button type="button" onClick={()=>setPickerOpen(false)} aria-label="Cerrar selector"><X size={18}/></button></div>
+          <div className="pb-online-picker-top"><div><strong>ELIGE LUCHADOR</strong></div><button type="button" onClick={()=>setPickerOpen(false)} aria-label="Cerrar selector"><X size={18}/></button></div>
           {!effectiveRanked&&<div className="pb-online-roster-tabs" role="group" aria-label="Origen del luchador">
             <button type="button" className={source==='OWN'?'is-active':''} aria-pressed={source==='OWN'} onClick={()=>setSource('OWN')}>MIS LUCHADORES</button>
             <button type="button" className={source==='PUBLIC'?'is-active':''} aria-pressed={source==='PUBLIC'} onClick={()=>setSource('PUBLIC')}>COMUNIDAD</button>
@@ -147,7 +147,6 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
           <div className="pb-online-picker-pages"><button type="button" disabled={fighterPage===0} onClick={()=>setFighterPage(p=>p-1)} aria-label="Página anterior"><ChevronLeft size={17}/></button><span>{fighterPage+1} / {fighterPageCount}</span><button type="button" disabled={fighterPage>=fighterPageCount-1} onClick={()=>setFighterPage(p=>p+1)} aria-label="Página siguiente"><ChevronRight size={17}/></button></div>
           </>}
           {busy&&<small role="status" className="pb-online-picker-note">SINCRONIZANDO LUCHADOR…</small>}
-          <small className="pb-online-picker-note">{effectiveRanked?'Clasificatorio: usa un luchador de tu colección.':'Los publicados se pueden usar sin importarlos.'} {room?'Cambiar luchador reinicia «Estoy listo».':''}</small>
         </section>
       </div>}
       {(error||externalError)&&<p className="pb-online-error" role="alert">{error||externalError}</p>}

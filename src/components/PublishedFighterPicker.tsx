@@ -30,20 +30,18 @@ export function PublishedFighterPicker({onSelect}:{onSelect:(fighter:FighterProf
     finally{setSelecting(null);}
   };
   return <div className="pb-published-picker">
-    <label htmlFor="pb-published-search">BUSCAR LUCHADORES PUBLICADOS</label>
-    <input id="pb-published-search" type="search" value={query} maxLength={40} placeholder="Nombre del luchador…" onChange={event=>setQuery(event.target.value)}/>
-    <div className="pb-published-grid" aria-label="Luchadores de la comunidad">
+    <input id="pb-published-search" type="search" value={query} maxLength={40} placeholder="Buscar luchadores..." aria-label="Buscar luchadores" onChange={event=>setQuery(event.target.value)}/>
+    <div className="pb-online-fighter-list pb-published-grid" aria-label="Luchadores de la comunidad">
       {items.map(item=><button type="button" key={item.id} disabled={!!selecting} onClick={()=>void choose(item)}>
-        <img src={item.portraitUrl} alt=""/><strong>{item.name}</strong><small>@{item.author}</small>
+        <img src={item.portraitUrl} alt=""/><span title={`${item.name} · @${item.author}`}>{item.name}</span>
       </button>)}
       {loading&&<p role="status">CARGANDO COMUNIDAD…</p>}
       {!loading&&!items.length&&<p>NO HAY LUCHADORES PUBLICADOS EN ESTA PÁGINA.</p>}
     </div>
-    <div className="pb-published-pages"><button type="button" disabled={page===0||loading||!!selecting} onClick={()=>setPage(p=>Math.max(0,p-1))} aria-label="Página anterior"><ChevronLeft size={16}/></button>
-      <span>PÁGINA {page+1}</span>
+    <div className="pb-online-picker-pages pb-published-pages"><button type="button" disabled={page===0||loading||!!selecting} onClick={()=>setPage(p=>Math.max(0,p-1))} aria-label="Página anterior"><ChevronLeft size={16}/></button>
+      <span>{page+1}</span>
       <button type="button" disabled={loading||!!selecting||items.length<COMMUNITY_PAGE_SIZE} onClick={()=>setPage(p=>p+1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div>
     {selecting&&<small role="status">DESCARGANDO RETRATO Y SPRITES…</small>}
     {error&&<p role="alert" className="pb-published-error">{error}</p>}
-    <small className="pb-published-info">SOLO LUCHADORES PUBLICADOS · NO SE GUARDAN EN TU COLECCIÓN</small>
   </div>;
 }
