@@ -730,7 +730,11 @@ export class FightEngine {
   }
 
   private getWalkSpeed(f: FighterRuntime): number {
-    return 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
+    const base = 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
+    // Large stages draw fighters at 64% scale. Reduce WORLD movement as well,
+    // otherwise they cross the arena far too fast relative to their sprite size.
+    // Applies to walking, guarding, air speed cap and dash in both local + online.
+    return base * (getLargeArena(this.stage) ? 0.72 : 1);
   }
 
   private getGravity(f: FighterRuntime): number {
@@ -1057,9 +1061,9 @@ export class FightEngine {
       }
     } else {
       if (input.left && !input.right) {
-        f.vx = Math.max(-walkSpd * 0.95, f.vx - 0.55);
+        f.vx = Math.max(-walkSpd * 0.95, f.vx - (getLargeArena(this.stage) ? 0.40 : 0.55));
       } else if (input.right && !input.left) {
-        f.vx = Math.min(walkSpd * 0.95, f.vx + 0.55);
+        f.vx = Math.min(walkSpd * 0.95, f.vx + (getLargeArena(this.stage) ? 0.40 : 0.55));
       }
       f.state = 'JUMP';
     }

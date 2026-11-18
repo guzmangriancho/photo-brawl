@@ -1,50 +1,55 @@
-/* V38 · Four-player HUD. Same ink, highlights, pixel typography and hard edges
-   as the classic FightArena HUD; never placed over the canvas. */
+/* V40 — Four-player HUD floats over the FULL arena, just like the classic 1v1
+   HUD. Only the individual gauges have translucent dark backplates. No solid
+   header strip, and no height is ever subtracted from the stage canvas. */
 .pb-group-screen {
-  --group-hud-height: 76px;
-  box-sizing: border-box;
+  box-sizing: border-box; position: relative; isolation: isolate;
+  display: flex; flex-direction: column; align-items: center;
   width: 100%; height: 100dvh; min-height: 0; overflow: hidden;
-  position: relative; display: flex; flex-direction: column;
-  background: #061020; color: #e7f6ff;
-  font-family: 'Pixelify Sans', monospace; touch-action: none;
+  background: #071427; color: #e7f6ff; touch-action: none;
+  font-family: 'Pixelify Sans', monospace;
 }
 .pb-group-screen *, .pb-group-screen *::before, .pb-group-screen *::after { box-sizing: border-box; }
+.pb-group-stage {
+  position: relative; flex: 0 0 auto; width: 100%; max-width: 100%;
+  aspect-ratio: 16 / 9; min-height: 0; overflow: hidden; background: #091322;
+}
+.pb-group-stage canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
 .pb-group-hud {
-  flex: 0 0 var(--group-hud-height); height: var(--group-hud-height);
-  z-index: 6; position: relative; width: 100%; min-width: 0;
-  padding: 4px max(7px,env(safe-area-inset-right)) 4px max(7px,env(safe-area-inset-left));
-  background: linear-gradient(180deg,#182944 0%,#0c1c34 90%,#09152a 100%);
-  border-bottom: 3px solid #59748c; box-shadow: inset 0 2px 0 #425d7c,0 3px 0 #030916;
+  position: absolute; z-index: 6; top: 0; left: 0; right: 0;
+  padding: max(4px,env(safe-area-inset-top)) max(5px,env(safe-area-inset-right)) 14px max(5px,env(safe-area-inset-left));
+  background: linear-gradient(180deg,rgba(3,10,25,.66) 0%,rgba(3,10,25,.24) 65%,transparent 100%);
+  pointer-events: none;
 }
 .pb-group-hud-grid {
-  width: min(840px,100%); height: 100%; margin: 0 auto;
-  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) minmax(63px,.7fr) repeat(2,minmax(0,1fr));
-  align-items: center; gap: clamp(3px,.8vw,9px);
+  display: grid; align-items: start; margin: 0 auto; width: min(960px,100%);
+  grid-template-columns: repeat(2,minmax(0,1fr)) clamp(56px,9vw,83px) repeat(2,minmax(0,1fr));
+  gap: clamp(3px,.65vw,8px);
 }
 .pb-group-player {
-  min-width: 0; height: 62px; display: flex; align-items: center; gap: clamp(4px,.65vw,9px);
-  padding: 4px; background: #09192fe0; border: 1px solid #445e7b;
-  border-bottom: 3px solid var(--seat-color,#f7d16c);
-  box-shadow: 2px 2px 0 #020914; overflow: hidden;
   --seat-color: #ffd15f;
+  display: flex; min-width: 0; align-items: center; gap: clamp(3px,.6vw,7px);
+  padding: 3px; background: rgba(5,15,34,.49);
+  border: 1px solid rgba(129,163,188,.65);
+  border-bottom: 2px solid var(--seat-color);
+  box-shadow: 1px 2px 0 #03071379;
 }
 .pb-group-player.team-red { --seat-color: #ff737b; }
 .pb-group-player.team-blue { --seat-color: #76d5ff; }
 .pb-group-player.seat-2 { --seat-color: #76d5ff; }
 .pb-group-player.seat-3 { --seat-color: #b5a5ff; }
 .pb-group-player.seat-4 { --seat-color: #92e7a6; }
-.pb-group-player.is-own { border-top-color: #d0e3f1; }
-.pb-group-player.is-eliminated { opacity: .48; filter: saturate(.4); }
-.pb-group-face { flex: none; position: relative; width: 47px; height: 47px; }
+.pb-group-player.is-own { border-top-color: #eaf3ff; }
+.pb-group-player.is-eliminated { opacity: .50; filter: saturate(.35); }
+.pb-group-face { flex: none; position: relative; width: clamp(29px,5vw,43px); height: clamp(29px,5vw,43px); }
 .pb-group-super-ring {
   position: absolute; inset: 0; display: grid;
   grid-template-columns: repeat(5,minmax(0,1fr)); grid-template-rows: repeat(5,minmax(0,1fr));
   gap: 1px; padding: 1px; background: #0c1b31; border: 1px solid #849cb3;
-  box-shadow: 2px 2px 0 #020713;
+  box-shadow: 1px 1px 0 #020713;
 }
 .pb-group-super-ring > i { display: block; min-width: 0; min-height: 0; background: #294158; box-shadow: inset 1px 1px 0 #486681; }
 .pb-group-super-ring > i.is-filled { background: #5be3fb; box-shadow: inset 1px 1px 0 #ceffff; }
-.pb-group-super-ring.is-ready { border-color: #ffef9c; box-shadow: 0 0 0 1px #c38b3f,2px 2px 0 #020713; }
+.pb-group-super-ring.is-ready { border-color: #ffef9c; box-shadow: 0 0 0 1px #c38b3f,1px 1px 0 #020713; }
 .pb-group-super-ring.is-ready > i.is-filled { background: #ffd15b; box-shadow: inset 1px 1px 0 #fff6a7; }
 .pb-group-super-ring > img {
   position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
@@ -62,65 +67,59 @@
   border: 1px solid #4d6784; padding: 1px 2px;
   font: 700 10px/1 'Pixelify Sans',monospace; white-space: nowrap;
 }
-.pb-group-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.pb-group-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .pb-group-name {
   min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font: 700 clamp(11px,1.3vw,15px)/1 'Pixelify Sans',monospace;
+  font: 700 clamp(10px,1.22vw,14px)/1 'Pixelify Sans',monospace;
   text-transform: uppercase; color: #f3f7ff; text-shadow: 1px 2px 0 #020717;
 }
 .pb-group-health {
-  white-space: nowrap; font: 700 clamp(16px,2.1vw,24px)/.98 'Pixelify Sans',monospace;
-  color: #ffe277; text-shadow: 2px 2px 0 #0a1526;
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap; font: 700 clamp(15px,1.85vw,23px)/.98 'Pixelify Sans',monospace;
+  color: #ffe277; text-shadow: 2px 2px 0 #0a1526; font-variant-numeric: tabular-nums;
 }
 .pb-group-health small { font-size: .63em; margin-left: 1px; }
 .pb-group-health.is-critical { color: #ff7487; }
-.pb-group-bottom-line { min-width: 0; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-.pb-group-lives { flex: none; display: inline-flex; gap: 2px; }
-.pb-group-lives svg { width: 11px; height: 10px; flex: none; image-rendering: pixelated; filter: drop-shadow(1px 1px #030714); }
+.pb-group-bottom-line { min-width: 0; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pb-group-lives { flex: none; display: inline-flex; gap: 1px; }
+.pb-group-lives svg { width: 10px; height: 9px; flex: none; image-rendering: pixelated; filter: drop-shadow(1px 1px #030714); }
 .pb-group-lives svg.is-active { fill: #f34e63; }
 .pb-group-lives svg.is-lost { fill: #10131d; stroke: #4b5260; stroke-width: .9; }
-.pb-group-kos { color: #a9d2e9; font: 700 10px/1 'Pixelify Sans',monospace; }
+.pb-group-kos { color: #c5e1f1; font: 700 9px/1 'Pixelify Sans',monospace; }
+/* The timer, mode and pause form a VERTICAL, centered arcade stack. */
 .pb-group-clock {
-  min-width: 0; align-self: center; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 0; display: flex; align-items: center; flex-direction: column;
+  justify-self: center; gap: 2px; width: 100%;
 }
-.pb-group-clock-caption { color: #c7d9e9; font: 700 9px/1 'Pixelify Sans',monospace; letter-spacing: .5px; }
+.pb-group-clock-caption { color: #f2eac9; font: 700 8px/1 'Pixelify Sans',monospace; text-shadow: 1px 1px #031127; }
 .pb-group-clock-time {
   display: grid; place-items: center; white-space: nowrap;
-  width: 100%; min-height: 34px; padding: 3px 2px 1px;
-  background: linear-gradient(180deg,#2b4059 0 12%,#0d1a32 14% 100%);
-  color: #ffdb5a; border: 2px solid #091224; outline: 1px solid #d7e3ee;
-  box-shadow: 2px 3px 0 #020814,inset 0 0 0 1px #6984a4;
-  font: 700 clamp(17px,2.1vw,27px)/1 'Pixelify Sans',monospace;
+  width: 100%; min-height: 27px; padding: 2px 1px;
+  background: rgba(7,18,37,.66); color: #ffdb5a;
+  border: 2px solid #091224; outline: 1px solid #c1d9e5;
+  box-shadow: 1px 2px 0 #0208149a,inset 0 0 0 1px #6984a4;
+  font: 700 clamp(17px,2vw,25px)/1 'Pixelify Sans',monospace;
   text-shadow: 2px 2px 0 #061025; font-variant-numeric: tabular-nums;
 }
 .pb-group-clock-time.is-urgent { color: #ff737c; animation: arena-clock-alert 650ms steps(2,end) infinite; }
-.pb-group-clock-bottom { display: flex; align-items: center; justify-content: center; gap: 5px; }
-.pb-group-mode-label { color: #ecdcba; font: 700 10px/1 'Pixelify Sans',monospace; white-space: nowrap; }
-.pb-group-team-format { display: inline-flex; align-items: center; gap: 2px; }
-.pb-group-team-digit { font: 900 11px/1 Arial,Helvetica,sans-serif; }
-.pb-group-team-vs { font: 400 7px/1 'Press Start 2P',monospace; }
+.pb-group-clock-bottom { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 100%; }
+.pb-group-mode-label { color: #ffe3a7; font: 700 10px/1 'Pixelify Sans',monospace; white-space: nowrap; text-shadow: 1px 2px #020717; }
+.pb-team-format { display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+.pb-team-digit { font: 900 11px/1 Arial,Helvetica,sans-serif; }
+.pb-team-vs { font: 400 7px/1 'Press Start 2P',monospace; }
 .pb-group-pause-button {
-  display: grid; place-items: center; width: 22px; height: 19px; padding: 0;
-  background: #182e4a; border: 1px solid #b4c6da; color: #ffebad;
-  box-shadow: 1px 2px 0 #040b16; cursor: pointer; touch-action: manipulation;
+  display: grid; place-items: center; width: 26px; height: 21px; padding: 0;
+  background: rgba(14,36,61,.72); border: 1px solid #b4c6da; color: #ffebad;
+  box-shadow: 1px 2px 0 #040b1680; cursor: pointer; touch-action: manipulation;
+  pointer-events: auto;
 }
 .pb-group-pause-button:active { transform: translateY(1px); }
-.pb-group-stage {
-  position: relative; align-self: center; flex: 0 1 auto;
-  width: min(100%,calc((100dvh - var(--group-hud-height) - 145px)*16/9));
-  max-height: calc(100dvh - var(--group-hud-height) - 145px);
-  aspect-ratio: 16/9; min-height: 0;
-  background: #091322; border-bottom: 2px solid #53657a;
-}
-.pb-group-stage canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
 .pb-group-ping {
   position: absolute; bottom: 4px; right: 4px; padding: 2px 3px;
-  background: #061020c8; font: 700 10px/1 'Pixelify Sans',monospace; color: #9ed7e5;
+  background: #061020b0; font: 700 9px/1 'Pixelify Sans',monospace; color: #9ed7e5;
 }
-.pb-group-disconnect { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 12px; background: #030916bc; font-size: 12px; }
+.pb-group-disconnect { position: absolute; z-index: 10; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 12px; background: #030916bc; font-size: 12px; }
 .pb-group-disconnect button { padding: 8px; }
-.pb-group-touch { flex: 1; position: relative; min-height: 145px; }
+.pb-group-touch { flex: 1; position: relative; min-height: 0; width: 100%; }
 .pb-group-touch .mobile-controls { position: absolute!important; inset: 0!important; width: 100%; height: 100%; box-sizing: border-box; max-width: none; }
 .pb-group-result-overlay,.pb-group-pause { position: absolute; inset: 0; z-index: 80; background: #020916db; display: grid; place-items: center; padding: 8px; }
 .pb-group-pause section { display: flex; flex-direction: column; align-items: center; gap: 16px; width: min(400px,95vw); border: 3px solid #5da9d8; background: #102c49; padding: 22px; }
@@ -133,66 +132,23 @@
 .pb-group-score small { font-size: 7px; }
 .pb-group-team-score { color: #a7e2ff; font-size: 7px; line-height: 1.5; }
 
-/* In portrait every fighter becomes a compact portrait + percentage column.
-   At 320px the full five-column strip still fits, outside the game image. */
 @media (orientation: portrait) {
-  .pb-group-screen { --group-hud-height: 90px; }
-  .pb-group-hud { padding-top: 3px; padding-bottom: 3px; }
-  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 54px repeat(2,minmax(0,1fr)); gap: 3px; }
-  .pb-group-player { flex-direction: column; gap: 1px; padding: 2px 1px; height: 82px; }
-  .pb-group-face { width: 39px; height: 39px; }
-  .pb-group-super-ring > img { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
+  .pb-group-hud { padding: max(3px,env(safe-area-inset-top)) 3px 9px; }
+  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 52px repeat(2,minmax(0,1fr)); gap: 2px; }
+  .pb-group-player { flex-direction: column; gap: 1px; padding: 2px 1px; }
+  .pb-group-face { width: 27px; height: 27px; }
   .pb-group-info { width: 100%; flex: 0 0 auto; align-items: center; gap: 0; }
-  .pb-group-name { max-width: 100%; font-size: 10px; line-height: 1.1; }
-  .pb-group-health { font-size: 17px; line-height: 1; }
-  .pb-group-bottom-line { justify-content: center; gap: 3px; }
-  .pb-group-lives { gap: 1px; }
-  .pb-group-lives svg { width: 8px; height: 8px; }
-  .pb-group-kos { font-size: 8px; }
-  .pb-group-clock-time { min-height: 33px; font-size: 19px; }
-  .pb-group-clock-caption { font-size: 9px; }
-  .pb-group-clock-bottom { flex-direction: column; gap: 3px; }
+  .pb-group-name { max-width: 100%; font-size: 8px; line-height: 1; }
+  .pb-group-health { font-size: 15px; line-height: 1; }
+  .pb-group-bottom-line { justify-content: center; gap: 2px; }
+  .pb-group-lives svg { width: 7px; height: 7px; }
+  .pb-group-kos { font-size: 7px; }
+  .pb-group-seat { font-size: 8px; padding: 0 1px; }
+  .pb-group-super-ready { top: 3px; right: 3px; font-size: 7px; }
+  .pb-group-clock-caption { font-size: 7px; }
+  .pb-group-clock-time { min-height: 23px; font-size: 16px; }
+  .pb-group-mode-label { font-size: 9px; }
   .pb-group-pause-button { width: 27px; height: 20px; }
-  .pb-group-mode-label { font-size: 10px; }
-  .pb-group-stage { width: min(100%,calc((100dvh - var(--group-hud-height) - 145px)*16/9)); max-height: calc(100dvh - var(--group-hud-height) - 145px); }
-}
-@media (orientation: portrait) and (max-width: 350px) {
-  .pb-group-hud { padding-left: 4px; padding-right: 4px; }
-  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 51px repeat(2,minmax(0,1fr)); gap: 2px; }
-  .pb-group-name { font-size: 9px; }
-  .pb-group-clock-time { font-size: 18px; }
-}
-@media (orientation: landscape) {
-  .pb-group-screen { --group-hud-height: clamp(54px,15dvh,74px); }
-  .pb-group-hud { padding-top: 3px; padding-bottom: 3px; }
-  .pb-group-player { height: calc(var(--group-hud-height) - 10px); }
-  .pb-group-face { width: clamp(35px,11dvh,47px); height: clamp(35px,11dvh,47px); }
-  .pb-group-super-ring > img { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
-  .pb-group-stage { flex: 0 1 auto; height: calc(100dvh - var(--group-hud-height)); max-height: calc(100dvh - var(--group-hud-height)); width: auto; max-width: 100%; margin: auto; }
-  .pb-group-touch { position: absolute; inset: var(--group-hud-height) 0 0; z-index: 5; pointer-events: none; }
-  .pb-group-touch .mobile-controls { pointer-events: none; }
-  .pb-group-touch .mobile-controls button,
-  .pb-group-touch .mobile-controls [role="button"] { pointer-events: auto; }
-}
-@media (orientation: landscape) and (max-height: 420px) {
-  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 58px repeat(2,minmax(0,1fr)); gap: 5px; }
-  .pb-group-player { gap: 4px; padding: 2px; }
-  .pb-group-name { font-size: 10px; }
-  .pb-group-health { font-size: 17px; }
-  .pb-group-kos { font-size: 9px; }
-  .pb-group-clock-time { font-size: 20px; min-height: 29px; }
-  .pb-group-clock-caption { font-size: 8px; }
-  .pb-group-pause-button { width: 20px; height: 16px; }
-}
-
-/* Controls share the game space in landscape, but their container must not
-   paint over the fight or the new separated HUD. */
-@media (orientation: landscape) {
-  .pb-group-touch .mobile-controls { background: transparent; border: 0; }
-}
-/* The SUPER button is anchored to the four actual action buttons, not to
-   the top edge of the tall portrait controls region. */
-@media (orientation: portrait) {
   .pb-group-touch .mobile-super-center {
     left: auto;
     right: calc(max(11px,env(safe-area-inset-right)) + clamp(144px,44vw,204px) / 2);
@@ -202,14 +158,41 @@
   .pb-group-touch .mobile-super-center.is-pressed { transform: translateX(50%) translateY(3px); }
 }
 @media (orientation: portrait) and (max-width: 345px) {
+  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 49px repeat(2,minmax(0,1fr)); }
+  .pb-group-name { font-size: 7.5px; }
   .pb-group-touch .mobile-super-center { right: calc(max(11px,env(safe-area-inset-right)) + 72px); }
 }
-
-/* V39: keep the background visible during a real server-synchronized countdown. */
-.pb-group-countdown {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  pointer-events: none; z-index: 4;
+@media (orientation: landscape) {
+  /* Match classic 1v1: FULLSCREEN canvas, never shrink it for a separate header. */
+  .pb-group-stage { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+  .pb-group-hud { padding-top: max(3px,env(safe-area-inset-top)); }
+  .pb-group-touch { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
+  .pb-group-touch .mobile-controls { pointer-events: none; background: transparent; border: 0; }
+  .pb-group-touch .mobile-controls button,
+  .pb-group-touch .mobile-controls [role="button"] { pointer-events: auto; }
 }
+@media (orientation: landscape) and (max-height: 420px) {
+  .pb-group-hud-grid { grid-template-columns: repeat(2,minmax(0,1fr)) 59px repeat(2,minmax(0,1fr)); gap: 4px; }
+  .pb-group-player { padding: 2px; gap: 3px; }
+  .pb-group-face { width: clamp(25px,10dvh,37px); height: clamp(25px,10dvh,37px); }
+  .pb-group-name { font-size: 10px; }
+  .pb-group-health { font-size: 17px; }
+  .pb-group-lives svg { width: 8px; height: 8px; }
+  .pb-group-kos { font-size: 8px; }
+  .pb-group-clock-time { min-height: 23px; font-size: 17px; }
+  .pb-group-clock-caption { font-size: 7px; }
+  .pb-group-mode-label { font-size: 9px; }
+  .pb-group-pause-button { width: 24px; height: 19px; }
+}
+@media (orientation: landscape) and (max-height: 300px) {
+  .pb-group-hud { padding-top: 2px; }
+  .pb-group-name { font-size: 9px; }
+  .pb-group-face { width: 25px; height: 25px; }
+  .pb-group-health { font-size: 15px; }
+  .pb-group-clock-bottom { gap: 1px; }
+}
+/* Server-synchronized countdown, without hiding the arena image. */
+.pb-group-countdown { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
 .pb-group-countdown > span {
   font: 900 clamp(36px,10vh,75px)/1 'Press Start 2P',monospace;
   color: #fff0a5; text-shadow: 4px 4px #0a122b,-3px -3px #0a122b,0 0 18px #e6a64a;

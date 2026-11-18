@@ -138,6 +138,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
     else onRematch(profiles);
   };
   return <main className="pb-group-screen">
+    <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
     <header className="pb-group-hud" aria-label="Estado de los cuatro luchadores">
       <div className="pb-group-hud-grid">
         {hudSeats.map((seat,column)=>{
@@ -192,7 +193,6 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
         })}
       </div>
     </header>
-    <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
       {summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
         <span key={summary.countdown}>{summary.countdown==='YA'?'¡YA!':summary.countdown}</span>
       </div>}

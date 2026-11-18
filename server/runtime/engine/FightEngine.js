@@ -525,7 +525,11 @@ class FightEngine {
         SoundFX_1.soundFX.koFanfare();
     }
     getWalkSpeed(f) {
-        return 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
+        const base = 3.5 + ((f.profile.stats.speed - 15) / 20) * 3.8;
+        // Large stages draw fighters at 64% scale. Reduce WORLD movement as well,
+        // otherwise they cross the arena far too fast relative to their sprite size.
+        // Applies to walking, guarding, air speed cap and dash in both local + online.
+        return base * ((0, stages_1.getLargeArena)(this.stage) ? 0.72 : 1);
     }
     getGravity(f) {
         return f.profile.archetype === 'GRAPPLER_TANK' ? ((0, stages_1.getLargeArena)(this.stage) ? 0.72 : 0.78) : 0.68;
@@ -830,10 +834,10 @@ class FightEngine {
         }
         else {
             if (input.left && !input.right) {
-                f.vx = Math.max(-walkSpd * 0.95, f.vx - 0.55);
+                f.vx = Math.max(-walkSpd * 0.95, f.vx - ((0, stages_1.getLargeArena)(this.stage) ? 0.40 : 0.55));
             }
             else if (input.right && !input.left) {
-                f.vx = Math.min(walkSpd * 0.95, f.vx + 0.55);
+                f.vx = Math.min(walkSpd * 0.95, f.vx + ((0, stages_1.getLargeArena)(this.stage) ? 0.40 : 0.55));
             }
             f.state = 'JUMP';
         }
