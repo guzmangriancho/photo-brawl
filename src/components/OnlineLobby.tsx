@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X, UserPlus } from 'lucide-react';
 import type { FighterProfile, StageId, GroupBattleMode } from '../types/fighter';
 import { STAGE_ART, STAGE_IDS, LARGE_ARENA_IDS } from '../data/stages';
 import type { RoomView } from '../network/protocol';
@@ -12,10 +12,10 @@ import './online.css';
 
 interface Props {
   fighter: FighterProfile|null; fighters: FighterProfile[]; stage: StageId;
-  session: OnlineSession|null; room: RoomView|null; externalError?:string;
+  session: OnlineSession|null; room: RoomView|null; externalError?:string; onOpenFriends:(mode:'1V1'|GroupBattleMode,ranked:boolean)=>void;
   onSession: (s:OnlineSession|null)=>void; onFighterChange:(fighter:FighterProfile)=>void; onClose:()=>void;
 }
-export function OnlineLobby({fighter,fighters,stage,session,room,externalError,onSession,onFighterChange,onClose}:Props){
+export function OnlineLobby({fighter,fighters,stage,session,room,externalError,onSession,onFighterChange,onClose,onOpenFriends}:Props){
   const [code,setCode]=useState(()=>new URLSearchParams(location.search).get('room')?.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6) || '');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -92,10 +92,11 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
         <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={!user||!supabaseConfigured} onClick={()=>{setRanked(true);if(fighter?.id.startsWith('community_')){if(availableFighters[0])onFighterChange(availableFighters[0]);setError('En clasificatorio debes elegir un luchador propio.');setPickerOpen(true);}}}>CLASIFICATORIO</button></div>
         {!user&&<small className="pb-online-ranked-help">Para jugar clasificatorias necesitas una cuenta con sesión activa.</small>}
         <button type="button" className="pb-online-primary" disabled={busy||!fighter} onClick={()=>creating(true)}><UsersRound size={20}/> CREAR SALA</button>
+        <button type="button" className="pb-online-friends-button" onClick={()=>onOpenFriends(room?(room.battleMode||'1V1'):battleMode,room?!!room.ranked:ranked)}><UserPlus size={16}/> INVITAR AMIGOS SIN CÓDIGO</button>
         <div className="pb-online-join"><label htmlFor="pb-room-code">CÓDIGO DE INVITACIÓN</label><div><input id="pb-room-code" maxLength={6} value={code} autoComplete="off" spellCheck={false} placeholder="ABC234" onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))}/><button type="button" disabled={busy||!fighter} onClick={()=>creating(false)}><Link size={16}/> UNIRSE</button></div></div>
         {busy&&<p className="pb-online-message"><Loader2 size={15}/> Conectando al servidor…</p>}
       </div> : <div className="pb-online-ready">
-        <div className="pb-online-code"><small>{room.battleMode?`${room.battleMode==='2V2'?'EQUIPOS 2V2':'FREE FOR ALL'} · 4 JUGADORES · ${room.ranked?'ELO':'AMISTOSO'}`:room.ranked?'CLASIFICATORIA · 2 RONDAS PARA GANAR':'AMISTOSO · CÓDIGO DE SALA'}</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> INVITAR</button></div></div>
+        <div className="pb-online-code"><small>{room.battleMode?`${room.battleMode==='2V2'?'EQUIPOS 2V2':'FREE FOR ALL'} · 4 JUGADORES · ${room.ranked?'ELO':'AMISTOSO'}`:room.ranked?'CLASIFICATORIA · 2 RONDAS PARA GANAR':'AMISTOSO · CÓDIGO DE SALA'}</small><div><strong>{room.code}</strong><button type="button" onClick={copy} aria-label="Copiar código">{copied?<Check size={17}/>:<Copy size={17}/>} {copied?'COPIADO':'COPIAR'}</button><button type="button" onClick={share} aria-label="Compartir enlace"><Link size={16}/> ENLACE</button><button type="button" className="pb-online-friends-button" onClick={()=>onOpenFriends(room?(room.battleMode||'1V1'):battleMode,room?!!room.ranked:ranked)}><UserPlus size={16}/> AMIGOS</button></div></div>
         {room.battleMode && room.players ? <div className="pb-online-group-players">
           {[0,1,2,3].map(seat=>{
             const p=room.players?.find(p=>p.seat===seat);

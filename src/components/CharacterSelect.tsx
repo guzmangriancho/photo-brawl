@@ -3,12 +3,16 @@ import {
   ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
-  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Upload, ClipboardPaste,
+  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Upload, ClipboardPaste, UserPlus,
 } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
 import { FighterCreator } from './FighterCreator';
 import { OnlineLobby } from './OnlineLobby';
+import { FriendsPanel } from './FriendsPanel';
+import {useFriends} from '../services/useFriends';
+import {sendFriendRequest,replyFriend,removeFriend,sendGameInvitation,replyGameInvitation,type GameInvitation,type SocialMode} from '../services/friendsService';
+import {ensureRankedOwnFighter} from '../services/publishedFighters';
 import { CommunityPage } from './CommunityPage';
 import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
 import {ownFighterRanks} from '../services/progressionService';
@@ -32,6 +36,14 @@ import { soundFX } from '../engine/SoundFX';
 import { STAGE_ART, STAGE_IDS, LARGE_ARENA_IDS } from '../data/stages';
 import './arcadeMenus.css';
 
+/** Espera el estado autoritativo que envía Render tras el handshake WebSocket. */
+function awaitRoomView(session:OnlineSession):Promise<RoomView>{
+  if(session.room)return Promise.resolve(session.room);
+  return new Promise((resolve,reject)=>{
+    const timer=window.setTimeout(()=>{stop();reject(new Error('El servidor no ha confirmado la sala.'));},5000);
+    const stop=session.on('room',(room:RoomView)=>{clearTimeout(timer);stop();resolve(room);});
+  });
+}
 type MenuPage = 'HOME' | 'FIGHTERS' | 'MOVES' | 'PLAY' | 'RANKING' | 'COMMUNITY' | 'SETTINGS';
 interface CharacterSelectProps {
   fighters: FighterProfile[];
@@ -85,6 +97,11 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
   const {user:accountUser}=usePlayerAccount();
+  const {social,socialError,refreshSocial}=useFriends(accountUser?.id);
+  const [showFriends,setShowFriends]=useState(false);
+  const [friendDefault,setFriendDefault]=useState<{mode:SocialMode;ranked:boolean}>({mode:'1V1',ranked:false});
+  const openFriends=(mode:SocialMode='1V1',ranked=false)=>{setFriendDefault({mode,ranked});setShowFriends(true);void refreshSocial();};
+  const [socialActionError,setSocialActionError]=useState('');
   const favorite=useFavoriteFighter();
   const [favoriteBusy,setFavoriteBusy]=useState(false);
   const [favoriteError,setFavoriteError]=useState('');
@@ -229,6 +246,54 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     if(onlineSession && onlineSession!==session)onlineSession.close();
     setOnlineSession(session);setOnlineRoom(session?.room||null);setOnlineError('');
   };
+  // Invitaciones rápidas: reutilizar salas activas, nunca crear salas duplicadas.
+  // El código interno se transmite por Supabase; el receptor nunca lo teclea.
+  const inviteFriend=async(friendId:string,battleMode:SocialMode,ranked:boolean)=>{
+    if(!accountUser)throw new Error('Inicia sesión.');
+    const chosen=ranked&&onlineFighter?.id.startsWith('community_')?featured:onlineFighter||featured;
+    if(!chosen)throw new Error('Crea o elige un luchador antes de invitar.');
+    let target=onlineSession;
+    const active=onlineRoom||target?.room;
+    if(target&&active){
+      if(active.role!=='host'||active.status!=='waiting')throw new Error('Solo el anfitrión puede invitar mientras espera jugadores.');
+      if((active.battleMode||'1V1')!==battleMode||!!active.ranked!==ranked)
+        throw new Error('Esta sala tiene otro modo. Ciérrala para crear una nueva.');
+      if(active.players&&active.players.length>=4)throw new Error('La sala está llena.');
+      if(!active.battleMode&&active.guest)throw new Error('La sala ya tiene rival.');
+    }else if(target){throw new Error('Abandona la sala anterior antes de crear otra.');}
+    if(!target){
+      if(ranked)await ensureRankedOwnFighter(chosen);
+      const arena=battleMode==='1V1'?stage:(LARGE_ARENA_IDS.includes(stage)?stage:LARGE_ARENA_IDS[0]);
+      target=await OnlineSession.create(chosen,arena,ranked,battleMode==='1V1'?undefined:battleMode);
+      try{await awaitRoomView(target);}catch(err){target.close();throw err;}
+      setOnlineSessionSafe(target);
+    }
+    setMode('ONLINE');setPage('HOME');setShowOnlineLobby(true);
+    await sendGameInvitation(friendId,target.code,battleMode,ranked);
+  };
+  const joinFriendInvite=async(invitation:GameInvitation)=>{
+    if(!accountUser)throw new Error('Inicia sesión.');
+    const chosen=invitation.ranked&&onlineFighter?.id.startsWith('community_')?featured:onlineFighter||featured;
+    if(!chosen)throw new Error('Necesitas crear un luchador para aceptar la invitación.');
+    if(invitation.ranked)await ensureRankedOwnFighter(chosen);
+    // No cerrar la sala previa hasta confirmar que la nueva conexión funciona.
+    const joined=await OnlineSession.join(invitation.room_code,chosen);
+    try{
+      // El modo real lo confirma Render, no el mensaje de otro cliente:
+      // evitar entrar a una clasificatoria inesperada si se manipula la invitación.
+      const actual=await awaitRoomView(joined);
+      if((actual.battleMode||'1V1')!==invitation.battle_mode||!!actual.ranked!==invitation.ranked)
+        throw new Error('La sala no coincide con la invitación. Pide a tu amigo que te invite otra vez.');
+      setOnlineSessionSafe(joined);setMode('ONLINE');setPage('HOME');setShowFriends(false);setShowOnlineLobby(true);
+      try{await replyGameInvitation(invitation.id,true);}catch(error){console.warn('Invitación conectada pero no se pudo registrar la respuesta',error);}
+      void refreshSocial();
+    }catch(error){joined.close();throw error;}
+  };
+  const declineFriendInvite=async(id:string)=>{await replyGameInvitation(id,false);await refreshSocial();};
+  const acceptIncomingInvite=(invitation:GameInvitation)=>{
+    setSocialActionError('');
+    void joinFriendInvite(invitation).catch(e=>setSocialActionError(e instanceof Error?e.message:'No se pudo entrar en la sala.'));
+  };
   const selectMode=(id:GameMode)=>{
     if(id!=='ONLINE'&&onlineSession){onlineSession.close();setOnlineSession(null);setOnlineRoom(null);}
     if((id==='2V2'||id==='FREE_FOR_ALL')&&!LARGE_ARENA_IDS.includes(stage)){setStage(LARGE_ARENA_IDS[0]);setStagePage(0);}
@@ -245,6 +310,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (showFriends) { setShowFriends(false); return; }
       if (transferring) { setTransferring(null); return; }
       if (showAccount) { setShowAccount(false); return; }
       if (showTutorial) { setShowTutorial(false); return; }
@@ -256,7 +322,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showApiKey, showTutorial, showAccount, transferring]);
+  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showApiKey, showTutorial, showAccount, transferring, showFriends]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
     if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
@@ -408,7 +474,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
-        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
+        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
 
@@ -440,7 +506,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       <div className="pb-rival-grid" aria-label={isGroupMode?`Luchadores disponibles para P${activeGroupSeat+1}`:'Seleccionar rival'}>{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => {if(isGroupMode)selectGroupFighter(f);else {setP2Id(f.id);soundFX.selectBeep();}}} className={(isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id)?'is-selected':''} aria-pressed={isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
       <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><span>Todos los combates se inician desde Inicio.</span></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={() => go('HOME')}><Check size={17}/> GUARDAR Y VOLVER</button></section></div>}
 
-    {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)}/> }
+    {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)} onAddFriend={async username=>{const result=await sendFriendRequest(username);void refreshSocial();return result;}}/> }
 
     {page === 'SETTINGS' && <div className="pb-subpage pb-settings-layout pb-page-anim"><section className="pb-frame pb-settings-controls"><PanelTitle label="PERSONALIZA LA EXPERIENCIA">AJUSTES</PanelTitle>
       <div className="pb-setting-row"><div><SlidersHorizontal size={16}/><span>TRANSPARENCIA BOTONES</span></div><label className="pb-opacity"><input aria-label="Transparencia controles" type="range" min="35" max="100" step="5" value={controlOpacity} onChange={e => setControlOpacity(Number(e.target.value))}/><b>{controlOpacity}%</b></label></div>
@@ -450,7 +516,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   </div>
 
   {showTutorial && page === 'HOME' && <div className="pb-modal-backdrop pb-tutorial-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget)setShowTutorial(false);}}><section className="pb-modal pb-frame pb-tutorial-modal" role="dialog" aria-modal="true" aria-label="Tutorial gratuito"><button type="button" className="pb-modal-close" onClick={()=>setShowTutorial(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="ESCUELA ARCADE · GRATIS PARA SIEMPRE">APRENDE A COMBATIR</PanelTitle><p className="pb-tutorial-intro">Aprende 14 técnicas: dash, combos, golpe bajo, guardia móvil, parry y súper con ejercicios interactivos. Usa uno de estos cuatro luchadores de entrenamiento. No aparecen en tu colección ni en los modos normales.</p><div className="pb-tutorial-choices">{TUTORIAL_FIGHTERS.map(f=><button type="button" key={f.id} className={`pb-tutorial-choice ${tutorialId===f.id?'is-selected':''}`} aria-pressed={tutorialId===f.id} onClick={()=>setTutorialId(f.id)}><FighterPortrait fighter={f}/><strong>{f.fighterName}</strong>{tutorialId===f.id&&<Check size={15}/>}</button>)}</div><div className="pb-tutorial-bottom"><span><BookOpen size={15}/> 14 RETOS · COMBOS · PARRY · SÚPER</span><button type="button" className="pb-arcade-button pb-gold" onClick={()=>{setShowTutorial(false);onStartTutorial(tutorialFighter.id);}}><Gamepad2 size={17}/> EMPEZAR TUTORIAL</button></div></section></div>}
-  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && <OnlineLobby fighter={onlineFighter||featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>{if(fighters.some(f=>f.id===next.id)){setP1Id(next.id);setOnlineFighter(null);}else setOnlineFighter(next);}} onClose={()=>setShowOnlineLobby(false)}/>}
+  {showOnlineLobby && mode==='ONLINE' && page==='HOME' && <OnlineLobby fighter={onlineFighter||featured} fighters={fighters} stage={stage} session={onlineSession} room={onlineRoom} externalError={onlineError} onSession={setOnlineSessionSafe} onFighterChange={next=>{if(fighters.some(f=>f.id===next.id)){setP1Id(next.id);setOnlineFighter(null);}else setOnlineFighter(next);}} onOpenFriends={openFriends} onClose={()=>setShowOnlineLobby(false)}/>}
   {onlineError && mode==='ONLINE' && !showOnlineLobby && <div className="pb-online-notice" role="status" onClick={()=>setOnlineError('')}>{onlineError} · Toca para cerrar</div>}
   {renamingId && editingFighter && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!renamingBusy&&!artBusy)setRenamingId(null);}}><form className="pb-modal pb-frame pb-rename-modal pb-edit-fighter-modal" role="dialog" aria-modal="true" aria-label="Editar luchador" onSubmit={submitRename}>
     <button type="button" className="pb-modal-close" onClick={()=>setRenamingId(null)} disabled={renamingBusy||artBusy} aria-label="Cerrar"><X size={18}/></button>
@@ -474,6 +540,15 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   </form></div>}
   {editPasteFallback && renamingId && <div className="pb-modal-backdrop pb-edit-paste-shade" onPointerDown={e=>{if(e.currentTarget===e.target)setEditPasteFallback(null);}}><section className="pb-modal pb-frame pb-edit-paste-modal" role="dialog" aria-modal="true" aria-label="Pegar imagen"><button type="button" className="pb-modal-close" onClick={()=>setEditPasteFallback(null)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="PORTAPAPELES">PEGAR {editPasteFallback==='PORTRAIT'?'RETRATO':'SPRITES'}</PanelTitle><p className="pb-modal-note">Mantén pulsado en el recuadro y selecciona PEGAR, o usa Ctrl+V.</p><div ref={setEditPasteTarget} className="pb-edit-paste-target" role="textbox" contentEditable tabIndex={0} suppressContentEditableWarning onPaste={e=>onEditedArtPaste(e,editPasteFallback)}>TOCA AQUÍ PARA PEGAR UNA IMAGEN</div><button type="button" className="pb-mini-button pb-muted" onClick={()=>setEditPasteFallback(null)}>CANCELAR</button></section></div>}
   {showApiKey && <div className="pb-modal-backdrop" role="presentation" onPointerDown={e => { if (e.target === e.currentTarget) setShowApiKey(false); }}><section className="pb-modal pb-frame" role="dialog" aria-modal="true" aria-label="Configurar Gemini"><button type="button" className="pb-modal-close" onClick={() => setShowApiKey(false)} aria-label="Cerrar"><X size={18}/></button><PanelTitle label="PERSONALIZACIÓN">CLAVE GEMINI</PanelTitle><label className="pb-field-label">API KEY<input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Introduce tu API key" autoComplete="off"/></label><p className="pb-modal-note">Se guarda en el navegador de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setShowApiKey(false)}>CANCELAR</button><button type="button" className="pb-mini-button pb-gold" onClick={() => { setGeminiApiKey(apiKeyInput); setShowApiKey(false); soundFX.confirmBeep(); }}>GUARDAR</button></div></section></div>}
+  {showFriends&&<FriendsPanel social={social} error={socialError} roomMode={onlineRoom?(onlineRoom.battleMode||'1V1'):null} roomRanked={!!onlineRoom?.ranked} isHost={onlineRoom?.role==='host'} defaultMode={friendDefault.mode} defaultRanked={friendDefault.ranked} onClose={()=>setShowFriends(false)}
+    onRequest={sendFriendRequest} onReply={replyFriend} onRemove={removeFriend} onInvite={inviteFriend}
+    onJoin={joinFriendInvite} onDecline={declineFriendInvite} onRefresh={()=>{void refreshSocial();}}/>}
+  {!showFriends&&!showOnlineLobby&&social.invitations.length>0&&<div className="pb-friend-alert" role="status">
+    <strong>¡INVITACIÓN A JUGAR!</strong>
+    <span>{social.invitations[0].sender.display_name} · {social.invitations[0].battle_mode==='1V1'?'1 VS 1':social.invitations[0].battle_mode==='2V2'?'2 VS 2':'TODOS CONTRA TODOS'} · {social.invitations[0].ranked?'RANKED':'AMISTOSO'}</span>
+    <div><button type="button" onClick={()=>acceptIncomingInvite(social.invitations[0])}>UNIRME</button><button type="button" onClick={()=>openFriends()}>VER INVITACIONES</button></div>
+    {socialActionError&&<small role="alert">{socialActionError}</small>}
+  </div>}
   {showAccount && <AccountPanel onClose={()=>setShowAccount(false)} onRestored={onFighterCreated}/>}
   {transferring&&<FighterTransfers fighter={transferring} onClose={()=>setTransferring(null)}/>}
   {showCreator && <FighterCreator onClose={closeCreator} onCreated={handleCreated} />}

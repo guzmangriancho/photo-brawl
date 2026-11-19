@@ -1,3 +1,5 @@
+> **V56 — Amigos e invitaciones directas (19/11/2026).** Lista de amigos, solicitudes por @usuario o desde perfiles, invitaciones sin copiar códigos a 1v1, 2v2 y FFA amistosos/clasificatorios. **Ejecuta SQL V56 en Supabase** y despliega el frontend en Vercel; Render sigue utilizando las salas existentes. [Guía V56](docs/V56_AMIGOS_INVITACIONES_RAPIDAS.md).
+
 > **V53 — Galería sin scroll y retrato favorito (19/11/2026).** Explorar 2×3 fijo en móvil vertical, botones de ranking legibles, imágenes cuadradas en Publicar y corazón para elegir un luchador favorito; su retrato aparece como avatar en cuentas, perfiles, ELO y dúos. **Ejecuta SQL V53 antes de desplegar en Vercel**; Render no cambia. [Guía V53](docs/V53_FAVORITOS_AVATARES_Y_GALERIA.md).
 
 > **V52 — Explorar y ranking compactos (19/11/2026).** Retratos cuadrados, 3 filas en móvil vertical, nombres libres de superposiciones y marcos sin letra en la esquina. La lista de copas se mueve al popup **LIGAS**; ranking limpio en apaisado. **Solo Vercel, sin SQL nuevo.** [Guía V52](docs/V52_EXPLORAR_RANKING_COMPACTO.md).

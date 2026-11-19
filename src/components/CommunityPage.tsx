@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {ArrowLeft, ChevronLeft, ChevronRight, CloudUpload, Crown, Heart, LockKeyhole, Search, ShieldCheck, Trophy, UserRound, UsersRound, X} from 'lucide-react';
+import {ArrowLeft, ChevronLeft, ChevronRight, CloudUpload, Crown, Heart, UserPlus, LockKeyhole, Search, ShieldCheck, Trophy, UserRound, UsersRound, X} from 'lucide-react';
 import type {FighterProfile} from '../types/fighter';
 import {usePlayerAccount} from '../services/usePlayerAccount';
 import {supabaseConfigured} from '../services/supabaseClient';
@@ -32,11 +32,12 @@ interface Props {
   adminView?:boolean;
   fighters:FighterProfile[];
   onAccount:()=>void;
+  onAddFriend?:(username:string)=>Promise<string>;
 }
 
 /** The same data-driven screen serves the leaderboard and the public fighter gallery.
  *  Nothing in this screen starts a match or changes a local character automatically. */
-export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Props){
+export function CommunityPage({initialTab,fighters,onAccount,onAddFriend,adminView=false}:Props){
   const {user,loading:authLoading}=usePlayerAccount();
   const favorite=useFavoriteFighter();
   const [tab,setTab]=useState<Tab>(initialTab);
@@ -66,6 +67,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
   const [versus,setVersus]=useState<HeadToHeadMatch[]>([]);
   const [versusLoading,setVersusLoading]=useState(false);
   const [versusError,setVersusError]=useState('');
+  const [friendFeedback,setFriendFeedback]=useState('');
 
   useEffect(()=>{setTab(initialTab);setError('');setNotice('');setShowLeagues(false);},[initialTab]);
   useEffect(()=>{
@@ -118,7 +120,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
 
   const showDetail=(fighter:CommunityFighter)=>{setError('');setDetailArt('portrait');setDetail(fighter);setAuthor(null);};
   const openAuthor=async(owner:string)=>{
-    setBusy('author');setError('');
+    setBusy('author');setError('');setFriendFeedback('');
     try{const profile=await getPublicProfile(owner);setAuthor(profile);setDetail(null);
       const cups=await fighterCupsById(profile.fighters.map(f=>f.id));setFighterCups(old=>({...old,...cups}));}
     catch(err){setError(textError(err));}finally{setBusy('');}
@@ -224,6 +226,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
     {author&&<div className="pb-social-overlay pb-community-detail-layer" onPointerDown={e=>{if(e.target===e.currentTarget)setAuthor(null);}}><section className="pb-social-dialog pb-community-detail pb-frame" role="dialog" aria-modal="true" aria-label="Perfil público del jugador">
       <header className="pb-social-heading"><strong><PlayerAvatar path={author.player?.favorite_avatar_path}/> {author.player?.display_name||'JUGADOR'}</strong><button type="button" aria-label="Cerrar" onClick={()=>setAuthor(null)}><X size={18}/></button></header>
       <div className="pb-community-author-summary">@{author.player?.username||'jugador'} · {author.player?.rating??1000} ELO · {author.player?.wins??0} V / {author.player?.losses??0} D</div>
+      {user && author.player?.id!==user.id && author.player?.username && onAddFriend&&<div className="pb-community-friend-cta"><button type="button" disabled={!!busy} onClick={()=>{setBusy('friend');setFriendFeedback('');void onAddFriend(author.player!.username).then(result=>setFriendFeedback(result==='accepted'?'¡Ya sois amigos!':result==='already_friends'?'Ya sois amigos':result==='already_sent'?'Solicitud enviada':'Solicitud de amistad enviada')).catch(err=>setFriendFeedback(textError(err))).finally(()=>setBusy(''));}}><UserPlus size={15}/> AÑADIR AMIGO</button>{friendFeedback&&<small role="status">{friendFeedback}</small>}</div>}
       {author.player?.id!==user?.id&&<section className="pb-h2h" aria-label="Historial entre jugadores">
         <header>HISTORIAL VS {author.player?.display_name||author.player?.username||'JUGADOR'}</header>
         {versusLoading?<p>CARGANDO…</p>:versusError?<p role="alert">{versusError}</p>:<>

@@ -1,3 +1,19 @@
+PHOTO BRAWL V56 — AMIGOS E INVITACIONES RÁPIDAS
+==================================================
+
+Nueva lista de amigos, solicitudes y acceso a salas 1v1/2v2/FFA sin escribir códigos.
+
+PASOS OBLIGATORIOS:
+1. Ejecuta PHOTO_BRAWL_V56_MIGRACION_AMIGOS_INVITACIONES.sql en Supabase → SQL Editor.
+2. Actualiza Vercel con este proyecto. No hace falta redeplegar Render (si ya está en V55).
+3. Verifica en tu equipo: npm ci && npm run build && npm run test:v56.
+4. Prueba invitaciones entre dos cuentas reales (y cuatro para 2v2/FFA).
+
+Las invitaciones caducan a los 15 minutos; no hay notificaciones push al cerrar completamente la PWA.
+Documentación: docs/V56_AMIGOS_INVITACIONES_RAPIDAS.md
+
+---
+
 PHOTO BRAWL V53 — FAVORITOS, AVATARES Y GALERÍA MÓVIL
 
 Explorar tiene 2×3 tarjetas sin scroll en móvil vertical. El botón LIGAS y los tabs del ranking comparten legibilidad. Publicar usa retratos cuadrados; el corazón marca un único favorito por cuenta. Su retrato aparece como avatar en los perfiles, ranking ELO, dúos y Mi cuenta.

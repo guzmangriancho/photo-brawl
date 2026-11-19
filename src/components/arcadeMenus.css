@@ -680,3 +680,9 @@
   .pb-profile-panel>.pb-favorite-toggle{top:5px;right:5px}
   .pb-profile-panel .pb-profile-heading{padding-right:29px}
 }
+
+/* V56: acceso directo a la lista de amigos sin estrechar los otros botones */
+.pb-home-footer{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pb-home-footer .pb-friend-main-button{border-color:#e0bf7a;color:#ffe7a2}
+.pb-home-footer button{min-width:0;white-space:nowrap;font-size:clamp(10px,1.2vw,15px)}
+@media (max-width:400px){.pb-home-footer button{font-size:10px;gap:3px;padding:2px 3px}}

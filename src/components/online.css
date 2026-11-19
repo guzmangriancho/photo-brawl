@@ -231,3 +231,5 @@
 .pb-online-dialog .pb-online-identity-avatar img{width:100%;height:100%;border:0}
 @media(orientation:landscape) and (max-height:420px){.pb-online-dialog .pb-online-identity-avatar{width:40px;height:40px}}
 @media(orientation:portrait) and (max-width:370px){.pb-online-dialog .pb-online-identity-avatar{width:50px;height:50px}}
+
+.pb-online-dialog button.pb-online-friends-button{border-color:#ecc87c;color:#ffe0a1;background:#3a355a;min-height:30px}

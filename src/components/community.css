@@ -370,3 +370,6 @@
 /* Give the match history room inside narrow/mobile profile dialogs. */
 .pb-community-page .pb-community-author-grid{flex:0 0 auto;max-height:clamp(55px,17vh,125px);overflow:hidden}
 .pb-community-page .pb-community-author-grid .pb-league-frame{max-height:100%;height:min(12vh,64px);width:min(12vh,64px)}
+
+/* V56 · Añadir amigos desde el perfil del rival */
+.pb-community-friend-cta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:5px 0}.pb-community-friend-cta button{display:inline-flex;align-items:center;gap:6px;background:#234d53;border:2px solid #71dfb5;color:#edfff6;padding:6px 9px;border-radius:0;font:800 13px Pixelify Sans,sans-serif}.pb-community-friend-cta small{color:#ffe29d;font:800 12px Oxanium,sans-serif}

@@ -1,5 +1,5 @@
 /* PHOTO BRAWL: cache only the game's shell, never Gemini requests or user photos. */
-const CACHE_NAME = 'pb-shell-v54-fighter-detail-responsive';
+const CACHE_NAME = 'pb-shell-v56-friends-quick-invites';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable.png', './icons/apple-touch-icon.png', './icons/favicon.png', './backgrounds/menu.jpg', './backgrounds/snow.jpg', './backgrounds/neon.jpg', './backgrounds/beach.jpg', './backgrounds/asia.jpg', './backgrounds/rooftop.jpg', './backgrounds/atlantis.jpg', './backgrounds/forest.jpg', './backgrounds/celestial.jpg', './backgrounds/volcan.jpg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
