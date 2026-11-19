@@ -22,7 +22,7 @@ const OWNER_KEY='pb-local-fighters-cloud-owner-v16-2';
 let status:MigrationStatus={phase:'checking',total:0,done:0,uploaded:0,existing:0,errors:[],message:'Comprobando los luchadores guardados…'};
 const subscribers=new Set<(status:MigrationStatus)=>void>();
 let started=false;
-let syncInProgress=false;
+let migrationPromise:Promise<void>|null=null;
 let requestedAgain=false;
 let currentAccount:string|null=null;
 let lastSuccessFingerprint='';
@@ -51,13 +51,11 @@ function fingerprint(uid:string,rows:{id:string;createdAt?:number;fighterName:st
 }
 
 async function migrate():Promise<void> {
-  if(syncInProgress){requestedAgain=true;return;}
   if(!supabase){update({phase:'not-configured',message:'Colección local intacta. Supabase todavía no está configurado.'});return;}
   if(!currentAccount){update({phase:'waiting-login',message:'Tus luchadores siguen guardados aquí. Inicia sesión para copiarlos automáticamente a tu nube privada.'});return;}
   if(typeof navigator!=='undefined' && navigator.onLine===false){
     update({phase:'error',message:'Sin conexión. La copia privada se reintentará cuando vuelvas a tener Internet.'});return;
   }
-  syncInProgress=true;
   const uid=currentAccount;
   try {
     update({phase:'checking',message:'Buscando luchadores antiguos…'});
@@ -77,6 +75,13 @@ async function migrate():Promise<void> {
     }
     const tag=fingerprint(uid,rows);
     if(!rows.length){
+      // Also bind an empty device before restoring cloud data; otherwise a later
+      // sign-in with another account could silently upload restored fighters.
+      if(owner!==uid){
+        try{saveOwner(uid);}catch{
+          update({phase:'error',message:'No se puede proteger esta colección porque el almacenamiento local está bloqueado.'});return;
+        }
+      }
       update({phase:'synced',total:0,done:0,uploaded:0,existing:0,errors:[],message:'No hay luchadores antiguos pendientes de migración.'});
       lastSuccessFingerprint=tag;
       return;
@@ -107,16 +112,42 @@ async function migrate():Promise<void> {
   }catch(error){
     update({phase:'error',errors:[error instanceof Error?error.message:String(error)],
       message:`No se ha podido sincronizar. Tus personajes siguen en este móvil. ${error instanceof Error?error.message:''}`});
-  }finally{
-    syncInProgress=false;
-    if(requestedAgain){requestedAgain=false;requestAutomaticMigration();}
   }
+}
+
+/** Single-flight execution: the startup gate awaits the SAME sync as background
+ * migration events, so recovery never runs before an ongoing cloud backup. */
+function runMigration():Promise<void>{
+  if(migrationPromise)return migrationPromise;
+  const promise=migrate();
+  migrationPromise=promise;
+  void promise.finally(()=>{
+    if(migrationPromise===promise)migrationPromise=null;
+    if(requestedAgain){requestedAgain=false;requestAutomaticMigration();}
+  }).catch(error=>console.warn('No se pudo finalizar la sincronización',error));
+  return promise;
+}
+
+/** Explicit awaited check for each launch; never merely schedule a timer. */
+export async function runAutomaticMigrationNow(expectedUserId:string):Promise<MigrationStatus>{
+  // Drain an in-flight background backup and any queued local changes BEFORE
+  // allowing recovery to start. React StrictMode never starts a parallel copy.
+  do {
+    if(scheduled){clearTimeout(scheduled);scheduled=undefined;}
+    if(migrationPromise)await migrationPromise;
+    if(scheduled){clearTimeout(scheduled);scheduled=undefined;}
+    if(currentAccount!==expectedUserId){currentAccount=expectedUserId;lastSuccessFingerprint='';}
+    requestedAgain=false;
+    await runMigration();
+  }while(requestedAgain||scheduled);
+  return getAutomaticMigrationStatus();
 }
 
 /** Safe to call after creating/importing a fighter, restoring network, or signing in. */
 export function requestAutomaticMigration():void {
+  if(migrationPromise){requestedAgain=true;return;}
   if(scheduled)clearTimeout(scheduled);
-  scheduled=setTimeout(()=>{scheduled=undefined;void migrate();},350);
+  scheduled=setTimeout(()=>{scheduled=undefined;void runMigration();},350);
 }
 
 /** Attach once at the app root, not inside any menu (which can unmount). */

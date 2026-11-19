@@ -90,7 +90,7 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
             onClick={()=>{setBattleMode(id);if(id!=='1V1')setRanked(false);}}>{label}</button>)}
         </div>
         <div className="pb-online-match-kind" role="group" aria-label="Tipo de partida"><button type="button" aria-pressed={!ranked} className={!ranked?'on':''} onClick={()=>setRanked(false)}>AMISTOSO</button><button type="button" aria-pressed={ranked} className={ranked?'on':''} disabled={!user||!supabaseConfigured} onClick={()=>{setRanked(true);if(fighter?.id.startsWith('community_')){if(availableFighters[0])onFighterChange(availableFighters[0]);setError('En clasificatorio debes elegir un luchador propio.');setPickerOpen(true);}}}>CLASIFICATORIO</button></div>
-        {!user&&<small className="pb-online-ranked-help">Para jugar clasificatorias, inicia sesión desde CUENTA. Puedes unirte a salas amistosas sin cuenta.</small>}
+        {!user&&<small className="pb-online-ranked-help">Para jugar clasificatorias necesitas una cuenta con sesión activa.</small>}
         <button type="button" className="pb-online-primary" disabled={busy||!fighter} onClick={()=>creating(true)}><UsersRound size={20}/> CREAR SALA</button>
         <div className="pb-online-join"><label htmlFor="pb-room-code">CÓDIGO DE INVITACIÓN</label><div><input id="pb-room-code" maxLength={6} value={code} autoComplete="off" spellCheck={false} placeholder="ABC234" onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))}/><button type="button" disabled={busy||!fighter} onClick={()=>creating(false)}><Link size={16}/> UNIRSE</button></div></div>
         {busy&&<p className="pb-online-message"><Loader2 size={15}/> Conectando al servidor…</p>}

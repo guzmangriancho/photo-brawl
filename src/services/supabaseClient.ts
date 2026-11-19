@@ -7,7 +7,7 @@ export const supabase = supabaseConfigured ? createClient(url, publicKey, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' },
 }) : null;
 
-/** Optional authentication: public casual rooms remain available without an account. */
+/** Read the access token for authenticated online play. App.tsx requires login. */
 export async function getOnlineAccessToken(): Promise<string | null> {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();

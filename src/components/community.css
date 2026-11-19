@@ -152,3 +152,10 @@
 .pb-community-detail-main>.pb-private-art-placeholder{width:min(30%,155px);min-height:54px;max-height:28vh;flex:0 1 auto}
 .pb-admin-detail-status{color:#ffc88d!important}
 @media(max-height:430px){.pb-admin-gallery-note{min-height:16px;padding:1px 4px}.pb-community-card em{font-size:8px}}
+
+/* Required sign-in dialog, reused from the regular AccountPanel. */
+.pb-auth-required-note{font:800 clamp(11px,1.5vw,14px)/1.35 Oxanium,system-ui;color:#b9e6ff;text-align:center}
+.pb-auth-required-screen .pb-social-overlay{background:#020818b5}
+.pb-startup-warning{position:fixed;z-index:100;bottom:12px;left:50%;transform:translateX(-50%);width:min(92vw,750px);background:#251c36;border:2px solid #e9b969;border-radius:6px;padding:9px 13px;color:#ffe9a4;font:800 12px/1.35 Oxanium,system-ui;text-align:center;pointer-events:none}
+
+.pb-auth-required-screen .pb-social-dialog{overflow-y:auto;overscroll-behavior:contain}

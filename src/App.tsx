@@ -12,6 +12,9 @@ import { startAutomaticFighterMigration,requestAutomaticMigration } from './serv
 import { repairSavedSpriteChroma } from './engine/SpriteProcessor';
 import { reconcileSentFighterTransfers } from './services/fighterTransferService';
 import { supabase } from './services/supabaseClient';
+import { usePlayerAccount } from './services/usePlayerAccount';
+import { startStartupCloudRestore } from './services/startupCloudRestore';
+import { AccountPanel } from './components/AccountPanel';
 import { CharacterSelect } from './components/CharacterSelect';
 import { FightArena } from './components/FightArena';
 import { GroupFightArena } from './components/GroupFightArena';
@@ -19,7 +22,12 @@ import { LARGE_ARENA_IDS } from './data/stages';
 import type { OnlineSession } from './network/OnlineSession';
 import type { OnlineStart } from './network/protocol';
 
+type StartupState={uid:string|null;phase:'waiting'|'checking'|'restoring'|'ready'|'error';error:string;warning:string};
+
 export function App() {
+  const {user,loading:authLoading}=usePlayerAccount();
+  const [startup,setStartup]=useState<StartupState>({uid:null,phase:'waiting',error:'',warning:''});
+  const [startupRetry,setStartupRetry]=useState(0);
   // Presets are free tutorial actors only; never mix them into the personal roster.
   const [fighters, setFighters] = useState<FighterProfile[]>([]);
   const [rosterLoaded,setRosterLoaded] = useState(false);
@@ -39,13 +47,35 @@ export function App() {
     fighters?: FighterProfile[];
   } | null>(null);
 
-  // Start migration at app boot, independently of what menu the user opens.
+  // Keep automatic background backups for edits/imports, but the initial
+  // launch MUST await both cloud steps before mounting any game screen.
   useEffect(() => startAutomaticFighterMigration(), []);
+  useEffect(()=>{
+    if(!user){
+      setStartup({uid:null,phase:'waiting',error:'',warning:''});
+      setScreen('SELECT');setMatchConfig(null);setFighters([]);setRosterLoaded(false);
+      return;
+    }
+    let active=true;
+    setStartup({uid:user.id,phase:'checking',error:'',warning:''});
+    const {promise,unsubscribe}=startStartupCloudRestore(user.id,phase=>{
+      if(active)setStartup(old=>({...old,uid:user.id,phase,error:''}));
+    });
+    void promise.then(report=>{
+      if(active)setStartup({uid:user.id,phase:'ready',error:'',
+        warning:report.failed.length?`No se pudieron recuperar ${report.failed.length} luchadores de la nube: ${report.failed[0]}. Vuelve a intentarlo desde CUENTA → MIS COPIAS.`:''});
+    }).catch(error=>{
+      if(active)setStartup({uid:user.id,phase:'error',error:error instanceof Error?error.message:String(error),warning:''});
+    });
+    return()=>{active=false;unsubscribe();};
+  },[user?.id,startupRetry]);
   // Transfer receipts: when the receiver accepts, the canonical cloud fighter
   // changes owner. Reconcile the sender's local collection on focus/interval,
   // never deleting a fighter from another user's device.
   useEffect(() => {
-    if(!supabase)return;
+    // Transfer reconciliation runs only AFTER the ordered startup cloud restore;
+    // never mutate IndexedDB while the initial backup/restore is still running.
+    if(!supabase||!user||startup.uid!==user.id||startup.phase!=='ready')return;
     let active=true;
     const reconcile=()=>{if(active)void reconcileSentFighterTransfers().catch(error=>console.warn('Transferencias pendientes de reconciliar',error));};
     const refresh=()=>{if(active)void getAllCustomFighters().then(rows=>{
@@ -58,10 +88,13 @@ export function App() {
     window.setTimeout(reconcile,1700);
     return ()=>{active=false;auth.data.subscription.unsubscribe();clearInterval(timer);
       window.removeEventListener('focus',reconcile);window.removeEventListener('pb-roster-refresh',refresh);};
-  },[]);
+  },[user?.id,startup.uid,startup.phase]);
 
   useEffect(() => {
+    if(!user||startup.uid!==user.id||startup.phase!=='ready')return;
     let active=true;
+    setRosterLoaded(false);
+    setRosterError('');
     getAllCustomFighters().then(async customs=>{
       if(!active)return;
       setFighters(customs.filter(f => !f.isPreset && !f.id.startsWith("preset_")));
@@ -81,7 +114,7 @@ export function App() {
       if(active)setRosterError(error instanceof Error?error.message:'No se pudo leer el almacenamiento del dispositivo.');
     }).finally(()=>{if(active)setRosterLoaded(true);});
     return()=>{active=false;};
-  }, []);
+  }, [user?.id,startup.uid,startup.phase]);
 
   const handleFighterCreated = (newFighter: FighterProfile) => {
     if(newFighter.isPreset || newFighter.id.startsWith("preset_")) return;
@@ -142,6 +175,23 @@ export function App() {
     matchConfig?.online?.close();setMatchConfig(null);setScreen('SELECT');
   };
 
+  // Neither combat nor selection is available without a verified session.
+  // Keep the existing account modal, but make it non-dismissible here.
+  if(authLoading)return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>COMPROBANDO SESIÓN…</small></div></div>;
+  if(!user||!supabase)return <div className="pb-app pb-loading-roster pb-auth-required-screen">
+    <div className="pb-loading-plaque" aria-hidden="true">PHOTO <b>BRAWL</b></div>
+    <AccountPanel requiredLogin onClose={()=>{}} onRestored={()=>{}}/>
+  </div>;
+  if(startup.uid!==user.id||startup.phase==='waiting'||startup.phase==='checking'||startup.phase==='restoring'){
+    const message=startup.uid===user.id&&startup.phase==='restoring'?'2/2 · RECUPERANDO DE LA NUBE…':'1/2 · COMPROBANDO SINCRONIZACIÓN…';
+    return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>{message}</small><small>No cierres la aplicación durante la recuperación.</small></div></div>;
+  }
+  if(startup.phase==='error')return <div className="pb-app pb-loading-roster" role="alert"><div className="pb-loading-plaque">SINCRONIZACIÓN PENDIENTE
+    <small>{startup.error}</small><small>Tus luchadores locales no se han borrado. Comprueba tu conexión e inténtalo de nuevo.</small>
+    <button type="button" onClick={()=>setStartupRetry(n=>n+1)}>REINTENTAR SINCRONIZACIÓN</button>
+    <button type="button" onClick={()=>void supabase?.auth.signOut()}>CERRAR SESIÓN</button>
+  </div></div>;
+
   if (screen === 'FIGHT' && matchConfig) {
     if(matchConfig.battleMode && matchConfig.fighters?.length===4){
       return <GroupFightArena key={fightKey} fighters={matchConfig.fighters as [FighterProfile,FighterProfile,FighterProfile,FighterProfile]}
@@ -168,6 +218,7 @@ export function App() {
   if (!rosterLoaded) return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>CARGANDO TUS LUCHADORES…</small></div></div>;
 
   return (
+    <>
     <CharacterSelect
       fighters={fighters}
       onFighterCreated={handleFighterCreated}
@@ -177,6 +228,8 @@ export function App() {
       onOnlineMatch={handleOnlineMatch}
       onStartTutorial={handleStartTutorial}
     />
+    {startup.warning&&<div className="pb-startup-warning" role="status">{startup.warning}</div>}
+    </>
   );
 }
 

@@ -10,8 +10,8 @@ import {usePlayerAccount} from '../services/usePlayerAccount';
 import {FighterTransfers} from './FighterTransfers';
 import './community.css';
 
-interface Props {onClose:()=>void;onRestored:(fighter:FighterProfile)=>void}
-export function AccountPanel({onClose,onRestored}:Props){
+interface Props {onClose:()=>void;onRestored:(fighter:FighterProfile)=>void;requiredLogin?:boolean}
+export function AccountPanel({onClose,onRestored,requiredLogin=false}:Props){
  const {user,loading}=usePlayerAccount();
  const [tab,setTab]=useState<'account'|'backup'|'transfers'>('account');
  const [email,setEmail]=useState('');
@@ -153,16 +153,17 @@ export function AccountPanel({onClose,onRestored}:Props){
    finally{setBusy(false);}
  }
 
- return <div className="pb-social-overlay" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!busy)onClose();}}>
+ return <div className="pb-social-overlay" role="presentation" onPointerDown={e=>{if(e.target===e.currentTarget&&!busy&&!requiredLogin)onClose();}}>
    <section className="pb-social-dialog pb-frame" role="dialog" aria-modal="true" aria-label="Cuenta y copias de seguridad de PHOTO BRAWL">
-    <header className="pb-social-heading"><strong><UserRound size={17}/> MI CUENTA</strong><button type="button" disabled={busy} onClick={onClose} aria-label="Cerrar"><X size={18}/></button></header>
-    <nav className="pb-account-tabs" aria-label="Cuenta y copias de seguridad">
+    <header className="pb-social-heading"><strong><UserRound size={17}/> {requiredLogin?'ACCESO OBLIGATORIO':'MI CUENTA'}</strong>{!requiredLogin&&<button type="button" disabled={busy} onClick={onClose} aria-label="Cerrar"><X size={18}/></button>}</header>
+    {requiredLogin&&<p className="pb-auth-required-note">Para jugar a PHOTO BRAWL debes registrarte o iniciar sesión. Tus luchadores se sincronizarán y recuperarán automáticamente al entrar.</p>}
+    {!requiredLogin&&<nav className="pb-account-tabs" aria-label="Cuenta y copias de seguridad">
       <button type="button" className={tab==='account'?'on':''} onClick={()=>{setTab('account');setNotice('');}}>CUENTA</button>
       <button type="button" className={tab==='backup'?'on':''} onClick={()=>{setTab('backup');setNotice('');}}>MIS COPIAS</button>
       <button type="button" className={tab==='transfers'?'on':''} onClick={()=>{setTab('transfers');setNotice('');}}>REGALOS</button>
-    </nav>
+    </nav>}
     {tab==='transfers' ? <FighterTransfers onImported={onRestored}/> : tab==='backup' ? <div className="pb-social-form pb-account-backup">
-      <div className="pb-account-local"><HardDriveDownload size={19}/><span><b>{localCount===null?'…':localCount} LUCHADORES LOCALES</b><small>Tu colección permanece en este dispositivo incluso sin cuenta.</small></span></div>
+      <div className="pb-account-local"><HardDriveDownload size={19}/><span><b>{localCount===null?'…':localCount} LUCHADORES LOCALES</b><small>Tu colección sigue guardada en este dispositivo aunque cierres sesión.</small></span></div>
       <div className="pb-social-buttons">
         <button type="button" disabled={busy} onClick={()=>void exportBackup()}><Download size={15}/> EXPORTAR ARCHIVO</button>
         <button type="button" disabled={busy} onClick={()=>fileInput.current?.click()}><Upload size={15}/> IMPORTAR ARCHIVO</button>
@@ -172,9 +173,9 @@ export function AccountPanel({onClose,onRestored}:Props){
       {user&&supabaseConfigured?<div className="pb-social-buttons">
         <button type="button" disabled={busy||migration.phase==='syncing'} onClick={()=>requestAutomaticMigration()}><CloudUpload size={15}/> {migration.phase==='error'?'REINTENTAR COPIA PRIVADA':'COMPROBAR SINCRONIZACIÓN'}</button>
         <button type="button" disabled={busy} onClick={()=>void restore()}><CloudDownload size={15}/> RECUPERAR DE LA NUBE</button>
-      </div>:<small>Al iniciar sesión, tus luchadores locales se copiarán automáticamente a tu nube privada. La exportación local no necesita cuenta.</small>}
+      </div>:<small>Al iniciar sesión, tus luchadores locales se copiarán automáticamente a tu nube privada. Las copias locales permanecen en este dispositivo.</small>}
       <small>Las copias incluyen sprites, retratos, estadísticas y ataques; nunca la foto original ni la clave Gemini. Al importar o recuperar, los conflictos se conservan como luchadores distintos.</small>
-    </div> : !supabaseConfigured?<div className="pb-social-blank"><KeyRound size={29}/><b>SUPABASE NO CONFIGURADO</b><small>Tu colección local sigue funcionando. Ve a MIS COPIAS para exportarla.</small></div>:
+    </div> : !supabaseConfigured?<div className="pb-social-blank"><KeyRound size={29}/><b>SUPABASE NO CONFIGURADO</b><small>{requiredLogin?'Configura VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY para activar el registro obligatorio. Los luchadores locales permanecen guardados.':'Tus luchadores locales siguen guardados. Ve a MIS COPIAS para exportarlos.'}</small></div>:
     loading?<p className="pb-social-status">COMPROBANDO SESIÓN…</p>:
     !user?<form className="pb-social-form pb-login-form" onSubmit={e=>{e.preventDefault();void submitCredentials();}}>
        <div className="pb-login-switch" role="group" aria-label="Entrar o registrarse">
@@ -205,7 +206,7 @@ export function AccountPanel({onClose,onRestored}:Props){
       <button type="button" className="pb-social-danger" disabled={busy} onClick={()=>void supabase?.auth.signOut()}><LogOut size={14}/> CERRAR SESIÓN</button>
     </div>}
     {notice&&<p className="pb-social-status" role="status">{notice}</p>}
-    <button className="pb-social-back" type="button" disabled={busy} onClick={onClose}><ArrowLeft size={14}/> VOLVER</button>
+    {!requiredLogin&&<button className="pb-social-back" type="button" disabled={busy} onClick={onClose}><ArrowLeft size={14}/> VOLVER</button>}
    </section>
  </div>;
 }

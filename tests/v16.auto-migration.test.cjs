@@ -70,6 +70,18 @@ test('V16.2 uploads new locally saved fighters without losing existing fighters'
  close();
 });
 
+test('V49 binds an initially empty device to its authenticated owner before cloud restore',async()=>{
+ const h=harness([]);const close=h.svc.startAutomaticFighterMigration();
+ h.auth('account_A');await sleep(460);
+ assert.equal(h.svc.getAutomaticMigrationStatus().phase,'synced');
+ assert.equal(h.store.get('pb-local-fighters-cloud-owner-v16-2'),'account_A');
+ assert.equal(h.observed.length,0);
+ const report=await h.svc.runAutomaticMigrationNow('account_A');
+ assert.equal(report.phase,'synced');
+ assert.equal(h.observed.length,0); // every launch checks; no duplicate uploads
+ close();
+});
+
 test('corrected SQL has complete public_asset_ownership constraint and re-runnable policies',()=>{
  const sql=fs.readFileSync(path.join(root,'supabase/migrations/202611170001_photo_brawl_community.sql'),'utf8');
  assert.match(sql,/constraint public_asset_ownership check\s*\(\s*\(public_portrait_path[\s\S]*?\n\s*\)\s*\n\s*\);/);
