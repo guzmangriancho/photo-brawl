@@ -42,7 +42,7 @@ function validateProfile(data) {
     archetype:data.archetype,passiveTrait:data.passiveTrait,
     traitDescription:str(data.traitDescription,170),stats:{hp:s.hp,speed:s.speed,power:s.power,technique:s.technique},
     moveset,visualDescriptionForSprite:str(data.visualDescriptionForSprite,500),
-    isPreset:Boolean(data.isPreset),createdAt:Number(data.createdAt)||0,
+    isPreset:Boolean(data.isPreset),ultimateForm:data.ultimateForm===true,createdAt:Number(data.createdAt)||0,
     spriteSheetDataUrl:sprite,portraitDataUrl:portrait,
     spriteSheetLayoutVersion:data.spriteSheetLayoutVersion===2?2:undefined,
     spriteSheetLastCell:data.spriteSheetLastCell==='KO'?'KO':'PROJECTILE',

@@ -27,7 +27,7 @@ async function verifyRankedFighter(accountId,profile){
   if(!uuid.test(accountId)||!profile||typeof profile.id!=='string'||
      profile.id.startsWith('community_')||profile.id.length>70)
     throw new Error('Clasificatorio: solo puedes usar tus propios luchadores.');
-  const params=new URLSearchParams({select:'fighter_data',owner_id:`eq.${accountId}`,local_id:`eq.${profile.id}`,limit:'1'});
+  const params=new URLSearchParams({select:'id,fighter_data',owner_id:`eq.${accountId}`,local_id:`eq.${profile.id}`,limit:'1'});
   const headers={apikey:SECRET_KEY};
   // Older service_role JWTs need Authorization; modern sb_secret keys don't.
   if(!SECRET_KEY.startsWith('sb_secret_'))headers.Authorization=`Bearer ${SECRET_KEY}`;
@@ -37,13 +37,27 @@ async function verifyRankedFighter(accountId,profile){
   });}catch{throw new Error('No se pudo comprobar la propiedad del luchador.');}
   if(!response.ok)throw new Error(`No se pudo comprobar el luchador (${response.status}).`);
   const rows=await response.json();
-  const original=Array.isArray(rows)?rows[0]?.fighter_data:null;
+  const fighterRow=Array.isArray(rows)?rows[0]:null;
+  const original=fighterRow?.fighter_data;
   if(!original)throw new Error('Este luchador aún no está sincronizado en tu cuenta. Sincronízalo antes de jugar clasificatorias.');
-  const sameStats=['hp','speed','power','technique'].every(k=>original.stats?.[k]===profile.stats?.[k]);
+  // An Ultimate is a server-approved, non-pay-to-win VARIANT of the same base fighter.
+  // The browser cannot grant itself Ultimate by setting an arbitrary boolean or score.
+  let approved=original;
+  if(profile.ultimateForm===true){
+    const query=new URLSearchParams({select:'design',fighter_id:`eq.${fighterRow.id}`,owner_id:`eq.${accountId}`,limit:'1'});
+    let result;
+    try{result=await fetch(`${URL_ROOT}/rest/v1/fighter_ultimate_forms?${query}`,{headers,signal:AbortSignal.timeout(6500)});}
+    catch{throw new Error('No se pudo verificar el Despertar en Supabase.');}
+    if(!result.ok)throw new Error('No se pudo validar la evolución Ultimate. Comprueba la migración V57.');
+    const ultimate=await result.json();
+    if(!Array.isArray(ultimate)||!ultimate[0]?.design)throw new Error('Forma Ultimate no desbloqueada/guardada para esta cuenta.');
+    approved=ultimate[0].design;
+  }
+  const sameStats=['hp','speed','power','technique'].every(k=>approved.stats?.[k]===profile.stats?.[k]);
   const specs=[['lightNormal','style'],['heavyNormal','style'],['specialNeutral','mechanic'],
     ['specialForward','mechanic'],['specialUp','mechanic'],['ultimateSuper','mechanic']];
-  const sameMoves=specs.every(([key,field])=>original.moveset?.[key]?.[field]===profile.moveset?.[key]?.[field]);
-  if(!sameStats||!sameMoves||original.archetype!==profile.archetype||original.passiveTrait!==profile.passiveTrait)
+  const sameMoves=specs.every(([key,field])=>approved.moveset?.[key]?.[field]===profile.moveset?.[key]?.[field]);
+  if(!sameStats||!sameMoves||approved.archetype!==profile.archetype||approved.passiveTrait!==profile.passiveTrait)
     throw new Error('Los movimientos o estadísticas no coinciden con tu luchador guardado. Sincroniza tu colección.');
   return true;
 }

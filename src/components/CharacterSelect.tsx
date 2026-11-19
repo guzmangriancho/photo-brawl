@@ -8,6 +8,8 @@ import {
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
 import { FighterCreator } from './FighterCreator';
+import { UltimateWorkshop } from './UltimateWorkshop';
+import {applyUltimate,loadUltimate,ultimateProgress,type UltimateReady,type UltimateProgress} from '../services/ultimateForms';
 import { OnlineLobby } from './OnlineLobby';
 import { FriendsPanel } from './FriendsPanel';
 import {useFriends} from '../services/useFriends';
@@ -106,6 +108,12 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [favoriteBusy,setFavoriteBusy]=useState(false);
   const [favoriteError,setFavoriteError]=useState('');
   const [ownCups,setOwnCups]=useState<Record<string,{trophies:number}>>({});
+  const [ultimateReady,setUltimateReady]=useState<UltimateReady|null>(null);
+  const [ultimateRank,setUltimateRank]=useState<UltimateProgress|null>(null);
+  const [ultimateEnabled,setUltimateEnabled]=useState(false);
+  const [ultimateLoading,setUltimateLoading]=useState(false);
+  const [ultimateError,setUltimateError]=useState('');
+  const [showUltimate,setShowUltimate]=useState(false);
   useEffect(()=>{
     if(!accountUser)return;
     let mounted=true;
@@ -159,7 +167,34 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [southpaw, setSouthpaw] = useState(() => { try { return localStorage.getItem('pb-southpaw') === 'true'; } catch { return false; } });
   const [haptics, setHaptics] = useState(() => { try { return localStorage.getItem('pb-haptics') !== 'false'; } catch { return true; } });
   const editingFighter = fighters.find(f => f.id === renamingId) || null;
-  const featured = fighters.find(f => f.id === p1Id) || fighters[0] || null;
+  const baseFeatured = fighters.find(f => f.id === p1Id) || fighters[0] || null;
+  const featured = baseFeatured && ultimateEnabled && ultimateReady ? applyUltimate(baseFeatured,ultimateReady):baseFeatured;
+  useEffect(()=>{
+    let live=true;
+    setUltimateReady(null);setUltimateRank(null);setUltimateEnabled(false);setUltimateError('');
+    if(!accountUser?.id||!baseFeatured)return ()=>{live=false;};
+    setUltimateLoading(true);
+    void (async()=>{
+      try{
+        const rank=await ultimateProgress(baseFeatured.id);
+        if(!live)return;
+        setUltimateRank(rank);
+        if(rank.unlocked){
+          const form=await loadUltimate(baseFeatured.id);
+          if(live){setUltimateReady(form);setUltimateEnabled(Boolean(form));}
+        }
+      }catch(error){if(live)setUltimateError(error instanceof Error?error.message:'No se pudo cargar la evolución.');}
+      finally{if(live)setUltimateLoading(false);}
+    })();
+    return ()=>{live=false;};
+  },[accountUser?.id,baseFeatured?.id]);
+  // A fresh ranked victory may cross the milestone while the menu stays mounted.
+  useEffect(()=>{
+    if(page!=='FIGHTERS'||!accountUser?.id||!baseFeatured)return;
+    let active=true;
+    void ultimateProgress(baseFeatured.id).then(rank=>{if(active)setUltimateRank(rank);}).catch(()=>{});
+    return()=>{active=false;};
+  },[page,accountUser?.id,baseFeatured?.id]);
   const rival = fighters.find(f => f.id === p2Id) || fighters.find(f => f.id !== featured?.id) || featured;
   const extraP3 = fighters.find(f=>f.id===p3Id) || fighters.find(f=>f.id!==featured?.id&&f.id!==rival?.id) || featured;
   const extraP4 = fighters.find(f=>f.id===p4Id) || fighters.find(f=>f.id!==featured?.id&&f.id!==rival?.id&&f.id!==extraP3?.id) || rival;
@@ -240,7 +275,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   },[]);
   useEffect(()=>{
     if(onlineSession && (onlineSession.room?.status==='waiting'||onlineSession.room?.status==='countdown') && featured && !onlineFighter)onlineSession.choose(featured);
-  },[featured?.id]);
+  },[featured?.id,featured?.ultimateForm]);
   useEffect(()=>{if(onlineSession?.room?.role==='host' && onlineSession.room.status==='waiting')onlineSession.stage(stage);},[stage]);
   const setOnlineSessionSafe=(session:OnlineSession|null)=>{
     if(onlineSession && onlineSession!==session)onlineSession.close();
@@ -316,13 +351,14 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       if (showTutorial) { setShowTutorial(false); return; }
       if (confirmDelete) { setConfirmDelete(null); return; }
       if (renamingId) { if(editPasteFallback){setEditPasteFallback(null);return;} if(!renamingBusy && !artBusy)setRenamingId(null); return; }
+      if (showUltimate) { if(!ultimateLoading)setShowUltimate(false);return; }
       if (showCreator) { markCreatorOpen(false); setShowCreator(false); return; }
       if (showApiKey) { setShowApiKey(false); return; }
       setPage(current => current === 'MOVES' ? 'FIGHTERS' : 'HOME');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showApiKey, showTutorial, showAccount, transferring, showFriends]);
+  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showUltimate,ultimateLoading, showApiKey, showTutorial, showAccount, transferring, showFriends]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
     if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
@@ -485,7 +521,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <div key={f.id} className="pb-portrait-choice-wrap"><button type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button></div>)}</div>
         <div className="pb-panel-bottom"><div className="pb-pagination"><button type="button" disabled={rosterPage === 0} onClick={() => setRosterPage(rosterPage - 1)} aria-label="Página anterior"><ChevronLeft size={16}/></button><span>{rosterPage + 1} / {rosterPages}</span><button type="button" disabled={rosterPage >= rosterPages - 1} onClick={() => setRosterPage(rosterPage + 1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div><button type="button" className="pb-mini-button pb-purple" onClick={openCreator}><Camera size={15}/> CREAR CON FOTO</button></div>
       </section>
-      {featured ? <section className="pb-frame pb-profile-panel">{favoriteHeart(featured)}<div className="pb-profile-heading"><div className="pb-profile-favorite-art"><LeagueFrame trophies={ownCups[featured.id]?.trophies??0}><FighterPortrait fighter={featured}/></LeagueFrame></div><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small><LeagueBadge trophies={ownCups[featured.id]?.trophies??0} progress/></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> EDITAR LUCHADOR</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
+      {featured ? <section className="pb-frame pb-profile-panel">{favoriteHeart(featured)}<div className="pb-profile-heading"><div className="pb-profile-favorite-art"><LeagueFrame trophies={ownCups[featured.id]?.trophies??0}><FighterPortrait fighter={featured}/></LeagueFrame></div><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small>{featured.ultimateForm&&<span className="pb-ultimate-nameplate">★ ULTIMATE</span>}<LeagueBadge trophies={ownCups[featured.id]?.trophies??0} progress/></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div>{ultimateRank?.unlocked&&<div className="pb-ultimate-controls">{ultimateReady&&<div className="pb-awaken-switch" aria-label="Elegir forma del luchador"><button type="button" aria-pressed={!ultimateEnabled} className={!ultimateEnabled?"active":""} onClick={()=>setUltimateEnabled(false)}>BASE</button><button type="button" aria-pressed={ultimateEnabled} className={ultimateEnabled?"active":""} onClick={()=>setUltimateEnabled(true)}>ULTIMATE</button></div>}<button type="button" className="pb-awaken-button" onClick={()=>setShowUltimate(true)}><Crown size={14}/>{ultimateReady?"REHACER ULTIMATE":"★ DESPERTAR"}</button></div>}{ultimateError&&!ultimateLoading&&<small className="pb-ultimate-inline-error" role="status">{ultimateError}</small>}<div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> EDITAR LUCHADOR</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
     </div>}
 
     {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><div className="pb-fighter-sheet-art"><FighterPortrait fighter={featured}/></div><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
@@ -552,6 +588,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   {showAccount && <AccountPanel onClose={()=>setShowAccount(false)} onRestored={onFighterCreated}/>}
   {transferring&&<FighterTransfers fighter={transferring} onClose={()=>setTransferring(null)}/>}
   {showCreator && <FighterCreator onClose={closeCreator} onCreated={handleCreated} />}
+  {showUltimate&&baseFeatured&&ultimateRank?.unlocked&&<UltimateWorkshop base={baseFeatured} onClose={()=>setShowUltimate(false)} onSaved={form=>{setUltimateReady(form);setUltimateEnabled(true);setUltimateError('');}}/>}
   <PwaInstallPrompt visible={page === 'HOME' && !showCreator && !showApiKey && !confirmDelete && !showTutorial && !showAccount && !transferring} requestId={installRequest}/>
   {confirmDelete && <div className="pb-modal-backdrop"><section className="pb-modal pb-frame" role="alertdialog" aria-modal="true" aria-label="Borrar luchador"><PanelTitle label="CONFIRMACIÓN">¿BORRAR LUCHADOR?</PanelTitle><p className="pb-modal-note">Se eliminará permanentemente de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setConfirmDelete(null)}>CANCELAR</button><button type="button" className="pb-mini-button pb-red" onClick={() => removeCustom(confirmDelete)}><Trash2 size={15}/> BORRAR</button></div></section></div>}
   </main>;

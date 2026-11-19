@@ -66,7 +66,7 @@ export function VersusIntro({ fighters, stage, mode, framesLeft, rankTrophies }:
               style={{opacity:motion.visible,transform:`translateX(${seat % 2 ? motion.sideOffset : -motion.sideOffset}%)`}}>
               <span className="pb-vs-seat">P{seat + 1}</span>
               <LeagueFrame trophies={cups(seat)}><img src={f.portraitDataUrl} alt="" draggable={false} /></LeagueFrame>
-              <strong title={f.fighterName}>{f.fighterName}</strong><LeagueBadge trophies={cups(seat)}/>
+              <strong title={f.fighterName}>{f.fighterName}</strong>{f.ultimateForm&&<small className="pb-ultimate-nameplate">★ ULTIMATE</small>}<LeagueBadge trophies={cups(seat)}/>
             </div>)}
             <div className="pb-vs-ffa-center" aria-hidden="true" style={{opacity:motion.centerReveal,transform:`translate(-50%, -50%) scale(${motion.centerScale})`}}>FFA</div>
           </div>
@@ -77,7 +77,7 @@ export function VersusIntro({ fighters, stage, mode, framesLeft, rankTrophies }:
                 {team.map(seat => <div key={seat} className={`pb-vs-portrait pb-vs-portrait--${side ? 'blue' : 'red'}`}>
                   <span className="pb-vs-seat">P{seat + 1}</span>
                   <LeagueFrame trophies={cups(seat)}><img src={fighters[seat].portraitDataUrl} alt="" draggable={false} /></LeagueFrame>
-                  <strong title={fighters[seat].fighterName}>{fighters[seat].fighterName}</strong><LeagueBadge trophies={cups(seat)}/>
+                  <strong title={fighters[seat].fighterName}>{fighters[seat].fighterName}</strong>{fighters[seat].ultimateForm&&<small className="pb-ultimate-nameplate">★ ULTIMATE</small>}<LeagueBadge trophies={cups(seat)}/>
                 </div>)}
               </div>
             </div>)}

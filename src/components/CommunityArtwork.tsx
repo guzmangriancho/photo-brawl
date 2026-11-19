@@ -4,8 +4,8 @@ import {downloadAdminFighterImage,fighterPublicUrl} from '../services/communityS
 
 /** No private storage URLs or images appear in the public gallery. Private
  * assets are downloaded only for a verified admin and released on unmount. */
-export function CommunityArtwork({fighter,asset='portrait',alt=''}:{
-  fighter:CommunityFighter;asset?:'portrait'|'sheet';alt?:string;
+export function CommunityArtwork({fighter,asset='portrait',alt='',ultimateUrl}:{
+  fighter:CommunityFighter;asset?:'portrait'|'sheet';alt?:string;ultimateUrl?:string;
 }){
   const privatePath=fighter.is_public===false
     ?(asset==='portrait'?fighter.private_portrait_path:fighter.private_sheet_path):undefined;
@@ -25,7 +25,7 @@ export function CommunityArtwork({fighter,asset='portrait',alt=''}:{
     }
     return()=>{active=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[privatePath]);
-  const src=privatePath?privateSrc:fighterPublicUrl(publicPath);
+  const src=privatePath?privateSrc:(ultimateUrl||fighterPublicUrl(publicPath));
   return src?<img src={src} alt={alt} loading="lazy" draggable={false}/>:
     <span className="pb-private-art-placeholder" role="img" aria-label={failed?'Imagen privada no disponible':'Cargando imagen'}>{failed?'SIN IMAGEN':'···'}</span>;
 }

@@ -148,7 +148,7 @@ function handle(peer,msg) {
     if(room.status!=='waiting'&&room.status!=='countdown')return fail(peer,'No puedes cambiar de luchador durante el combate.');
     const profile=validateProfile(msg.profile);
     if(!profile)return fail(peer,'Luchador no válido.');
-    const changed=player.profile.id!==profile.id;
+    const changed=player.profile.id!==profile.id || Boolean(player.profile.ultimateForm)!==Boolean(profile.ultimateForm);
     if(!changed)return;
     const commit=()=>{
       if(peer.room!==room||(room.status!=='waiting'&&room.status!=='countdown'))return;

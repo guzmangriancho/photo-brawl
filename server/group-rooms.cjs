@@ -145,7 +145,7 @@ function handle(peer,msg){
   if(msg.type==='choose'){
     if(room.status!=='waiting'&&room.status!=='countdown')return fail(peer,'No puedes cambiar durante el combate.');
     const profile=validateProfile(msg.profile);if(!profile)return fail(peer,'Luchador no válido.');
-    if(profile.id===p.profile.id)return;
+    if(profile.id===p.profile.id && Boolean(profile.ultimateForm)===Boolean(p.profile.ultimateForm))return;
     const commit=()=>{
       if(peer.room!==room||(room.status!=='waiting'&&room.status!=='countdown'))return;
       if(room.status==='countdown')cancelCountdown(room);

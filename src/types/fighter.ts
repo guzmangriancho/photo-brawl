@@ -116,6 +116,9 @@ export interface FighterDesignSchema {
 export interface FighterProfile extends FighterDesignSchema {
   id: string;
   isPreset?: boolean;
+  /** V57 visual/redistributed variant; canonical account fighter ID remains the same. */
+  ultimateForm?: boolean;
+  baseFighterName?: string;
   createdAt: number;
   /** Last local display-name edit; used to sync renames without overwriting newer cloud names. */
   nameUpdatedAt?: number;
