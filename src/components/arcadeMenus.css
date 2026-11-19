@@ -637,3 +637,37 @@
 .pb-profile-heading>.pb-league-frame>.pb-portrait{width:100%;height:100%;object-fit:cover}
 .pb-profile-heading .pb-league-badge{margin-top:7px;font-size:7px}
 .pb-featured-kicker:has(.pb-league-badge){display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+
+/* V53 · Favorite heart: pixel-square, always outside the fighter selection button. */
+.pb-favorite-toggle{display:grid!important;place-items:center!important;box-sizing:border-box;
+  width:29px;height:29px;min-width:29px;min-height:29px;padding:3px!important;
+  border:2px solid #8aa5c8!important;border-radius:0!important;
+  background:#06172de8!important;color:#d9e8fc!important;
+  box-shadow:2px 2px 0 #060d20;cursor:pointer;touch-action:manipulation}
+.pb-favorite-toggle.is-favorite{color:#ff7c98!important;border-color:#ffd3df!important;background:#682f50!important}
+.pb-favorite-toggle:focus-visible{outline:2px solid #fff3a1;outline-offset:2px}
+.pb-favorite-toggle:disabled{opacity:.55;cursor:wait}
+.pb-portrait-choice-wrap{position:relative;display:grid;min-width:0;min-height:0}
+.pb-portrait-choice-wrap>.pb-portrait-choice{box-sizing:border-box;width:100%;height:100%}
+.pb-portrait-choice-wrap>.pb-favorite-toggle{position:absolute;right:6px;top:6px;z-index:4}
+.pb-portrait-choice i{right:auto;left:3px}
+.pb-profile-favorite-art{position:relative;display:block!important;flex:0 0 auto;min-width:0}
+.pb-profile-heading .pb-profile-favorite-art>.pb-league-frame{width:clamp(55px,14vh,110px);height:clamp(55px,14vh,110px)}
+.pb-profile-heading .pb-profile-favorite-art>.pb-league-frame>.pb-portrait{height:100%;width:100%;object-fit:cover}
+.pb-profile-favorite-art>.pb-favorite-toggle{position:absolute;right:-7px;top:-7px;z-index:3}
+.pb-fighter-sheet-art{position:relative;display:grid;place-items:center;flex:1;min-height:0;
+  width:100%;max-width:220px}
+.pb-moves-side .pb-fighter-sheet-art>.pb-portrait{box-sizing:border-box;min-height:0;
+  width:100%;height:100%;max-width:100%;object-fit:contain;flex:none}
+.pb-fighter-sheet-art>.pb-favorite-toggle{position:absolute;top:3px;right:3px;z-index:3}
+.pb-favorite-error{position:absolute;z-index:95;top:40px;left:50%;transform:translateX(-50%);
+  max-width:min(90%,450px);padding:9px;border:2px solid #ef979b;background:#49263c;
+  color:#fff4e9;font:700 12px/1.3 'Pixelify Sans',monospace;text-align:center}
+@media(max-height:520px){
+  .pb-profile-heading .pb-profile-favorite-art>.pb-league-frame{width:55px;height:55px}
+  .pb-moves-side .pb-fighter-sheet-art{width:55px;height:55px;flex:0 0 55px}
+  .pb-moves-side .pb-fighter-sheet-art>.pb-portrait{width:100%;height:100%;max-width:100%}
+  .pb-portrait-choice-wrap>.pb-favorite-toggle,.pb-profile-favorite-art>.pb-favorite-toggle{right:2px;top:2px}
+  .pb-favorite-toggle{width:25px;height:25px;min-width:25px;min-height:25px}
+}
+.pb-home-footer .pb-player-avatar{width:21px;height:21px;padding:1px;border-width:1px;box-shadow:none}

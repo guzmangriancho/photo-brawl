@@ -47,7 +47,7 @@ export type CommunityFighter = Pick<CloudFighter,'id'|'owner_id'|'fighter_name'|
   player_profiles?:{username:string;display_name:string}|null;
   is_public?:boolean; private_portrait_path?:string; private_sheet_path?:string;
 };
-export type LeaderboardPlayer = {id:string;username:string;display_name:string;rating:number;wins:number;losses:number};
+export type LeaderboardPlayer = {id:string;username:string;display_name:string;rating:number;wins:number;losses:number;favorite_avatar_path:string|null};
 
 export async function cloudEntry(localId:string):Promise<CloudFighter|null> {
   const userId=await currentUserId();
@@ -297,7 +297,7 @@ export function fighterPublicUrl(path:string|null|undefined):string {
   return !path?'':needDb().storage.from('fighter-public').getPublicUrl(path).data.publicUrl;
 }
 export async function leaderboard():Promise<LeaderboardPlayer[]> {
-  const {data,error}=await needDb().from('player_profiles').select('id,username,display_name,rating,wins,losses')
+  const {data,error}=await needDb().from('player_profiles').select('id,username,display_name,rating,wins,losses,favorite_avatar_path')
     .or('wins.gt.0,losses.gt.0').order('rating',{ascending:false}).order('wins',{ascending:false}).limit(50);
   if(error)throw error;
   return (data||[]) as LeaderboardPlayer[];
@@ -305,7 +305,7 @@ export async function leaderboard():Promise<LeaderboardPlayer[]> {
 export async function getPublicProfile(id:string):Promise<{player:LeaderboardPlayer|null;fighters:CommunityFighter[]}> {
   const db=needDb();
   const [u,f]=await Promise.all([
-    db.from('player_profiles').select('id,username,display_name,rating,wins,losses').eq('id',id).maybeSingle(),
+    db.from('player_profiles').select('id,username,display_name,rating,wins,losses,favorite_avatar_path').eq('id',id).maybeSingle(),
     db.from('fighters').select('id,owner_id,fighter_name,archetype,fighter_data,public_portrait_path,public_sheet_path,created_at')
       .eq('is_public',true).eq('owner_id',id).order('created_at',{ascending:false}).limit(12),
   ]);

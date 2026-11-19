@@ -1,3 +1,12 @@
+PHOTO BRAWL V53 — FAVORITOS, AVATARES Y GALERÍA MÓVIL
+
+Explorar tiene 2×3 tarjetas sin scroll en móvil vertical. El botón LIGAS y los tabs del ranking comparten legibilidad. Publicar usa retratos cuadrados; el corazón marca un único favorito por cuenta. Su retrato aparece como avatar en los perfiles, ranking ELO, dúos y Mi cuenta.
+
+MIGRACIÓN OBLIGATORIA: primero ejecuta supabase/migrations/202611190002_favorite_fighter_profile.sql en Supabase (después de V51) y luego despliega la V53 en Vercel. Render no cambia.
+
+Solo el retrato del favorito se copia a Storage público con confirmación; el luchador sigue privado si no fue publicado. Revisa docs/V53_FAVORITOS_AVATARES_Y_GALERIA.md.
+
+---
 PHOTO BRAWL V52 — EXPLORAR Y RANKING COMPACTOS
 
 Retratos cuadrados, dos columnas y tres filas en móvil vertical, nombres sin superposiciones, marcos sin inicial, ligas en popup y ranking horizontal optimizado. Se conserva V51 (ELO, copas y dúos). Para actualizar desde V51, despliega solo el frontend en Vercel. No hay nueva migración SQL ni cambios en Render. Ver docs/V52_EXPLORAR_RANKING_COMPACTO.md.

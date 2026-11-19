@@ -13,6 +13,10 @@ import { CommunityPage } from './CommunityPage';
 import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
 import {ownFighterRanks} from '../services/progressionService';
 import { AccountPanel } from './AccountPanel';
+import { FavoriteButton } from './FavoriteButton';
+import {PlayerAvatar} from './PlayerAvatar';
+import {useFavoriteFighter} from '../services/useFavoriteFighter';
+import {writeFavoriteFighter} from '../services/favoriteFighterService';
 import { FighterTransfers } from './FighterTransfers';
 import { OnlineSession } from '../network/OnlineSession';
 import type { OnlineStart, RoomView } from '../network/protocol';
@@ -81,6 +85,9 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
   const {user:accountUser}=usePlayerAccount();
+  const favorite=useFavoriteFighter();
+  const [favoriteBusy,setFavoriteBusy]=useState(false);
+  const [favoriteError,setFavoriteError]=useState('');
   const [ownCups,setOwnCups]=useState<Record<string,{trophies:number}>>({});
   useEffect(()=>{
     if(!accountUser)return;
@@ -258,6 +265,17 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     soundFX.confirmBeep();
     onStartMatch(featured,rival,mode,stage,difficulty,isGroupMode&&extraP3&&extraP4?[extraP3,extraP4]:undefined);
   };
+  const toggleFavorite=async(fighter:FighterProfile)=>{
+    if(favoriteBusy||!accountUser)return;
+    const currently=favorite.localId===fighter.id;
+    if(!currently&&!window.confirm(`¿Usar el retrato de «${fighter.fighterName}» como tu avatar público? Solo se mostrará el retrato; el luchador seguirá privado si no lo has publicado.`))return;
+    setFavoriteBusy(true);setFavoriteError('');
+    try{await writeFavoriteFighter(currently?null:fighter);soundFX.confirmBeep();}
+    catch(error){setFavoriteError(error instanceof Error?error.message:'No se pudo guardar el luchador favorito.');}
+    finally{setFavoriteBusy(false);}
+  };
+  const favoriteHeart=(f:FighterProfile)=><FavoriteButton active={favorite.localId===f.id} disabled={favoriteBusy}
+    onClick={()=>void toggleFavorite(f)}/>;
   const pickFighter = (fighter: FighterProfile) => { setP1Id(fighter.id); soundFX.selectBeep(); };
   const openRename=(fighter:FighterProfile)=>{
     if(fighter.isPreset||fighter.id.startsWith('preset_'))return;
@@ -320,6 +338,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           spriteSheetLastCell:lastCell as 'PROJECTILE'|'KO'}:{}),
       }):await renameCustomFighter(renamingId,renamingValue);
       onFighterRenamed(updated);
+      if(favorite.localId===updated.id && editedPortrait){
+        try{await writeFavoriteFighter(updated);}catch(error){setFavoriteError(error instanceof Error?error.message:'No se pudo actualizar la imagen del avatar.');}
+      }
       setRenamingId(null);setEditPasteFallback(null);
       setRenameNotice('Cambios guardados en tu colección.');
       soundFX.confirmBeep();
@@ -345,11 +366,12 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   };
   const removeCustom = async (id: string) => {
     try {
+      if(favorite.localId===id)await writeFavoriteFighter(null);
       await deleteCustomFighter(id); onFighterDeleted(id);
       if (p1Id === id) setP1Id('');
       if (p2Id === id) setP2Id('');
       setConfirmDelete(null); soundFX.selectBeep();
-    } catch (err) { console.warn('No se pudo eliminar el luchador', err); setConfirmDelete(null); }
+    } catch (err) { console.warn('No se pudo eliminar el luchador', err); setFavoriteError(err instanceof Error?err.message:'No se pudo eliminar el luchador.'); setConfirmDelete(null); }
   };
   useEffect(() => {
     if (!featured && (page === 'PLAY' || page === 'MOVES')) setPage('HOME');
@@ -363,6 +385,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     { name: featured.moveset.ultimateSuper.name, label: 'SÚPER', input: '★ SUPER', detail: 'Barra al 100 %', tone: 'gold' },
   ] : [];
   return <main className="pb-app"><div className={`pb-menu-shell pb-screen-${page.toLowerCase()}`}>
+    {favoriteError&&<div className="pb-favorite-error" role="alert" onClick={()=>setFavoriteError('')}>{favoriteError}</div>}
     {page !== 'HOME' && <button type="button" className="pb-back-button" onClick={back} aria-label="Volver"><ArrowLeft size={16}/> VOLVER</button>}
 
     {page === 'HOME' && <div className="pb-home pb-page-anim">
@@ -385,7 +408,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
-        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" onClick={() => setShowAccount(true)}><UserRound size={16}/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
+        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
 
@@ -393,13 +416,13 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
 
     {page === 'FIGHTERS' && fighters.length > 0 && <div className="pb-subpage pb-roster-layout pb-page-anim">
       <section className="pb-frame pb-roster-panel"><PanelTitle label={`MIS LUCHADORES · ${fighters.length} CREADOS`}>ELIGE TU LUCHADOR</PanelTitle>
-        <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button>)}</div>
+        <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <div key={f.id} className="pb-portrait-choice-wrap"><button type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button>{favoriteHeart(f)}</div>)}</div>
         <div className="pb-panel-bottom"><div className="pb-pagination"><button type="button" disabled={rosterPage === 0} onClick={() => setRosterPage(rosterPage - 1)} aria-label="Página anterior"><ChevronLeft size={16}/></button><span>{rosterPage + 1} / {rosterPages}</span><button type="button" disabled={rosterPage >= rosterPages - 1} onClick={() => setRosterPage(rosterPage + 1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div><button type="button" className="pb-mini-button pb-purple" onClick={openCreator}><Camera size={15}/> CREAR CON FOTO</button></div>
       </section>
-      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><LeagueFrame trophies={ownCups[featured.id]?.trophies??0}><FighterPortrait fighter={featured}/></LeagueFrame><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small><LeagueBadge trophies={ownCups[featured.id]?.trophies??0} progress/></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> EDITAR LUCHADOR</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
+      {featured ? <section className="pb-frame pb-profile-panel"><div className="pb-profile-heading"><div className="pb-profile-favorite-art"><LeagueFrame trophies={ownCups[featured.id]?.trophies??0}><FighterPortrait fighter={featured}/></LeagueFrame>{favoriteHeart(featured)}</div><div><span>LUCHADOR ELEGIDO</span><h2>{featured.fighterName}</h2><small>{ARCHETYPES[featured.archetype]}</small><LeagueBadge trophies={ownCups[featured.id]?.trophies??0} progress/></div></div><div className="pb-profile-stats"><StatGrid fighter={featured}/></div><div className="pb-passive-panel"><strong><ShieldCheck size={15}/> {PASSIVES[featured.passiveTrait] || featured.passiveTrait}</strong><p>{featured.traitDescription}</p></div><div className="pb-profile-footer"><button type="button" className="pb-mini-button pb-blue" onClick={() => go('MOVES')}><BookOpen size={16}/> MOVIMIENTOS</button><button type="button" className="pb-mini-button pb-gold" onClick={() => go('HOME')}><Check size={16}/> CONFIRMAR</button></div>{!featured.isPreset && <div className="pb-profile-tools"><button type="button" className="pb-rename-link" onClick={() => openRename(featured)}><Pencil size={13}/> EDITAR LUCHADOR</button><button type="button" className="pb-rename-link" onClick={() => setTransferring(featured)}><Gift size={13}/> TRANSFERIR</button><button type="button" className="pb-delete-link" onClick={() => setConfirmDelete(featured.id)}><Trash2 size={12}/> BORRAR</button></div>}{renameNotice && <div className="pb-rename-feedback" role="status" onClick={()=>setRenameNotice('')}>{renameNotice}</div>}</section> : null}
     </div>}
 
-    {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><FighterPortrait fighter={featured}/><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
+    {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><div className="pb-fighter-sheet-art"><FighterPortrait fighter={featured}/>{favoriteHeart(featured)}</div><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
 
     {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">{isGroupMode?"LOS 4 LUCHADORES":"RIVAL"}</PanelTitle>{!isGroupMode&&<div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>JUGADOR 1</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div>}
       {isGroupMode&&<div className="pb-group-roster-select" aria-label="Seleccionar los cuatro luchadores">

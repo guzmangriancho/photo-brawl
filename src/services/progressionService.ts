@@ -30,8 +30,8 @@ export interface FighterRank{
 export interface DuoRank{
   player_a:string;player_b:string;trophies:number;best_trophies:number;
   wins:number;losses:number;played:number;
-  a:{display_name:string;username:string}|null;
-  b:{display_name:string;username:string}|null;
+  a:{display_name:string;username:string;favorite_avatar_path:string|null}|null;
+  b:{display_name:string;username:string;favorite_avatar_path:string|null}|null;
 }
 
 function db(){if(!supabase)throw new Error('Supabase no está configurado.');return supabase;}
@@ -46,7 +46,7 @@ export async function fighterLeaderboard():Promise<FighterRank[]>{
 }
 export async function duoLeaderboard():Promise<DuoRank[]>{
   const {data,error}=await db().from('duo_progress')
-    .select('player_a,player_b,trophies,best_trophies,wins,losses,played,a:player_profiles!duo_progress_player_a_fkey(display_name,username),b:player_profiles!duo_progress_player_b_fkey(display_name,username)')
+    .select('player_a,player_b,trophies,best_trophies,wins,losses,played,a:player_profiles!duo_progress_player_a_fkey(display_name,username,favorite_avatar_path),b:player_profiles!duo_progress_player_b_fkey(display_name,username,favorite_avatar_path)')
     .gt('played',0).order('trophies',{ascending:false}).order('wins',{ascending:false}).limit(50);
   if(error)throw error;
   return (data||[]) as unknown as DuoRank[];

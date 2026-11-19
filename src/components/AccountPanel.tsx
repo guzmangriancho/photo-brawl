@@ -8,11 +8,14 @@ import type {MigrationStatus} from '../services/automaticFighterMigration';
 import {exportLocalFightersBackup,getAllCustomFighters,mergeCustomFighters,readLocalFightersBackup} from '../services/storageService';
 import {usePlayerAccount} from '../services/usePlayerAccount';
 import {FighterTransfers} from './FighterTransfers';
+import {PlayerAvatar} from './PlayerAvatar';
+import {useFavoriteFighter} from '../services/useFavoriteFighter';
 import './community.css';
 
 interface Props {onClose:()=>void;onRestored:(fighter:FighterProfile)=>void;requiredLogin?:boolean}
 export function AccountPanel({onClose,onRestored,requiredLogin=false}:Props){
  const {user,loading}=usePlayerAccount();
+ const favorite=useFavoriteFighter();
  const [tab,setTab]=useState<'account'|'backup'|'transfers'>('account');
  const [email,setEmail]=useState('');
  const [authMode,setAuthMode]=useState<'login'|'register'>('login');
@@ -190,7 +193,7 @@ export function AccountPanel({onClose,onRestored,requiredLogin=false}:Props){
        <button type="submit" className="pb-social-gold" disabled={busy}>{busy?'UN MOMENTO…':authMode==='login'?'ENTRAR A MI CUENTA':'CREAR MI CUENTA'}</button>
        <small>{authMode==='login'?'Tus luchadores locales se conservan y se sincronizan al entrar.':'Sin correo de confirmación durante las pruebas. Guarda tu contraseña: recuperarla requerirá configurar el servicio de correo.'}</small>
     </form>:<div className="pb-social-form">
-      <p className="pb-social-user"><ShieldCheck size={17}/> {user.email}</p>
+      <p className="pb-social-user"><PlayerAvatar path={favorite.avatarPath} size="large"/><span><ShieldCheck size={14}/> {user.email}</span></p>
       {securityOpen ? <>
         <p>Establece una contraseña para entrar sin enlaces de correo, también si tu cuenta se creó antes con Magic Link.</p>
         <div className="pb-social-fields">

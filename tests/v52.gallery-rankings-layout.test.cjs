@@ -15,7 +15,7 @@ test('explorar mantiene seis luchadores paginados y dos columnas por tres filas 
   assert.match(social,/@media \(max-width:620px\) and \(orientation:portrait\)/);
   assert.match(social,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\);grid-template-rows:none;grid-auto-rows:max-content/);
   assert.match(social,/grid-template-rows:none;grid-auto-rows:max-content;align-content:start/);
-  assert.match(social,/overflow-y:auto;overscroll-behavior:contain/);
+  assert.match(social,/overflow-y:auto;overscroll-behavior:contain/); // V52 fallback on desktop; V53 overrides on mobile portrait.
   assert.match(page,/<strong title=\{f\.fighter_name\}>\{f\.fighter_name\}<\/strong>/);
 });
 
@@ -44,7 +44,7 @@ test('ranking horizontal prioriza resultados y mantiene desplazamiento interno',
   assert.match(social,/@media \(orientation:landscape\) and \(max-height:500px\)/);
   assert.match(social,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\);grid-auto-rows:minmax\(48px,max-content\)/);
   assert.match(social,/\.pb-community-page \.pb-community-leaderboard\{[\s\S]*?overflow-y:auto;overscroll-behavior:contain/);
-  assert.match(read('public/sw.js'),/pb-shell-v52-gallery-ranking-cleanup/);
+  assert.match(read('public/sw.js'),/pb-shell-v5[23]-/);
 });
 
 test('componentes TSX son sintácticamente válidos',()=>{

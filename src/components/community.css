@@ -257,3 +257,71 @@
   .pb-league-modal-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
   .pb-league-modal-card{padding:4px 6px;gap:2px 6px}
 }
+
+/* V53 · Six full cards fit in mobile portrait; square art + name outside the image. */
+@media (max-width:620px) and (orientation:portrait){
+  .pb-community-page .pb-community-grid:not(.pb-my-community-grid){
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(3,minmax(0,1fr));
+    grid-auto-rows:minmax(0,1fr);align-content:stretch;
+    overflow:hidden;padding:2px 3px 3px;gap:4px 7px;
+  }
+  .pb-community-page .pb-community-grid:not(.pb-my-community-grid) .pb-community-card{
+    box-sizing:border-box;align-self:stretch;justify-content:flex-start;
+    width:100%;height:100%;min-height:0;overflow:hidden;padding:3px;gap:3px;
+  }
+  .pb-community-page .pb-community-grid:not(.pb-my-community-grid) .pb-community-card>.pb-league-frame{
+    width:auto;max-width:100%;height:calc(100% - 34px);max-height:calc(100% - 34px);
+    min-height:0;aspect-ratio:1;flex:0 1 auto;
+    padding:2px;margin:0 auto;box-sizing:border-box;
+  }
+  .pb-community-page .pb-community-grid:not(.pb-my-community-grid) .pb-community-card>strong{
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+    line-clamp:2;white-space:normal;overflow:hidden;overflow-wrap:anywhere;
+    flex:0 0 auto;max-height:2.4em;min-height:0;line-height:1.2;
+    font-size:clamp(10px,2.8vw,14px);text-overflow:ellipsis;
+  }
+  .pb-community-page .pb-community-grid:not(.pb-my-community-grid) .pb-community-card>small{display:none}
+}
+/* Favorited portraits in Publish use the whole available square; never stretch it. */
+.pb-my-community-grid{min-width:0}
+.pb-my-community-card{min-width:0;overflow:hidden}
+.pb-publish-portrait{position:relative;display:flex;align-items:center;justify-content:center;
+  flex:1;min-height:0;width:100%;max-width:100%}
+.pb-my-community-card .pb-publish-portrait>img{
+  display:block;box-sizing:border-box;flex:0 1 auto;
+  width:auto;max-width:100%;height:100%;max-height:100%;
+  aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border:2px solid #5279a8;
+}
+.pb-my-community-card>strong{flex-shrink:0;width:100%;text-align:center;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.pb-my-community-card .pb-publish-portrait>.pb-favorite-toggle{position:absolute;top:4px;right:4px;z-index:3}
+/* Same readable 16-bit font size for leaderboard tabs and the league button. */
+.pb-community-page .pb-rank-modes button,.pb-rank-leagues-button{
+  font:700 clamp(9px,1.4vw,11px)/1.25 'Press Start 2P',monospace;
+  min-height:35px;overflow-wrap:anywhere;
+}
+@media(max-width:620px){
+  .pb-community-page .pb-rank-modes button,.pb-rank-leagues-button{font-size:9px;min-height:35px}
+}
+/* Public player avatar; the selected picture can be from a private fighter,
+   but no other fighter data is ever fetched to draw this avatar. */
+.pb-player-avatar{box-sizing:border-box;display:grid!important;place-items:center;
+  position:relative;flex:0 0 auto!important;width:36px;height:36px;padding:2px;
+  color:#8bd8ff!important;background:#142743;border:2px solid #d8ae68;
+  box-shadow:2px 2px 0 #071320;overflow:hidden;line-height:1}
+.pb-player-avatar>img{display:block;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;min-height:0;max-width:100%}
+.pb-player-avatar--small{width:26px;height:26px;padding:1px}
+.pb-player-avatar--large{width:53px;height:53px;padding:3px}
+.pb-community-page .pb-rank-entry>.pb-player-avatar{width:40px;height:40px}
+.pb-community-page .pb-duo-avatars{gap:0;min-width:55px;flex:0 0 auto}
+.pb-community-page .pb-duo-avatars .pb-player-avatar{border:2px solid #d8ae68;
+  width:30px;height:30px;padding:1px;background:#102b4d;box-shadow:2px 2px 0 #081525}
+.pb-community-page .pb-duo-avatars .pb-player-avatar+.pb-player-avatar{margin-left:-5px;border-color:#79cafa}
+.pb-community-account>.pb-player-avatar{box-shadow:none}
+.pb-community-author-summary{flex-shrink:0}
+.pb-social-user>span:last-child{display:flex;align-items:center;gap:5px;min-width:0;overflow-wrap:anywhere}
+@media(orientation:landscape) and (max-height:500px){
+  .pb-community-page .pb-rank-modes button,.pb-rank-leagues-button{min-height:28px;font-size:9px}
+  .pb-community-page .pb-rank-entry>.pb-player-avatar{width:34px;height:34px}
+}

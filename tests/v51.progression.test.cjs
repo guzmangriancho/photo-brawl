@@ -47,7 +47,7 @@ test('tiers and thresholds are consistent between frontend and database',()=>{
   if(min)assert.match(sql,new RegExp(`p_cups>=${min} then '${name}'`));
  }
  assert.match(read('src/components/progression.css'),/image-rendering:pixelated/);
- assert.match(read('src/components/CommunityPage.tsx'),/DÚOS 2V2/);
+ assert.match(read('src/components/CommunityPage.tsx'),/DÚOS/);
  assert.match(read('src/components/VersusIntro.tsx'),/<LeagueFrame trophies=\{cups\(seat\)\}>/);
  assert.match(read('src/components/CommunityPage.tsx'),/LeagueFrame trophies=\{fighterCups\[f\.id\]/);
  assert.match(read('src/components/FightArena.tsx'),/rankedResult\.host_fighter\.change/);

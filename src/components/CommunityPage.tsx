@@ -9,6 +9,10 @@ import {
 } from '../services/communityService';
 import type {CommunityFighter, LeaderboardPlayer} from '../services/communityService';
 import {CommunityArtwork} from './CommunityArtwork';
+import {FavoriteButton} from './FavoriteButton';
+import {PlayerAvatar} from './PlayerAvatar';
+import {useFavoriteFighter} from '../services/useFavoriteFighter';
+import {writeFavoriteFighter} from '../services/favoriteFighterService';
 import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
 import {duoLeaderboard,fighterLeaderboard,fighterCupsById,LEAGUES} from '../services/progressionService';
 import type {DuoRank,FighterRank} from '../services/progressionService';
@@ -35,6 +39,7 @@ interface Props {
  *  Nothing in this screen starts a match or changes a local character automatically. */
 export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Props){
   const {user,loading:authLoading}=usePlayerAccount();
+  const favorite=useFavoriteFighter();
   const [tab,setTab]=useState<Tab>(initialTab);
   const [leaders,setLeaders]=useState<LeaderboardPlayer[]>([]);
   const [rankMode,setRankMode]=useState<'global'|'fighter'|'duo'>('global');
@@ -116,6 +121,16 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
       const cups=await fighterCupsById(profile.fighters.map(f=>f.id));setFighterCups(old=>({...old,...cups}));}
     catch(err){setError(textError(err));}finally{setBusy('');}
   };
+  const changeFavorite=async(fighter:FighterProfile)=>{
+    if(!user){onAccount();return;}
+    if(busy)return;
+    const active=favorite.localId===fighter.id;
+    if(!active&&!window.confirm(`¿Mostrar el retrato de «${fighter.fighterName}» como avatar público? El luchador no se publicará automáticamente.`))return;
+    setBusy(`favorite:${fighter.id}`);setError('');
+    try{await writeFavoriteFighter(active?null:fighter);setNotice(active?'Favorito eliminado.':'Nuevo avatar guardado.');}
+    catch(error){setError(textError(error));}
+    finally{setBusy('');}
+  };
   const changePublication=async(fighter:FighterProfile)=>{
     if(!user){onAccount();return;}
     if(busy)return;
@@ -144,7 +159,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
   const mine=fighters.slice(myPage*PER_PAGE,(myPage+1)*PER_PAGE);
 
   return <section className="pb-subpage pb-frame pb-community-page pb-page-anim" aria-label="Comunidad PHOTO BRAWL">
-    <div className="pb-community-top"><div><small>PHOTO BRAWL · CONECTADO A SUPABASE</small><h2>{tab==='ranking'?'CLASIFICACIÓN ONLINE':tab==='mine'?'MIS PUBLICACIONES':adminView?'ARCHIVO DE LUCHADORES':'COMUNIDAD DE LUCHADORES'}</h2></div><button type="button" className="pb-community-account" onClick={onAccount}><UserRound size={15}/>{user?'MI CUENTA':'ENTRAR'}</button></div>
+    <div className="pb-community-top"><div><small>PHOTO BRAWL · CONECTADO A SUPABASE</small><h2>{tab==='ranking'?'CLASIFICACIÓN ONLINE':tab==='mine'?'MIS PUBLICACIONES':adminView?'ARCHIVO DE LUCHADORES':'COMUNIDAD DE LUCHADORES'}</h2></div><button type="button" className="pb-community-account" onClick={onAccount}>{user?<PlayerAvatar path={favorite.avatarPath} size="small"/>:<UserRound size={15}/>} {user?'MI CUENTA':'ENTRAR'}</button></div>
     <nav className="pb-community-tabs pb-community-tabs-three" aria-label="Secciones de la comunidad">
       <button className={tab==='ranking'?'active':''} onClick={()=>{setTab('ranking');setShowLeagues(false);setError('');}}><Crown size={15}/> RANKING</button>
       <button className={tab==='explore'?'active':''} onClick={()=>{setTab('explore');setShowLeagues(false);setError('');}}><UsersRound size={15}/> EXPLORAR</button>
@@ -157,19 +172,19 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
         <div className="pb-rank-modes" role="group" aria-label="Clasificaciones">
           <button type="button" aria-pressed={rankMode==='global'} className={rankMode==='global'?'active':''} onClick={()=>{setRankMode('global');setPeoplePage(0);}}>ELO GLOBAL</button>
           <button type="button" aria-pressed={rankMode==='fighter'} className={rankMode==='fighter'?'active':''} onClick={()=>{setRankMode('fighter');setPeoplePage(0);}}>LUCHADORES</button>
-          <button type="button" aria-pressed={rankMode==='duo'} className={rankMode==='duo'?'active':''} onClick={()=>{setRankMode('duo');setPeoplePage(0);}}>DÚOS 2V2</button>
+          <button type="button" aria-pressed={rankMode==='duo'} className={rankMode==='duo'?'active':''} onClick={()=>{setRankMode('duo');setPeoplePage(0);}}>DÚOS</button>
         </div>
         <button type="button" className="pb-rank-leagues-button" onClick={()=>setShowLeagues(true)} aria-haspopup="dialog" aria-label="Ver ligas y rangos de copas"><Trophy size={13}/> LIGAS</button>
       </div>
       <div className="pb-community-leaderboard">
-        {rankMode==='global'&&current.map((p,i)=><button className={`pb-rank-entry ${i+peoplePage*10<3?'podium':''}`} type="button" key={p.id} onClick={()=>void openAuthor(p.id)}><b>#{peoplePage*10+i+1}</b><span><strong>{p.display_name||p.username||'JUGADOR'}</strong><small>@{p.username} · {p.wins} V / {p.losses} D</small></span><em>{p.rating} ELO</em></button>)}
+        {rankMode==='global'&&current.map((p,i)=><button className={`pb-rank-entry ${i+peoplePage*10<3?'podium':''}`} type="button" key={p.id} onClick={()=>void openAuthor(p.id)}><b>#{peoplePage*10+i+1}</b><PlayerAvatar path={p.favorite_avatar_path}/><span><strong>{p.display_name||p.username||'JUGADOR'}</strong><small>@{p.username} · {p.wins} V / {p.losses} D</small></span><em>{p.rating} ELO</em></button>)}
         {rankMode==='fighter'&&currentFighters.map((f,i)=><button className={`pb-rank-entry ${i+peoplePage*10<3?'podium':''}`} type="button" key={f.fighter_id} onClick={()=>void openAuthor(f.account_id)}>
           <b>#{peoplePage*10+i+1}</b>
           <LeagueFrame trophies={f.trophies} compact><img className="pb-rank-portrait" src={fighterPublicUrl(f.fighters.public_portrait_path)} alt="" loading="lazy"/></LeagueFrame>
           <span className="pb-rank-card-info"><strong>{f.fighters.fighter_name}</strong><small>@{f.fighters.player_profiles?.username||'jugador'} · {f.wins} V</small></span><LeagueBadge trophies={f.trophies}/>
         </button>)}
         {rankMode==='duo'&&currentDuos.map((duo,i)=><div className={`pb-rank-entry ${i+peoplePage*10<3?'podium':''}`} key={`${duo.player_a}-${duo.player_b}`}>
-          <b>#{peoplePage*10+i+1}</b><div className="pb-duo-avatars" aria-hidden="true"><span>1P</span><span>2P</span></div>
+          <b>#{peoplePage*10+i+1}</b><div className="pb-duo-avatars"><PlayerAvatar path={duo.a?.favorite_avatar_path} alt="Avatar del primer jugador" size="small"/><PlayerAvatar path={duo.b?.favorite_avatar_path} alt="Avatar del segundo jugador" size="small"/></div>
           <span className="pb-rank-card-info"><strong>{duo.a?.display_name||duo.a?.username||'JUGADOR'} + {duo.b?.display_name||duo.b?.username||'JUGADOR'}</strong>
             <small><button type="button" onClick={()=>void openAuthor(duo.player_a)}>@{duo.a?.username||'1P'}</button> + <button type="button" onClick={()=>void openAuthor(duo.player_b)}>@{duo.b?.username||'2P'}</button> · {duo.wins} V</small>
           </span><LeagueBadge trophies={duo.trophies}/>
@@ -183,7 +198,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
       <div className="pb-community-pages"><button type="button" disabled={!page} onClick={()=>setPage(n=>n-1)} aria-label="Página anterior"><ChevronLeft size={15}/></button><span>PÁGINA {page+1}</span><button type="button" disabled={list.length<PER_PAGE} onClick={()=>setPage(n=>n+1)} aria-label="Página siguiente"><ChevronRight size={15}/></button></div>
     </>:<>
       <div className="pb-community-info"><span><ShieldCheck size={13}/> La nube es privada hasta que publiques expresamente</span>{!user&&<button type="button" onClick={onAccount}>INICIAR SESIÓN <ChevronRight size={14}/></button>}</div>
-      <div className="pb-community-grid pb-my-community-grid">{mine.length?mine.map(f=><article className="pb-community-card pb-my-community-card" key={f.id}><img src={f.portraitDataUrl} alt=""/><strong>{f.fighterName}</strong><button type="button" disabled={Boolean(busy)||authLoading} className={published[f.id]?'pb-published':''} onClick={()=>void changePublication(f)}>{busy===f.id?'GUARDANDO…':published[f.id]?'OCULTAR':'PUBLICAR'}</button></article>):<div className="pb-community-empty">NO TIENES LUCHADORES. CREA UNO DESDE EL MENÚ PRINCIPAL Y VUELVE AQUÍ PARA PUBLICARLO.</div>}</div>
+      <div className="pb-community-grid pb-my-community-grid">{mine.length?mine.map(f=><article className="pb-community-card pb-my-community-card" key={f.id}><div className="pb-publish-portrait"><img src={f.portraitDataUrl} alt={f.fighterName}/><FavoriteButton active={favorite.localId===f.id} disabled={Boolean(busy)||authLoading} onClick={()=>void changeFavorite(f)}/></div><strong title={f.fighterName}>{f.fighterName}</strong><button type="button" disabled={Boolean(busy)||authLoading} className={published[f.id]?'pb-published':''} onClick={()=>void changePublication(f)}>{busy===f.id?'GUARDANDO…':published[f.id]?'OCULTAR':'PUBLICAR'}</button></article>):<div className="pb-community-empty">NO TIENES LUCHADORES. CREA UNO DESDE EL MENÚ PRINCIPAL Y VUELVE AQUÍ PARA PUBLICARLO.</div>}</div>
       <div className="pb-community-pages"><button type="button" disabled={!myPage} onClick={()=>setMyPage(n=>n-1)} aria-label="Página anterior"><ChevronLeft size={15}/></button><span>{myPage+1} / {Math.max(1,Math.ceil(fighters.length/PER_PAGE))}</span><button type="button" disabled={(myPage+1)*PER_PAGE>=fighters.length} onClick={()=>setMyPage(n=>n+1)} aria-label="Página siguiente"><ChevronRight size={15}/></button></div>
     </>}
     {showLeagues&&<div className="pb-social-overlay pb-community-detail-layer pb-league-modal-layer" onPointerDown={e=>{if(e.target===e.currentTarget)setShowLeagues(false);}}>
@@ -206,7 +221,7 @@ export function CommunityPage({initialTab,fighters,onAccount,adminView=false}:Pr
       <div className="pb-social-actions"><button type="button" disabled={Boolean(busy)||user?.id===detail.owner_id} onClick={()=>void changeLike()}><Heart size={15} fill={likes.liked?'currentColor':'none'}/> {likes.count} · {likes.liked?'YA TE GUSTA':'ME GUSTA'}</button><button type="button" onClick={()=>setDetail(null)}><ArrowLeft size={14}/> VOLVER</button></div>
     </section></div>}
     {author&&<div className="pb-social-overlay pb-community-detail-layer" onPointerDown={e=>{if(e.target===e.currentTarget)setAuthor(null);}}><section className="pb-social-dialog pb-community-detail pb-frame" role="dialog" aria-modal="true" aria-label="Perfil público del jugador">
-      <header className="pb-social-heading"><strong><UserRound size={17}/> {author.player?.display_name||'JUGADOR'}</strong><button type="button" aria-label="Cerrar" onClick={()=>setAuthor(null)}><X size={18}/></button></header>
+      <header className="pb-social-heading"><strong><PlayerAvatar path={author.player?.favorite_avatar_path}/> {author.player?.display_name||'JUGADOR'}</strong><button type="button" aria-label="Cerrar" onClick={()=>setAuthor(null)}><X size={18}/></button></header>
       <div className="pb-community-author-summary">@{author.player?.username||'jugador'} · {author.player?.rating??1000} ELO · {author.player?.wins??0} V / {author.player?.losses??0} D</div>
       <div className="pb-community-author-grid">{author.fighters.length?author.fighters.slice(0,6).map(f=><button key={f.id} type="button" onClick={()=>{setAuthor(null);showDetail(f);}}><LeagueFrame trophies={fighterCups[f.id]??0} compact><img src={fighterPublicUrl(f.public_portrait_path)} alt=""/></LeagueFrame><small>{f.fighter_name}</small></button>):<p>Este jugador todavía no ha publicado luchadores.</p>}</div>
       <div className="pb-social-actions"><button type="button" onClick={()=>setAuthor(null)}><ArrowLeft size={14}/> VOLVER</button></div>
