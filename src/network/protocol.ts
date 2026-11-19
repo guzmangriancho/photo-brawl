@@ -61,6 +61,7 @@ export interface OnlineStart {
   stage: StageId;
   battleMode?: GroupBattleMode;
   fighters?: FighterProfile[];
+  rankTrophies?: number[];
   slot?: number;
 }
 export interface OnlineIncoming {

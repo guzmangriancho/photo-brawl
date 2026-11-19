@@ -47,15 +47,18 @@ async function verifyRankedFighter(accountId,profile){
     throw new Error('Los movimientos o estadísticas no coinciden con tu luchador guardado. Sincroniza tu colección.');
   return true;
 }
-async function recordResult({id,hostId,guestId,hostRounds,guestRounds,stage}){
+async function recordResult({id,hostId,guestId,hostRounds,guestRounds,stage,hostFighterId,guestFighterId}){
   if(!configured)throw new Error('Clasificatorias no configuradas.');
   if(!uuid.test(id)||!uuid.test(hostId)||!uuid.test(guestId)||hostId===guestId)throw new Error('Identidades de partida inválidas.');
   if(!((hostRounds===2&&guestRounds>=0&&guestRounds<=1)||(guestRounds===2&&hostRounds>=0&&hostRounds<=1)))throw new Error('Marcador no válido.');
-  const body={p_match_id:id,p_host_id:hostId,p_guest_id:guestId,p_host_rounds:hostRounds,p_guest_rounds:guestRounds,p_stage:stage,p_result_type:'played'};
+  const withFighters=typeof hostFighterId==='string'&&typeof guestFighterId==='string';
+  if((hostFighterId!==undefined||guestFighterId!==undefined)&&(!withFighters||!hostFighterId||!guestFighterId||hostFighterId.length>100||guestFighterId.length>100))throw new Error('Identidades de luchadores inválidas.');
+  const body={p_match_id:id,p_host_id:hostId,p_guest_id:guestId,p_host_rounds:hostRounds,p_guest_rounds:guestRounds,p_stage:stage,p_result_type:'played',
+    ...(withFighters?{p_host_fighter_local_id:hostFighterId,p_guest_fighter_local_id:guestFighterId}:{})};
   let response;
   try{
     // Modern sb_secret keys belong in apikey, NOT as Bearer tokens.
-    response=await fetch(URL_ROOT+'/rest/v1/rpc/record_ranked_match',{
+    response=await fetch(URL_ROOT+(withFighters?'/rest/v1/rpc/record_ranked_progress_match':'/rest/v1/rpc/record_ranked_match'),{
       method:'POST',headers:{apikey:SECRET_KEY,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(9000),
     });
   }catch{throw new Error('No se pudo guardar el resultado en Supabase.');}
@@ -63,7 +66,7 @@ async function recordResult({id,hostId,guestId,hostRounds,guestRounds,stage}){
   return response.json();
 }
 /** Only ranked, authenticated four-human rooms may invoke this RPC. */
-async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam}){
+async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam,fighterIds}){
   if(!configured)throw new Error('ELO online no configurado.');
   if(!uuid.test(id)||!['2V2','FREE_FOR_ALL'].includes(mode)||
      !Array.isArray(accountIds)||accountIds.length!==4||
@@ -71,10 +74,13 @@ async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam}){
      !Array.isArray(places)||places.length!==4||places.some(v=>!Number.isInteger(v)||v<1||v>4))
     throw new Error('Resultado de cuatro jugadores inválido.');
   if(mode==='2V2' && ![null,'RED','BLUE'].includes(winningTeam))throw new Error('Equipo ganador inválido.');
+  const withFighters=Array.isArray(fighterIds);
+  if(withFighters&&(fighterIds.length!==4||fighterIds.some(f=>typeof f!=='string'||!f||f.length>100)))throw new Error('Luchadores de grupo inválidos.');
   const body={p_match_id:id,p_mode:mode,p_player_ids:accountIds,p_places:places,
-    p_stage:stage,p_winning_team:mode==='2V2'?winningTeam:null};
+    p_stage:stage,p_winning_team:mode==='2V2'?winningTeam:null,
+    ...(withFighters?{p_fighter_local_ids:fighterIds}:{})};
   let response;
-  try{response=await fetch(URL_ROOT+'/rest/v1/rpc/record_group_ranked_match',{
+  try{response=await fetch(URL_ROOT+(withFighters?'/rest/v1/rpc/record_group_ranked_progress_match':'/rest/v1/rpc/record_group_ranked_match'),{
     method:'POST',headers:{apikey:SECRET_KEY,'Content-Type':'application/json'},
     body:JSON.stringify(body),signal:AbortSignal.timeout(9000),
   });}catch{throw new Error('No se pudo registrar el ELO del combate múltiple.');}
@@ -82,4 +88,20 @@ async function recordGroupResult({id,mode,accountIds,places,stage,winningTeam}){
     throw new Error(`Supabase rechazó el ELO de grupos (${response.status}): ${detail}`);}
   return response.json();
 }
-module.exports={available,verifyUser,verifyRankedFighter,recordResult,recordGroupResult};
+/** Read-only badge metadata, checked against the verified account and local fighter ID.
+ * An unavailable badge never blocks gameplay; the SQL RPC is still authoritative. */
+async function getFighterTrophies(accountId,profile){
+  if(!configured||!uuid.test(accountId)||typeof profile?.id!=='string')return 0;
+  const headers={apikey:SECRET_KEY};
+  if(!SECRET_KEY.startsWith('sb_secret_'))headers.Authorization=`Bearer ${SECRET_KEY}`;
+  const params=new URLSearchParams({select:'id,fighter_progress(trophies)',owner_id:`eq.${accountId}`,local_id:`eq.${profile.id}`,limit:'1'});
+  try{
+    const response=await fetch(`${URL_ROOT}/rest/v1/fighters?${params}`,{headers,signal:AbortSignal.timeout(4000)});
+    if(!response.ok)return 0;
+    const rows=await response.json();
+    const progress=rows?.[0]?.fighter_progress;
+    const cups=Array.isArray(progress)?progress[0]?.trophies:progress?.trophies;
+    return Number.isSafeInteger(cups)&&cups>=0?cups:0;
+  }catch{return 0;}
+}
+module.exports={available,verifyUser,verifyRankedFighter,recordResult,recordGroupResult,getFighterTrophies};

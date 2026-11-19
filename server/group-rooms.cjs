@@ -38,7 +38,7 @@ function start(room){
   room.status='playing';room.matchId=randomUUID();room.resultRecorded=false;
   for(const p of room.players){p.mask=0;p.vote=false;p.lastSeq=-1;}
   each(room,{type:'start',code:room.code,p1:room.players[0].profile,p2:room.players[1].profile,
-    fighters:room.players.map(p=>p.profile),battleMode:room.mode,stage:room.stage});
+    fighters:room.players.map(p=>p.profile),battleMode:room.mode,stage:room.stage,rankTrophies:room.ranked?room.players.map(p=>p.trophies||0):undefined});
   lobby(room);each(room,{type:'state',state:room.engine.exportNetworkState()});
   if(room.tick)clearInterval(room.tick);
   room.tick=setInterval(()=>{
@@ -50,8 +50,9 @@ function start(room){
       const summary=room.engine.getMultiSummary();
       void rankedApi.recordGroupResult({id:room.matchId,mode:room.mode,
         accountIds:room.players.map(p=>p.accountId),
-        places:summary.players.map(p=>p.place),stage:room.stage,winningTeam:summary.winningTeam})
-        .then(result=>each(room,{type:'ranked_result',result}))
+        places:summary.players.map(p=>p.place),stage:room.stage,winningTeam:summary.winningTeam,
+        fighterIds:room.players.map(p=>p.profile.id)})
+        .then(result=>{if(result.recorded&&Array.isArray(result.fighters)){for(const f of result.fighters){if(room.players[f.seat])room.players[f.seat].trophies=f.after;}}each(room,{type:'ranked_result',result});})
         .catch(error=>{console.error('[ranked4]',error.message);
           each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});});
     }
@@ -87,7 +88,7 @@ function handle(peer,msg){
         countdownEndsAt:null,tick:null,engine:null,created:Date.now(),matchId:null,resultRecorded:false};
       rooms.set(r.code,r);bind(peer,r,host);lobby(r);
     };
-    if(ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
+    if(ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);const cups=await rankedApi.getFighterTrophies(accountId,profile);finish(accountId);if(peer.player)peer.player.trophies=cups;}).catch(error=>fail(peer,error.message));
     else finish(null);
     return;
   }
@@ -105,7 +106,7 @@ function handle(peer,msg){
       r.players.forEach(p=>p.ready=false);
       bind(peer,r,player);lobby(r);
     };
-    if(r.ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
+    if(r.ranked)void rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);const cups=await rankedApi.getFighterTrophies(accountId,profile);finish(accountId);if(peer.player)peer.player.trophies=cups;}).catch(error=>fail(peer,error.message));
     else finish(null);
     return;
   }
@@ -119,7 +120,7 @@ function handle(peer,msg){
     bind(peer,r,found);lobby(r);
     if(r.engine&&r.status==='playing'){
       send(found,{type:'start',code:r.code,p1:r.players[0].profile,p2:r.players[1].profile,
-        fighters:r.players.map(p=>p.profile),battleMode:r.mode,stage:r.stage,resumed:true});
+        fighters:r.players.map(p=>p.profile),battleMode:r.mode,stage:r.stage,resumed:true,rankTrophies:r.ranked?r.players.map(p=>p.trophies||0):undefined});
       send(found,{type:'state',state:r.engine.exportNetworkState()});each(r,{type:'resumed'});
     }
     return;
@@ -153,7 +154,7 @@ function handle(peer,msg){
     if(room.ranked){
       if(p.verifying)return fail(peer,'Comprobando luchador.');
       p.verifying=true;
-      void rankedApi.verifyRankedFighter(p.accountId,profile).then(commit)
+      void rankedApi.verifyRankedFighter(p.accountId,profile).then(async()=>{const cups=await rankedApi.getFighterTrophies(p.accountId,profile);commit();p.trophies=cups;})
         .catch(error=>fail(peer,error.message)).finally(()=>{p.verifying=false;});
     }else commit();
     return;
@@ -197,14 +198,14 @@ function handle(peer,msg){
       room.engine.remoteHumanControls=true;
       room.matchId=randomUUID();room.resultRecorded=false;
       for(const p of room.players){p.vote=false;p.mask=0;p.lastSeq=-1;}
-      each(room,{type:'rematch',fighters:room.players.map(p=>p.profile),stage:room.stage});
+      each(room,{type:'rematch',fighters:room.players.map(p=>p.profile),stage:room.stage,rankTrophies:room.ranked?room.players.map(p=>p.trophies||0):undefined});
       each(room,{type:'state',state:room.engine.exportNetworkState()});
       }
     };
     if(room.ranked&&profile){
       if(p.verifying)return fail(peer,'Comprobando luchador.');
       p.verifying=true;
-      void rankedApi.verifyRankedFighter(p.accountId,profile).then(vote)
+      void rankedApi.verifyRankedFighter(p.accountId,profile).then(async()=>{p.trophies=await rankedApi.getFighterTrophies(p.accountId,profile);vote();})
         .catch(error=>fail(peer,error.message)).finally(()=>{p.verifying=false;});
     }else vote();
     return;

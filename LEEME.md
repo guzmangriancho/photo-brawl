@@ -1,3 +1,13 @@
+# PHOTO BRAWL V51 · COPAS, LIGAS PIXEL ART Y RANKING DE DÚOS
+
+**NUEVO · V51 se basa en V50 y conserva V49.** Sistema híbrido con **ELO global intacto**, **copas independientes por cada luchador**, **copas por parejas de cuentas en 2v2** y seis ligas (Bronce, Plata, Oro, Diamante, Maestro, Leyenda). Marcos 16-bit en galería, selección, pantalla VS y rankings. Bonus de +5 por primera victoria diaria UTC con hasta 3 luchadores diferentes. Copas exclusivamente por clasificatorias autentificadas confirmadas por Render; no amistosas/CPU.
+
+**OBLIGATORIO: 1.º ejecutar `supabase/migrations/202611190001_progression_leagues_duos.sql` en Supabase SQL Editor; 2.º desplegar Render V51; 3.º desplegar Vercel V51.** El SQL también se facilita como archivo `.sql` independiente. No borra el historial ELO, pero las antiguas partidas no generan copas retrospectivas. Cada luchador privado conserva la privacidad de su ficha. No se han añadido resets de temporada automáticos.
+
+Guía de diseño, balances, seguridad y pasos de despliegue: [`docs/V51_PROGRESION_RANKINGS_LIGAS.md`](docs/V51_PROGRESION_RANKINGS_LIGAS.md). **Verificación:** pruebas automatizadas con Node; la compilación completa de frontend y la migración en un Supabase real requieren ejecutarse en el entorno del despliegue.
+
+---
+
 # PHOTO BRAWL V50 · CREADOR SIMPLIFICADO Y OVERLAYS 16-BIT
 
 **V50 parte de V49 (registro obligatorio y sincronización ordenada en cada arranque).** En el creador se elimina **PEGAR IMAGEN** en los pasos SPRITES y RETRATO: solo se importa el archivo descargado mediante **SUBIR IMAGEN**. El botón de **PEGAR RESPUESTA** (texto de la IA para crear la ficha) sigue funcionando. El editor de luchadores ya existentes mantiene su propio pegado de imágenes.

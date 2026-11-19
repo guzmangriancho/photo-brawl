@@ -53,7 +53,7 @@ function startMatch(room){
   room.resultRecorded=false;room.matchId=randomUUID();
   room.status='playing';room.host.vote=false;room.guest.vote=false;
   room.host.mask=0;room.guest.mask=0;
-  each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage});
+  each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage,rankTrophies:room.ranked?[room.host.trophies||0,room.guest.trophies||0]:undefined});
   lobby(room);sendState(room);
   room.tick=setInterval(()=>{
     if(room.status!=='playing'||!room.engine||!room.host.peer||!room.guest?.peer)return;
@@ -64,8 +64,8 @@ function startMatch(room){
     if(room.ranked && room.engine.roundOver && !room.resultRecorded){
       room.resultRecorded=true;
       const {p1RoundWins,p2RoundWins}=room.engine;
-      void rankedApi.recordResult({id:room.matchId,hostId:room.host.accountId,guestId:room.guest.accountId,hostRounds:p1RoundWins,guestRounds:p2RoundWins,stage:room.stage})
-        .then(result=>each(room,{type:'ranked_result',result}))
+      void rankedApi.recordResult({id:room.matchId,hostId:room.host.accountId,guestId:room.guest.accountId,hostRounds:p1RoundWins,guestRounds:p2RoundWins,stage:room.stage,hostFighterId:room.host.profile.id,guestFighterId:room.guest.profile.id})
+        .then(result=>{if(result.recorded&&result.host_fighter&&result.guest_fighter){room.host.trophies=result.host_fighter.after;room.guest.trophies=result.guest_fighter.after;}each(room,{type:'ranked_result',result});})
         .catch(error=>{console.error('[ranked] No se pudo registrar el resultado:',error.message);each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});});
     }
     if(room.engine.roundNumber!==previousRound){room.host.mask=0;room.guest.mask=0;}
@@ -104,7 +104,7 @@ function handle(peer,msg) {
       const item={code:code(),host,guest:null,ranked:isRanked,resultRecorded:false,matchId:null,status:'waiting',stage:STAGES.includes(msg.stage)?msg.stage:STAGES[0],randomStage:false,hasStarted:false,engine:null,created:Date.now(),tick:null,countdownTimer:null,countdownEndsAt:null};
       rooms.set(item.code,item);bind(peer,item,item.host);lobby(item);
     };
-    if(isRanked)return rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
+    if(isRanked)return rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);const cups=await rankedApi.getFighterTrophies(accountId,profile);finish(accountId);if(peer.player)peer.player.trophies=cups;}).catch(error=>fail(peer,error.message));
     finish(null);return;
   }
   if(msg.type==='join') {
@@ -120,7 +120,7 @@ function handle(peer,msg) {
       existing.guest=newPlayer(peer,'guest',profile);existing.guest.accountId=accountId;
       existing.host.ready=false;bind(peer,existing,existing.guest);lobby(existing);
     };
-    if(existing.ranked)return rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);finish(accountId);}).catch(error=>fail(peer,error.message));
+    if(existing.ranked)return rankedApi.verifyUser(msg.accessToken).then(async accountId=>{await rankedApi.verifyRankedFighter(accountId,profile);const cups=await rankedApi.getFighterTrophies(accountId,profile);finish(accountId);if(peer.player)peer.player.trophies=cups;}).catch(error=>fail(peer,error.message));
     finish(null);return;
   }
   if(msg.type==='resume') {
@@ -135,7 +135,7 @@ function handle(peer,msg) {
     found.lastSeq=-1;found.msgCount=0;found.actionCount=0;found.msgTick=Date.now();found.actionTick=Date.now();
     bind(peer,existing,found);lobby(existing);
     if(existing.engine && existing.status==='playing'){
-      send(found,{type:'start',role:found.role,code:existing.code,p1:existing.host.profile,p2:existing.guest.profile,stage:existing.stage,resumed:true});
+      send(found,{type:'start',role:found.role,code:existing.code,p1:existing.host.profile,p2:existing.guest.profile,stage:existing.stage,resumed:true,rankTrophies:existing.ranked?[existing.host.trophies||0,existing.guest.trophies||0]:undefined});
       send(found,{type:'state',state:existing.engine.exportNetworkState()});
       each(existing,{type:'resumed'});
     }
@@ -160,7 +160,7 @@ function handle(peer,msg) {
     if(room.ranked){
       if(player.verifying)return fail(peer,'Comprobando luchador, vuelve a intentarlo.');
       player.verifying=true;
-      void rankedApi.verifyRankedFighter(player.accountId,profile).then(commit)
+      void rankedApi.verifyRankedFighter(player.accountId,profile).then(async()=>{const cups=await rankedApi.getFighterTrophies(player.accountId,profile);commit();player.trophies=cups;})
         .catch(error=>fail(peer,error.message)).finally(()=>{player.verifying=false;});
     }else commit();
     return;
@@ -227,13 +227,13 @@ function handle(peer,msg) {
       room.host.mask=0;room.guest.mask=0;
       room.host.lastSeq=-1;room.guest.lastSeq=-1;
       room.host.vote=false;room.guest.vote=false;
-      each(room,{type:'rematch',stage:room.stage,p1:room.host.profile,p2:room.guest.profile});sendState(room);
+      each(room,{type:'rematch',stage:room.stage,p1:room.host.profile,p2:room.guest.profile,rankTrophies:room.ranked?[room.host.trophies||0,room.guest.trophies||0]:undefined});sendState(room);
       }
     };
     if(room.ranked&&nextProfile){
       if(player.verifying)return fail(peer,'Comprobando luchador.');
       player.verifying=true;
-      void rankedApi.verifyRankedFighter(player.accountId,nextProfile).then(vote)
+      void rankedApi.verifyRankedFighter(player.accountId,nextProfile).then(async()=>{player.trophies=await rankedApi.getFighterTrophies(player.accountId,nextProfile);vote();})
         .catch(error=>fail(peer,error.message)).finally(()=>{player.verifying=false;});
     }else vote();
     return;

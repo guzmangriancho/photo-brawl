@@ -188,3 +188,11 @@
     transition: none !important;
   }
 }
+
+/* V51: league frame and cups visibly travel with the fighter into VS. */
+.pb-vs-portrait>.pb-league-frame{width:min(100%,150px);aspect-ratio:1;padding:4px;flex:none}
+.pb-vs-portrait>.pb-league-frame>img{width:100%;height:100%;max-width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border:2px solid #0a1728}
+.pb-vs-portrait>.pb-league-badge{font-size:7px;gap:4px;padding:2px 4px;line-height:1.15;max-width:100%}
+.pb-vs-portrait>.pb-league-badge>.pb-league-cups{font-size:10px}
+.pb-vs-portrait>.pb-league-badge .pb-league-diamond{font-size:8px}
+@media(max-height:440px){.pb-vs-portrait>.pb-league-frame{width:min(100%,85px)}.pb-vs-portrait>.pb-league-badge{font-size:6px;padding:1px 3px}}

@@ -45,6 +45,7 @@ export function App() {
     tutorial?: boolean;
     battleMode?: GroupBattleMode;
     fighters?: FighterProfile[];
+    rankTrophies?:number[];
   } | null>(null);
 
   // Keep automatic background backups for edits/imports, but the initial
@@ -161,14 +162,14 @@ export function App() {
 
   const handleOnlineMatch = (start: OnlineStart, session: OnlineSession) => {
     setMatchConfig({p1:start.p1,p2:start.p2,mode:'ONLINE',stage:start.stage,difficulty:'NORMAL',online:session,
-      battleMode:start.battleMode,fighters:start.fighters});
+      battleMode:start.battleMode,fighters:start.fighters,rankTrophies:start.rankTrophies});
     setFightKey(value=>value+1);
     setScreen('FIGHT');
   };
 
   const handleRematch=(profiles:FighterProfile[],stage?:StageId)=>{
     setMatchConfig(old=>old?{...old,p1:profiles[0]||old.p1,p2:profiles[1]||old.p2,
-      fighters:old.battleMode?profiles:undefined,stage:stage||old.stage}:old);
+      fighters:old.battleMode?profiles:undefined,stage:stage||old.stage,rankTrophies:old.online?.match?.rankTrophies||old.rankTrophies}:old);
     setFightKey(v=>v+1);
   };
   const handleExit=()=>{
@@ -196,7 +197,7 @@ export function App() {
     if(matchConfig.battleMode && matchConfig.fighters?.length===4){
       return <GroupFightArena key={fightKey} fighters={matchConfig.fighters as [FighterProfile,FighterProfile,FighterProfile,FighterProfile]}
         roster={fighters} battleMode={matchConfig.battleMode} stage={matchConfig.stage}
-        difficulty={matchConfig.difficulty} online={matchConfig.online}
+        difficulty={matchConfig.difficulty} online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
         onRematch={handleRematch} onExit={handleExit}/>;
     }
     return (
@@ -206,7 +207,7 @@ export function App() {
         mode={matchConfig.mode}
         stage={matchConfig.stage}
         difficulty={matchConfig.difficulty}
-        online={matchConfig.online}
+        online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
         tutorial={matchConfig.tutorial}
         onExit={handleExit}
       />

@@ -113,7 +113,7 @@ export class OnlineSession {
           this.room=msg.room;
           if(typeof msg.room?.slot==='number')this.slot=msg.room.slot;this.emit('room',this.room);
         }else if(msg.type==='start'){
-          this.match={code:msg.code,role:this.role||'host',p1:msg.p1,p2:msg.p2,stage:msg.stage,battleMode:msg.battleMode,fighters:msg.fighters,slot:this.slot};
+          this.match={code:msg.code,role:this.role||'host',p1:msg.p1,p2:msg.p2,stage:msg.stage,battleMode:msg.battleMode,fighters:msg.fighters,rankTrophies:msg.rankTrophies,slot:this.slot};
           this.emit('start',this.match);
         }else if(msg.type==='state'){
           this.state=msg.state;this.emit('state',msg.state);
@@ -132,7 +132,7 @@ export class OnlineSession {
           this.state=null;
           if(this.match)this.match={...this.match,stage:typeof msg.stage==='string'?msg.stage as StageId:this.match.stage,
             p1:msg.p1||msg.fighters?.[0]||this.match.p1,p2:msg.p2||msg.fighters?.[1]||this.match.p2,
-            fighters:msg.fighters||this.match.fighters};
+            fighters:msg.fighters||this.match.fighters,rankTrophies:msg.rankTrophies||this.match.rankTrophies};
           this.emit('rematch',{stage:typeof msg.stage==='string'?msg.stage:undefined,p1:msg.p1,p2:msg.p2,fighters:msg.fighters});
         }else if(msg.type==='rematch_vote'){
           this.emit('rematch_vote',{host:msg.host,guest:msg.guest,votes:msg.votes,fighters:msg.fighters});

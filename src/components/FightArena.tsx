@@ -30,6 +30,7 @@ interface FightArenaProps {
   stage: StageId;
   difficulty: CpuDifficulty;
   online?: OnlineSession;
+  rankTrophies?:number[];
   tutorial?: boolean;
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
@@ -95,7 +96,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, tutorial = false, onExit, roster, onRematch,
+  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
@@ -142,6 +143,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
     recorded:boolean;reason?:string;
     host_rating_before?:number;guest_rating_before?:number;
     host_rating?:number;guest_rating?:number;
+    host_fighter?:{before:number;after:number;change:number;rotation_bonus:number;league:string};
+    guest_fighter?:{before:number;after:number;change:number;rotation_bonus:number;league:string};
   }|null>(null);
   const engineRef = useRef<FightEngine | null>(null);
   const pausedRef = useRef(false);
@@ -517,7 +520,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
           <canvas ref={canvasRef} width={STAGE_WIDTH} height={STAGE_HEIGHT} className="arena-canvas" />
           <div className="arena-stage-vignette" aria-hidden="true" />
           {(snapshot.versusIntroFrames??0)>0 && <VersusIntro
-            fighters={[p1Profile,p2Profile]} stage={stage} mode="DUEL" framesLeft={snapshot.versusIntroFrames??0} />}
+            fighters={[p1Profile,p2Profile]} stage={stage} mode="DUEL" framesLeft={snapshot.versusIntroFrames??0} rankTrophies={rankTrophies} />}
           {mode === 'TRAINING' && !tutorial && <div className="arena-collision-tools">
             <button type="button" className={showArenaCollisions?'is-active':''}
               aria-pressed={showArenaCollisions} onClick={toggleArenaCollisions}
@@ -602,6 +605,10 @@ export const FightArena: React.FC<FightArenaProps> = ({
                       <span>{p1Profile.fighterName}: {rankedResult!.host_rating_before} → {rankedResult!.host_rating} ({eloLabel(rankedResult!.host_rating_before!,rankedResult!.host_rating!)})</span>
                       <span>{p2Profile.fighterName}: {rankedResult!.guest_rating_before} → {rankedResult!.guest_rating} ({eloLabel(rankedResult!.guest_rating_before!,rankedResult!.guest_rating!)})</span>
                     </>}
+                    {rankedResult?.recorded&&rankedResult.host_fighter&&rankedResult.guest_fighter&&<div className="pb-fight-cup-results">
+                      <span>{p1Profile.fighterName} · {rankedResult.host_fighter.league} · {rankedResult.host_fighter.before} → {rankedResult.host_fighter.after} COPAS ({rankedResult.host_fighter.change>=0?'+':''}{rankedResult.host_fighter.change}){rankedResult.host_fighter.rotation_bonus>0?' · BONUS ROTACIÓN +5':''}</span>
+                      <span>{p2Profile.fighterName} · {rankedResult.guest_fighter.league} · {rankedResult.guest_fighter.before} → {rankedResult.guest_fighter.after} COPAS ({rankedResult.guest_fighter.change>=0?'+':''}{rankedResult.guest_fighter.change}){rankedResult.guest_fighter.rotation_bonus>0?' · BONUS ROTACIÓN +5':''}</span>
+                    </div>}
                     {rankedResult&&!rankedDetailsReady&&<span>{rankedResult.recorded?'RESULTADO GUARDADO':'NO SE PUDO VERIFICAR EL RESULTADO'}</span>}
                   </div>:<span>AMISTOSO · SIN CAMBIOS DE ELO</span>}
                   {otherWantsRematch&&<b>TU RIVAL QUIERE REVANCHA</b>}

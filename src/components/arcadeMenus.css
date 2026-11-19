@@ -628,3 +628,12 @@
 
 .pb-loading-plaque button{border:2px solid #8fc1e5;border-radius:5px;padding:7px 12px;background:#214970;color:#ffe3a3;font:900 13px Oxanium,system-ui;max-width:100%}
 .pb-loading-plaque small{max-width:min(85vw,590px);overflow-wrap:anywhere;line-height:1.35}
+
+/* V51 · pixel badge belongs to the fighter, not to the account. */
+.pb-featured-kicker .pb-league-badge{margin-left:8px;padding:2px 5px;font-size:7px;vertical-align:middle}
+.pb-portrait-choice>.pb-league-frame{max-width:100%;min-height:0;flex:1;width:min(100%,100px);aspect-ratio:1}
+.pb-portrait-choice>.pb-league-frame>.pb-portrait{height:100%;width:100%;object-fit:cover}
+.pb-profile-heading>.pb-league-frame{width:80px;height:80px}
+.pb-profile-heading>.pb-league-frame>.pb-portrait{width:100%;height:100%;object-fit:cover}
+.pb-profile-heading .pb-league-badge{margin-top:7px;font-size:7px}
+.pb-featured-kicker:has(.pb-league-badge){display:flex;align-items:center;flex-wrap:wrap;gap:4px}

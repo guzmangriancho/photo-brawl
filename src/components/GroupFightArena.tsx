@@ -32,10 +32,10 @@ const matchClock=(seconds:number)=>{
 interface Props{
   fighters:[FighterProfile,FighterProfile,FighterProfile,FighterProfile];
   roster:FighterProfile[]; battleMode:GroupBattleMode;stage:StageId;difficulty:CpuDifficulty;
-  online?:OnlineSession;onExit:()=>void;
+  online?:OnlineSession;rankTrophies?:number[];onExit:()=>void;
   onRematch:(fighters:FighterProfile[],stage?:StageId)=>void;
 }
-export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,online,onExit,onRematch}:Props){
+export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,online,rankTrophies,onExit,onRematch}:Props){
   const canvas=useRef<HTMLCanvasElement>(null),engineRef=useRef<MultiFightEngine|null>(null);
   const touch=useRef<InputState>(blank()),stopRef=useRef(false);
   const onlineMode=!!online;
@@ -45,7 +45,12 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   const [onlineIssue,setOnlineIssue]=useState('');
   const [requested,setRequested]=useState(false);
   const [votes,setVotes]=useState<boolean[]>([]);
-  const [groupRating,setGroupRating]=useState<{recorded?:boolean;reason?:string;players?:{seat:number;old_rating:number;new_rating:number;delta:number;place:number}[]}|null>(null);
+  const [groupRating,setGroupRating]=useState<{
+    recorded?:boolean;reason?:string;
+    players?:{seat:number;old_rating:number;new_rating:number;delta:number;place:number}[];
+    fighters?:{seat:number;before:number;after:number;change:number;rotation_bonus:number;league:string}[];
+    duos?:{team:string;before:number;after:number;change:number;league:string}[];
+  }|null>(null);
   const [humanP2,setHumanP2]=useState(false);
   const humanP2Ref=useRef(false);
   useEffect(()=>{humanP2Ref.current=humanP2;if(engineRef.current)engineRef.current.localHumanSeats=humanP2?2:1;},[humanP2]);
@@ -167,7 +172,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   };
   return <main className="pb-group-screen">
     <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
-    {(snapshot?.versusIntroFrames??0)>0 && <VersusIntro fighters={fighters} stage={stage} mode={battleMode} framesLeft={snapshot?.versusIntroFrames??0}/>}
+    {(snapshot?.versusIntroFrames??0)>0 && <VersusIntro fighters={fighters} stage={stage} mode={battleMode} framesLeft={snapshot?.versusIntroFrames??0} rankTrophies={rankTrophies}/>}
     <header className="pb-group-hud" aria-label="Estado de los cuatro luchadores">
       <div className="pb-group-hud-grid">
         {hudSeats.map((seat,column)=>{
@@ -264,7 +269,10 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
         {online?.room?.ranked&&<div className="pb-group-elo" aria-live="polite">{groupRating?.recorded ?
           groupRating.players?.map(p=><small key={p.seat}>P{p.seat+1} · ELO {p.old_rating} → {p.new_rating}
             <b className={p.delta>=0?'is-plus':'is-minus'}>{p.delta>=0?'+':''}{p.delta}</b></small>)
-          :<small>{groupRating?.reason==='duplicate'?'RESULTADO YA REGISTRADO':groupRating?.reason==='server_error'?'ERROR AL REGISTRAR ELO':'REGISTRANDO ELO…'}</small>}</div>}
+          :<small>{groupRating?.reason==='duplicate'?'RESULTADO YA REGISTRADO':groupRating?.reason==='server_error'?'ERROR AL REGISTRAR ELO':'REGISTRANDO ELO…'}</small>}
+          {groupRating?.recorded&&groupRating.fighters?.map(f=><small key={`cup-${f.seat}`}>P{f.seat+1} · {f.league} · {f.before} → {f.after} COPAS ({f.change>=0?'+':''}{f.change}){f.rotation_bonus?' · BONUS +5':''}</small>)}
+          {groupRating?.recorded&&groupRating.duos?.map(duo=><small key={`duo-${duo.team}`}>DÚO {duo.team==='RED'?'ROJO':'AZUL'} · {duo.league} · {duo.before} → {duo.after} COPAS ({duo.change>=0?'+':''}{duo.change})</small>)}
+          </div>}
         {battleMode==='2V2'&&<strong className="pb-group-team-score">ROJO {summary?.teamKOs[0]??0} KO · AZUL {summary?.teamKOs[1]??0} KO</strong>}
         <div>{summary?.players.map(p=><small key={p.seat}>P{p.seat+1}: {p.kos} KO · {p.assists} ASIST. · {p.deaths} CAÍDAS · {p.stocks} VIDAS · {Math.round(p.damageDealt)} DAÑO</small>)}</div></div>}/></div>}
   </main>;

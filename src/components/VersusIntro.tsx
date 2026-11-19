@@ -1,4 +1,6 @@
-import React from 'react';
+import React, {useEffect,useState} from 'react';
+import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
+import {ownFighterRanks} from '../services/progressionService';
 import type { FighterProfile, StageId } from '../types/fighter';
 import { STAGE_ART } from '../data/stages';
 import './versusIntro.css';
@@ -9,6 +11,7 @@ interface Props {
   stage: StageId;
   mode: IntroMode;
   framesLeft: number;
+  rankTrophies?:number[];
 }
 
 /** Driven by the engine's frame counter (not a wall-clock CSS timer).
@@ -29,7 +32,15 @@ export function versusMotion(framesLeft: number, totalFrames = 90) {
 const SEAT_COLORS = ['red', 'blue', 'green', 'gold'] as const;
 
 /** Presentation only. The authoritative engine freezes its clock while this is visible. */
-export function VersusIntro({ fighters, stage, mode, framesLeft }: Props) {
+export function VersusIntro({ fighters, stage, mode, framesLeft, rankTrophies }: Props) {
+  const [owned,setOwned]=useState<Record<string,{trophies:number}>>({});
+  useEffect(()=>{
+    if(rankTrophies)return;
+    let mounted=true;
+    void ownFighterRanks().then(ranks=>{if(mounted)setOwned(ranks);}).catch(()=>{});
+    return()=>{mounted=false;};
+  },[rankTrophies]);
+  const cups=(seat:number)=>rankTrophies?.[seat]??owned[fighters[seat]?.id]?.trophies??0;
   const reducedMotion = typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const motion = reducedMotion
@@ -54,8 +65,8 @@ export function VersusIntro({ fighters, stage, mode, framesLeft }: Props) {
               className={`pb-vs-portrait pb-vs-portrait--${SEAT_COLORS[seat]} pb-vs-ffa-card`}
               style={{opacity:motion.visible,transform:`translateX(${seat % 2 ? motion.sideOffset : -motion.sideOffset}%)`}}>
               <span className="pb-vs-seat">P{seat + 1}</span>
-              <img src={f.portraitDataUrl} alt="" draggable={false} />
-              <strong title={f.fighterName}>{f.fighterName}</strong>
+              <LeagueFrame trophies={cups(seat)}><img src={f.portraitDataUrl} alt="" draggable={false} /></LeagueFrame>
+              <strong title={f.fighterName}>{f.fighterName}</strong><LeagueBadge trophies={cups(seat)}/>
             </div>)}
             <div className="pb-vs-ffa-center" aria-hidden="true" style={{opacity:motion.centerReveal,transform:`translate(-50%, -50%) scale(${motion.centerScale})`}}>FFA</div>
           </div>
@@ -65,8 +76,8 @@ export function VersusIntro({ fighters, stage, mode, framesLeft }: Props) {
               <div className="pb-vs-side-portraits">
                 {team.map(seat => <div key={seat} className={`pb-vs-portrait pb-vs-portrait--${side ? 'blue' : 'red'}`}>
                   <span className="pb-vs-seat">P{seat + 1}</span>
-                  <img src={fighters[seat].portraitDataUrl} alt="" draggable={false} />
-                  <strong title={fighters[seat].fighterName}>{fighters[seat].fighterName}</strong>
+                  <LeagueFrame trophies={cups(seat)}><img src={fighters[seat].portraitDataUrl} alt="" draggable={false} /></LeagueFrame>
+                  <strong title={fighters[seat].fighterName}>{fighters[seat].fighterName}</strong><LeagueBadge trophies={cups(seat)}/>
                 </div>)}
               </div>
             </div>)}

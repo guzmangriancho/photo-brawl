@@ -1,3 +1,5 @@
+> **V51 — nuevo sistema de progresión (19/11/2026).** ELO global conservado; copas por luchador y por pareja de usuarios (2v2), seis ligas y marcos de retrato 16-bit. **Antes de desplegar, ejecuta** `supabase/migrations/202611190001_progression_leagues_duos.sql` en Supabase SQL Editor, luego actualiza **Render** y **Vercel**. Consulta [la guía completa V51](docs/V51_PROGRESION_RANKINGS_LIGAS.md) para reglas, pruebas y migración. No se modifican retroactivamente los resultados históricos.
+
 # PHOTO BRAWL V50 · CREADOR SIMPLIFICADO Y OVERLAYS 16-BIT
 
 **V50 parte de V49 (registro obligatorio y sincronización ordenada en cada arranque).** En el creador se elimina **PEGAR IMAGEN** en los pasos SPRITES y RETRATO: solo se importa el archivo descargado mediante **SUBIR IMAGEN**. El botón de **PEGAR RESPUESTA** (texto de la IA para crear la ficha) sigue funcionando. El editor de luchadores ya existentes mantiene su propio pegado de imágenes.
