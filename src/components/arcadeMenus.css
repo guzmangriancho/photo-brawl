@@ -671,3 +671,12 @@
   .pb-favorite-toggle{width:25px;height:25px;min-width:25px;min-height:25px}
 }
 .pb-home-footer .pb-player-avatar{width:21px;height:21px;padding:1px;border-width:1px;box-shadow:none}
+
+/* V54 · Favorito únicamente en la esquina de la ficha del luchador elegido. */
+.pb-profile-panel{position:relative}
+.pb-profile-panel>.pb-favorite-toggle{position:absolute;top:clamp(7px,1.2vw,14px);right:clamp(7px,1.2vw,14px);z-index:6}
+.pb-profile-panel .pb-profile-heading{padding-right:31px}
+@media(max-height:520px){
+  .pb-profile-panel>.pb-favorite-toggle{top:5px;right:5px}
+  .pb-profile-panel .pb-profile-heading{padding-right:29px}
+}

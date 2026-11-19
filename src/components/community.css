@@ -325,3 +325,29 @@
   .pb-community-page .pb-rank-modes button,.pb-rank-leagues-button{min-height:28px;font-size:9px}
   .pb-community-page .pb-rank-entry>.pb-player-avatar{width:34px;height:34px}
 }
+
+/* V54 · Ficha de Explorar: retrato íntegro y ataques sin solapamientos. */
+.pb-community-detail .pb-community-detail-body{display:flex;flex-direction:column;gap:clamp(5px,1vh,10px);min-height:0;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:3px}
+.pb-community-detail .pb-community-detail-main{min-height:0;max-height:none;flex:0 0 auto;align-items:flex-start}
+.pb-community-detail .pb-community-detail-main>.pb-league-frame{box-sizing:border-box;flex:0 0 auto;width:clamp(92px,23vh,175px);height:clamp(92px,23vh,175px);max-width:36%;aspect-ratio:1;padding:4px}
+.pb-community-detail .pb-community-detail-main>.pb-league-frame>img{box-sizing:border-box;display:block;width:100%;height:100%;max-width:none;max-height:none;min-height:0;aspect-ratio:auto;object-fit:contain;object-position:center;background:#132139;image-rendering:pixelated;align-self:center;flex:0 1 auto}
+.pb-community-detail .pb-community-detail-main>.pb-league-frame>.pb-private-art-placeholder{width:100%;height:100%;min-width:0;min-height:0}
+.pb-community-detail .pb-community-moves{flex:0 0 auto;align-content:start}
+.pb-community-detail .pb-community-moves span{white-space:normal;overflow-wrap:anywhere;line-height:1.3;min-width:0}
+.pb-community-detail .pb-social-actions{flex:0 0 auto}
+@media (orientation:landscape) and (max-height:520px){
+  .pb-community-detail{width:min(96vw,850px);max-height:calc(100dvh - 12px);gap:5px;padding:7px!important}
+  .pb-community-detail .pb-community-detail-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start;gap:10px;overflow-y:auto}
+  .pb-community-detail .pb-community-detail-main{display:flex;align-items:flex-start;gap:8px;min-width:0;max-height:none}
+  .pb-community-detail .pb-community-detail-main>.pb-league-frame{height:min(29vh,112px);width:min(29vh,112px);max-width:36%;flex-shrink:0;padding:3px}
+  .pb-community-detail .pb-community-detail-main>div{gap:3px;min-width:0;font-size:clamp(9px,1.3vw,11px);overflow-wrap:anywhere}
+  .pb-community-detail .pb-community-detail-main button{font-size:10px;line-height:1.2}
+  .pb-community-detail .pb-community-moves{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;align-content:start;min-width:0}
+  .pb-community-detail .pb-community-moves span{min-width:0;padding:4px;font-size:clamp(9px,1.2vw,11px)}
+  .pb-community-detail .pb-social-actions button{min-height:27px;padding:3px 6px}
+}
+@media (orientation:landscape) and (max-height:360px){
+  .pb-community-detail .pb-community-detail-main>.pb-league-frame{width:min(25vh,78px);height:min(25vh,78px)}
+  .pb-community-detail .pb-community-detail-body{gap:6px}
+  .pb-community-detail .pb-community-moves span{padding:2px 3px;line-height:1.15}
+}

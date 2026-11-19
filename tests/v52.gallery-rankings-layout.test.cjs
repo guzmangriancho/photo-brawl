@@ -44,7 +44,7 @@ test('ranking horizontal prioriza resultados y mantiene desplazamiento interno',
   assert.match(social,/@media \(orientation:landscape\) and \(max-height:500px\)/);
   assert.match(social,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\);grid-auto-rows:minmax\(48px,max-content\)/);
   assert.match(social,/\.pb-community-page \.pb-community-leaderboard\{[\s\S]*?overflow-y:auto;overscroll-behavior:contain/);
-  assert.match(read('public/sw.js'),/pb-shell-v5[23]-/);
+  assert.match(read('public/sw.js'),/pb-shell-v5[234]-/);
 });
 
 test('componentes TSX son sintácticamente válidos',()=>{

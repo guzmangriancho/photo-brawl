@@ -95,16 +95,19 @@ test('las tarjetas de Explorar son 2 x 3, no requieren scroll y los nombres est�
   assert.match(block,/\.pb-community-card>strong\{/);
 });
 
-test('Publicar, ficha y colección usan un corazón independiente; rankings, cuenta y dúos usan avatar',()=>{
+test('El corazón solo aparece en la ficha de luchador elegido; rankings, cuenta y dúos usan avatar',()=>{
   const community=read('src/components/CommunityPage.tsx');
   const select=read('src/components/CharacterSelect.tsx');
   const account=read('src/components/AccountPanel.tsx');
   const avatar=read('src/components/PlayerAvatar.tsx');
   assert.match(community,/pb-publish-portrait/);
-  assert.match(community,/FavoriteButton active=\{favorite\.localId===f\.id\}/);
+  assert.doesNotMatch(community,/FavoriteButton/);
   assert.match(select,/pb-portrait-choice-wrap/);
   assert.match(select,/pb-profile-favorite-art/);
   assert.match(select,/pb-fighter-sheet-art/);
+  assert.match(select,/<section className=\"pb-frame pb-profile-panel\">\{favoriteHeart\(featured\)\}/);
+  assert.doesNotMatch(select,/\{favoriteHeart\(f\)\}/);
+  assert.doesNotMatch(select,/<div className=\"pb-fighter-sheet-art\">[^<]*<FighterPortrait[^>]*\/>\{favoriteHeart/);
   assert.match(community,/path=\{p\.favorite_avatar_path\}/);
   assert.match(community,/path=\{duo\.a\?\.favorite_avatar_path\}/);
   assert.match(account,/path=\{favorite\.avatarPath\}/);
