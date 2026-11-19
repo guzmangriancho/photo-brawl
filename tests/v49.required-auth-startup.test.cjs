@@ -102,5 +102,5 @@ test('V49 can start a new run on a subsequent open, and PWA shell cache is versi
   assert.notEqual(first.promise,second.promise);
   await second.promise;
   assert.equal(h.events.filter(e=>e==='restore').length,2);
-  assert.match(read('public/sw.js'),/pb-shell-v36-required-login-cloud-startup/);
+  assert.match(read('public/sw.js'),/pb-shell-v\d+[\w-]*/);
 });

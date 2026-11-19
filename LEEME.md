@@ -1,3 +1,15 @@
+# PHOTO BRAWL V50 · CREADOR SIMPLIFICADO Y OVERLAYS 16-BIT
+
+**V50 parte de V49 (registro obligatorio y sincronización ordenada en cada arranque).** En el creador se elimina **PEGAR IMAGEN** en los pasos SPRITES y RETRATO: solo se importa el archivo descargado mediante **SUBIR IMAGEN**. El botón de **PEGAR RESPUESTA** (texto de la IA para crear la ficha) sigue funcionando. El editor de luchadores ya existentes mantiene su propio pegado de imágenes.
+
+Los overlays de **2 VS 2 y TODOS CONTRA TODOS** reutilizan el panel de anuncio de 1 VS 1 para **RONDA 1 · 3, 2, 1 y ¡FIGHT!**. El **K.O.** y la **victoria** comparten fuentes, sombras y animaciones por fotogramas con 1 VS 1. Se incorpora la carga real de la fuente **Press Start 2P**, utilizada en los resultados y la presentación VS, y los dígitos de equipos dejan de usar Arial para usar **Pixelify Sans**. Los sprites, estadísticas y reglas de combate permanecen intactos. PWA con caché V50 y sin migraciones SQL nuevas.
+
+**Comprobaciones:** `node --test tests/*.cjs` (dependencias de las pruebas instaladas), `npm run test:v50`, `npm run build`. Para el frontend actualizado basta desplegar **Vercel**; esta versión no modifica el motor de servidor de **Render**.
+
+Detalles: [`docs/V50_CREADOR_Y_OVERLAYS_16BIT.md`](docs/V50_CREADOR_Y_OVERLAYS_16BIT.md). Las referencias a «PEGAR IMAGEN» en la documentación de V24 y anteriores describen **comportamientos históricos** sustituidos en el creador por V50, no en el editor de luchadores.
+
+---
+
 # PHOTO BRAWL V35 · COMBATES 2 VS 2 Y FREE FOR ALL
 
 Se añaden combates de **cuatro luchadores** en las cuatro arenas multinivel, disponibles tanto en CPU/local como en salas online privadas. Hay tres vidas por luchador, marcador de KO y asistencias, victoria por eliminación o desempate de tiempo, equipos rojo/azul sin daño aliado y revancha cambiando luchadores. En **todos los combates con resultado**, la nueva pantalla ofrece retratos editables (2 o 4), botón de revancha y salir. El **1v1 clasificatorio y el ELO se mantienen sin mezclar con FFA/2v2**.

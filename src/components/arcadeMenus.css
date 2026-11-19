@@ -551,7 +551,7 @@
 /* V37: only the digits use the clearer font; VS retains the classic pixel font. */
 .pb-mode-tile.pb-mode-teams strong{font-size:clamp(15px,2vw,25px)}
 .pb-team-format{display:inline-flex;align-items:baseline;justify-content:center;gap:.28em;white-space:nowrap}
-.pb-team-digit{font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:0}
+.pb-team-digit{font-family:'Pixelify Sans',monospace;font-weight:700;letter-spacing:0;font-variant-numeric:tabular-nums}
 .pb-team-vs{font-family:'Press Start 2P',monospace;font-size:.58em;letter-spacing:0}
 @media(max-width:420px){.pb-mode-tile.pb-mode-teams strong{font-size:clamp(12px,3.4vw,17px)}}
 

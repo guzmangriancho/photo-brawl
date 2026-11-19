@@ -23,17 +23,15 @@ test('arena choices and room sheet stay inside mobile viewport',()=>{
   assert.match(css,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(css,/\.pb-online-picker-shade\{position:absolute;inset:0/);
 });
-test('sprite sheet and portrait accept both upload and image paste',()=>{
+test('sprite sheet and portrait retain file upload without legacy image paste',()=>{
   const creator=read('src/components/FighterCreator.tsx');
-  assert.match(creator,/navigator\.clipboard\?\.read/);
-  assert.match(creator,/await item\.getType\(type\)/);
-  assert.match(creator,/onPaste=\{e=>onArtPaste\(e,imagePasteFallback\)\}/);
   assert.match(creator,/pb-creator-image-actions/);
   assert.match(creator,/SUBIR IMAGEN/);
-  assert.match(creator,/PEGAR IMAGEN/);
-  assert.match(creator,/importImage\(which,file\)/);
+  assert.match(creator,/importImage\(artStep,e\.target\.files\?\.\[0\]\)/);
+  assert.doesNotMatch(creator,/PEGAR IMAGEN|pasteArt\(|onArtPaste\(/);
+  assert.match(creator,/await navigator\.clipboard\.readText\(\)/,'Paste of JSON design stays available');
   const css=read('src/components/fighterCreator.css');
-  assert.match(css,/\.pb-creator-image-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css,/\.pb-creator-image-actions\{display:grid;grid-template-columns:minmax\(0,1fr\)/);
 });
 test('result popup has pixel font and no scroll, with retained score and ELO details',()=>{
   const css=read('src/components/fightArena.css');

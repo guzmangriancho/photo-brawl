@@ -104,7 +104,7 @@
 .pb-group-clock-bottom { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 100%; }
 .pb-group-mode-label { color: #ffe3a7; font: 700 10px/1 'Pixelify Sans',monospace; white-space: nowrap; text-shadow: 1px 2px #020717; }
 .pb-team-format { display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
-.pb-team-digit { font: 900 11px/1 Arial,Helvetica,sans-serif; }
+.pb-team-digit { font: 700 13px/1 'Pixelify Sans',monospace; font-variant-numeric: tabular-nums; }
 .pb-team-vs { font: 400 7px/1 'Press Start 2P',monospace; }
 .pb-group-pause-button {
   display: grid; place-items: center; width: 26px; height: 21px; padding: 0;
@@ -202,14 +202,12 @@
   .pb-group-health { font-size: 15px; }
   .pb-group-clock-bottom { gap: 1px; }
 }
-/* Server-synchronized countdown, without hiding the arena image. */
-.pb-group-countdown { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
-.pb-group-countdown > span {
-  font: 900 clamp(36px,10vh,75px)/1 'Press Start 2P',monospace;
-  color: #fff0a5; text-shadow: 4px 4px #0a122b,-3px -3px #0a122b,0 0 18px #e6a64a;
-  animation: pb-count-pop 420ms steps(4,end) both;
-}
-@keyframes pb-count-pop { from { transform: scale(1.45);opacity: .65; } to { transform: scale(1);opacity: 1; } }
+/* V50: render the 4-player countdown inside the SAME framed 16-bit
+   .arena-announcement used by 1v1; only the step animation is specific. */
+.pb-group-countdown { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.pb-group-countdown .arena-announcement > span { animation: pb-count-pop 420ms steps(4,end) both; }
+@keyframes pb-count-pop { from { transform: scale(1.12);opacity: .55; } to { transform: scale(1);opacity: 1; } }
+@media (prefers-reduced-motion:reduce) { .pb-group-countdown .arena-announcement > span { animation:none; } }
 .pb-group-placements { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
 .pb-group-placements small { color: #ffe1a0; }
 .pb-group-elo { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; padding: 4px; border: 1px solid #526f9b; background: #101d32; }
@@ -285,24 +283,23 @@
   .pb-group-name { font-size: 8px; }
   .pb-group-clock { width: 49px; }
 }
-/* V46: Stock KO and the winning team get a beat on the uncovered arena first. */
-.pb-ko-moment,.pb-victory-moment {
-  position:absolute;z-index:12;top:42%;left:50%;transform:translate(-50%,-50%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
-  text-align:center;pointer-events:none;white-space:nowrap;
+/* V50: keep the group KO transient, but share the SAME KO lettering,
+   frame geometry, and result typography as the 1v1 overlays. */
+.pb-ko-moment {
+  position:absolute; z-index:12; top:42%; left:50%; transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+  text-align:center; pointer-events:none; white-space:nowrap;
   filter:drop-shadow(3px 4px 0 #071022);
+  animation:pb-ko-slam .82s steps(4,end) both;
 }
-.pb-ko-moment{animation:pb-ko-slam .82s steps(6,end) both;}
-.pb-ko-moment strong {font:900 clamp(24px,6vw,57px)/1 'Press Start 2P',monospace;color:#fff5c8;-webkit-text-stroke:1px #a94f28;text-shadow:3px 3px 0 #9e273c,5px 5px 0 #080a20;}
-.pb-ko-moment span,.pb-victory-moment span {padding:4px 7px;color:#f6cf70;background:#0a1736c9;border:1px solid #708eac;font:clamp(8px,1.5vw,12px)/1.3 'Pixelify Sans',monospace;}
-.pb-victory-moment{top:43%;animation:pb-ko-victory .9s steps(6,end) both;}
-.pb-victory-moment strong{max-width:88vw;white-space:normal;color:#ffe68b;font:clamp(11px,2.35vw,22px)/1.4 'Press Start 2P',monospace;text-shadow:3px 3px 0 #7c2947,5px 5px 0 #020918;}
-@keyframes pb-ko-slam {0%{opacity:0;transform:translate(-50%,-50%) scale(1.7)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
-@keyframes pb-ko-victory {0%{opacity:0;transform:translate(-50%,-50%) scale(1.25)}20%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-@media (prefers-reduced-motion:reduce){.pb-ko-moment,.pb-victory-moment{animation:none}}
-.pb-ko-moment::before {content:'';position:absolute;z-index:-1;left:50%;top:40%;width:9px;height:9px;
- background:#fff8cf;box-shadow:0 -39px 0 #ffe07b,0 39px 0 #ffd66c,48px 0 0 #fce29f,-48px 0 0 #fce29f,
- 32px 23px 0 #ff786e,-32px -23px 0 #ff786e,32px -23px 0 #ffe08d,-32px 23px 0 #ffe08d;
- transform:translate(-50%,-50%);animation:pb-ko-sparks .6s steps(5,end) both;}
+.pb-ko-moment::before {
+  content:''; position:absolute; z-index:-1; left:50%; top:40%; width:9px; height:9px;
+  background:#fff8cf;
+  box-shadow:0 -39px 0 #ffe07b,0 39px 0 #ffd66c,48px 0 0 #fce29f,-48px 0 0 #fce29f,
+    32px 23px 0 #ff786e,-32px -23px 0 #ff786e,32px -23px 0 #ffe08d,-32px 23px 0 #ffe08d;
+  transform:translate(-50%,-50%); animation:pb-ko-sparks .6s steps(5,end) both;
+}
+.pb-victory-moment strong { max-width:min(88vw,100%); white-space:normal; overflow-wrap:anywhere; }
+@keyframes pb-ko-slam {0%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
 @keyframes pb-ko-sparks{0%{opacity:0;transform:translate(-50%,-50%) scale(.35)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
-@media (prefers-reduced-motion:reduce){.pb-ko-moment::before{animation:none}}
+@media (prefers-reduced-motion:reduce){.pb-ko-moment,.pb-ko-moment::before{animation:none}}

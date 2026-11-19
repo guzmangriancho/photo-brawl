@@ -223,15 +223,17 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
       </div>
     </header>
       {!(snapshot?.versusIntroFrames??0)&&summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
-        <span key={summary.countdown}>{summary.countdown==='YA'?'¡YA!':summary.countdown}</span>
+        <div className="arena-announcement">
+          <span key={summary.countdown}>{summary.countdown==='YA'?'¡FIGHT!':`RONDA 1 · ${summary.countdown}`}</span>
+        </div>
       </div>}
       {koToast&&<div key={koToast.frame} className="pb-ko-moment" role="status" aria-live="off">
         <strong>K.O.!</strong><span>P{koToast.seat+1} · {koToast.eliminated?'ELIMINADO':'-1 VIDA'}</span>
       </div>}
-      {snapshot?.roundOver&&!resultVisible&&<div className="pb-victory-moment" role="status" aria-live="polite">
-        <strong>{summary?.isDraw?'¡EMPATE!':summary?.winningTeam?`¡EQUIPO ${summary.winningTeam==='RED'?'ROJO':'AZUL'} GANA!`:
+      {snapshot?.roundOver&&!resultVisible&&<div className="arena-victory-moment pb-victory-moment" role="status" aria-live="polite">
+        <strong className="arena-win-second">{summary?.isDraw?'¡EMPATE!':summary?.winningTeam?`¡EQUIPO ${summary.winningTeam==='RED'?'ROJO':'AZUL'} GANA!`:
           summary?.winnerSeat!=null?`¡P${summary.winnerSeat+1} GANA!`:'¡FIN DEL COMBATE!'}</strong>
-        <span>¡VICTORIA!</span>
+        <span>{summary?.isDraw?'FIN DEL COMBATE':'¡VICTORIA!'}</span>
       </div>}
       {online&&<span className="pb-group-ping" aria-label="Latencia online">{latency===null?'●':`${latency} ms`}</span>}
       {onlineIssue&&<div className="pb-group-disconnect">{onlineIssue}<button type="button" onClick={onExit}>SALIR</button></div>}
