@@ -49,6 +49,7 @@ function startMatch(room){
   if(room.randomStage)room.stage=pickRandomStage(room.hasStarted?room.stage:null);
   room.hasStarted=true;
   room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
+  room.engine.beginVersusIntro();
   room.resultRecorded=false;room.matchId=randomUUID();
   room.status='playing';room.host.vote=false;room.guest.vote=false;
   room.host.mask=0;room.guest.mask=0;
@@ -222,6 +223,7 @@ function handle(peer,msg) {
       room.resultRecorded=false;room.matchId=randomUUID();
       if(room.randomStage)room.stage=pickRandomStage(room.stage);
       room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
+  room.engine.beginVersusIntro();
       room.host.mask=0;room.guest.mask=0;
       room.host.lastSeq=-1;room.guest.lastSeq=-1;
       room.host.vote=false;room.guest.vote=false;

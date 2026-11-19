@@ -5,6 +5,7 @@ import {STAGE_WIDTH,STAGE_HEIGHT} from '../engine/FightEngine';
 import {MultiFightEngine} from '../engine/MultiFightEngine';
 import {MobileControls} from './MobileControls';
 import {RematchRoster} from './RematchRoster';
+import {VersusIntro} from './VersusIntro';
 import type {OnlineSession} from '../network/OnlineSession';
 import type {NetworkState} from '../network/protocol';
 import {Pause,Play,ArrowLeft,Volume2,VolumeX} from 'lucide-react';
@@ -79,6 +80,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   useEffect(()=>{
     soundFX.setCrowdedCombat(true);
     const eng=new MultiFightEngine(fighters,battleMode,stage,difficulty);
+    eng.beginVersusIntro();
     eng.remoteHumanControls=onlineMode;
     eng.localHumanSeats=humanP2Ref.current?2:1;
     eng.viewerSeat=mySeat;
@@ -107,7 +109,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
     size();window.addEventListener('resize',size);
     const k1=blank(),k2=blank();
     const keydown=(e:KeyboardEvent)=>{
-      if(e.code==='Escape'&&!e.repeat){e.preventDefault();setPaused(v=>!v);return;}
+      if(e.code==='Escape'&&!e.repeat){e.preventDefault();if(eng.versusIntroFrames>0)return;setPaused(v=>!v);return;}
       const key1=KEYS1[e.code],key2=KEYS2[e.code];
       if(key1||(!onlineMode&&humanP2Ref.current&&key2))e.preventDefault();
       if(key1){k1[key1]=true;
@@ -165,6 +167,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
   };
   return <main className="pb-group-screen">
     <div className="pb-group-stage"><canvas ref={canvas} width={STAGE_WIDTH} height={STAGE_HEIGHT}/>
+    {(snapshot?.versusIntroFrames??0)>0 && <VersusIntro fighters={fighters} stage={stage} mode={battleMode} framesLeft={snapshot?.versusIntroFrames??0}/>}
     <header className="pb-group-hud" aria-label="Estado de los cuatro luchadores">
       <div className="pb-group-hud-grid">
         {hudSeats.map((seat,column)=>{
@@ -219,7 +222,7 @@ export function GroupFightArena({fighters,roster,battleMode,stage,difficulty,onl
         })}
       </div>
     </header>
-      {summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
+      {!(snapshot?.versusIntroFrames??0)&&summary?.countdown&&<div className="pb-group-countdown" role="status" aria-live="off" aria-label={`Comienza en ${summary.countdown}`}>
         <span key={summary.countdown}>{summary.countdown==='YA'?'¡YA!':summary.countdown}</span>
       </div>}
       {koToast&&<div key={koToast.frame} className="pb-ko-moment" role="status" aria-live="off">

@@ -18,6 +18,7 @@ import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
 import { MobileControls } from './MobileControls';
 import { RematchRoster } from './RematchRoster';
+import { VersusIntro } from './VersusIntro';
 import { TUTORIAL_LESSONS, prepareTutorialLesson, tutorialLessonCompleted } from './tutorialLessons';
 import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
 import './fightArena.css';
@@ -151,7 +152,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [snapshot, setSnapshot] = useState<EngineSnapshot>({
     p1Hp: 1000, p1MaxHp: 1000, p1Meter: 0, p1Combo: 0, p1ChainStep: 0, p1ComboDamage: 0,
     p2Hp: 1000, p2MaxHp: 1000, p2Meter: 0, p2Combo: 0, p2ChainStep: 0, p2ComboDamage: 0,
-    timer: 99, roundOver: false, winnerName: null, announceText: 'ROUND 1 - FIGHT!',
+    versusIntroFrames:90, timer: 99, roundOver: false, winnerName: null, announceText: 'ROUND 1 - FIGHT!',
     roundNumber:1,p1RoundWins:0,p2RoundWins:0,roundBreakFrames:0,roundIntroFrames:0,
   });
   const [paused, setPaused] = useState(false);
@@ -206,6 +207,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   useEffect(() => {
     soundFX.setCrowdedCombat(false);
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
+    engine.beginVersusIntro();
     engine.showHitboxes = mode === 'TRAINING' && !tutorial;
     engine.showArenaCollisions = false;
     if(tutorial)prepareTutorialLesson(engine,TUTORIAL_LESSONS[0]);
@@ -268,6 +270,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Escape') {
         event.preventDefault();
+        if (engine.versusIntroFrames > 0) return;
         if (event.repeat) return;
         if (labRef.current) setShowLab(false);
         else setPaused((wasPaused) => !wasPaused);
@@ -383,7 +386,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
             commandInput.superBtn=false;
             online?.sendControls(commandInput);
           }else engine.step();
-          if(tutorial && tutorialStepRef.current < TUTORIAL_LESSONS.length - 1){
+          if(tutorial && !engine.versusIntroFrames && tutorialStepRef.current < TUTORIAL_LESSONS.length - 1){
             if(tutorialOriginRef.current === null)tutorialOriginRef.current=engine.p1.x;
             const lesson=TUTORIAL_LESSONS[tutorialStepRef.current];
             if(tutorialCompletedAtRef.current !== null){
@@ -513,6 +516,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
         <section className="arena-stage" aria-label="Arena de combate">
           <canvas ref={canvasRef} width={STAGE_WIDTH} height={STAGE_HEIGHT} className="arena-canvas" />
           <div className="arena-stage-vignette" aria-hidden="true" />
+          {(snapshot.versusIntroFrames??0)>0 && <VersusIntro
+            fighters={[p1Profile,p2Profile]} stage={stage} mode="DUEL" framesLeft={snapshot.versusIntroFrames??0} />}
           {mode === 'TRAINING' && !tutorial && <div className="arena-collision-tools">
             <button type="button" className={showArenaCollisions?'is-active':''}
               aria-pressed={showArenaCollisions} onClick={toggleArenaCollisions}
@@ -568,7 +573,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
           {snapshot.p1Combo >= 2 && <div className="arena-combo arena-combo-one"><strong>{snapshot.p1Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p1ComboDamage}</span></div>}
           {snapshot.p2Combo >= 2 && <div className="arena-combo arena-combo-two"><strong>{snapshot.p2Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p2ComboDamage}</span></div>}
-          {snapshot.announceText && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
+          {snapshot.announceText && !snapshot.versusIntroFrames && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
 
           {snapshot.roundOver && !paused && !resultVisible &&
             <div className="arena-victory-moment" role="status" aria-live="polite">

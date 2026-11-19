@@ -90,7 +90,8 @@ test('room code, ready-up, authoritative simulation, reconnect and leave',async(
   assert.equal(start.state.p2.jumpsRemaining,2);
   host.send({type:'input',seq:1,mask:2,actions:[]}); // move right
   guest.send({type:'input',seq:1,mask:1,actions:[{kind:'move',slot:'LIGHT'}]});
-  const moved=await host.next('state',m=>m.state.frame>15,2500);
+  // V48: the first 90 authoritative frames belong to the VS presentation; movement starts afterward.
+  const moved=await host.next('state',m=>m.state.frame>105,4000);
   assert.ok(moved.state.p1.x>start.state.p1.x,'host movement is computed by the server');
   assert.ok(moved.state.p2.x<start.state.p2.x,'guest movement is computed by the server');
   assert.ok(typeof moved.state.snapshot.p1Hp==='number');

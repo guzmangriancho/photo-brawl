@@ -102,15 +102,15 @@ export class MultiFightEngine extends FightEngine {
     this.announceText=null;this.announceTimer=0;
   }
   override queueNetworkAction(index:0|1,slot:MoveSlot):void {
-    const f=this.getFighters()[index];if(!f||this.roundOver||this.countdownFrames>0||this.stocks[index]===0||this.respawnAt[index])return;
+    const f=this.getFighters()[index];if(!f||this.roundOver||this.versusIntroFrames>0||this.countdownFrames>0||this.stocks[index]===0||this.respawnAt[index])return;
     if(slot==='SUPER' && f.meter<100)return;
     f.bufferedActions.push({slot,frame:this.frameCount});if(f.bufferedActions.length>4)f.bufferedActions.shift();
   }
   override queueNetworkJump(index:0|1):void {
-    const f=this.getFighters()[index];if(f&&!this.roundOver&&this.countdownFrames===0&&this.stocks[index]>0&&!this.respawnAt[index])f.bufferedJumpFrame=this.frameCount;
+    const f=this.getFighters()[index];if(f&&!this.roundOver&&this.versusIntroFrames===0&&this.countdownFrames===0&&this.stocks[index]>0&&!this.respawnAt[index])f.bufferedJumpFrame=this.frameCount;
   }
   override queueNetworkDash(index:0|1,dir:1|-1):void {
-    const f=this.getFighters()[index];if(f&&!this.roundOver&&this.countdownFrames===0&&this.stocks[index]>0&&!this.respawnAt[index])f.bufferedDash={dir,frame:this.frameCount};
+    const f=this.getFighters()[index];if(f&&!this.roundOver&&this.versusIntroFrames===0&&this.countdownFrames===0&&this.stocks[index]>0&&!this.respawnAt[index])f.bufferedDash={dir,frame:this.frameCount};
   }
   public setSeatInput(index:number,input:InputState):void {
     if(index<0||index>3||!Number.isInteger(index))return;
@@ -203,6 +203,7 @@ export class MultiFightEngine extends FightEngine {
   }
   override step():void {
     this.frameCount++;
+    if(this.advanceVersusIntro())return;
     if(this.roundOver){this.advanceEndPresentation();return;}
     if(this.countdownFrames>0){
       this.countdownFrames--;

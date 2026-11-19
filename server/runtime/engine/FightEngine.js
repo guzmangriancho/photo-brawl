@@ -71,6 +71,27 @@ class FightEngine {
     p2RoundWins = 0;
     roundBreakFrames = 0;
     roundIntroFrames = 0;
+    /** Only used when enabled by a match screen or authoritative online room. */
+    versusIntroFrames = 0;
+    /** Freeze world time during the VS screen; the actual round countdown begins afterward. */
+    beginVersusIntro(frames = 90) {
+        this.versusIntroFrames = Math.max(0, Math.floor(frames));
+    }
+    /** Prevent buffered attacks/inputs leaking from the presentation into the real fight. */
+    advanceVersusIntro() {
+        if (this.versusIntroFrames <= 0)
+            return false;
+        this.versusIntroFrames--;
+        for (const f of this.getFighters()) {
+            f.bufferedActions.length = 0;
+            f.bufferedJumpFrame = null;
+            f.bufferedDash = null;
+            if (this.versusIntroFrames === 0) {
+                f.actionPrevInput = { ...(f.index === 0 ? this.p1Input : this.p2Input) };
+            }
+        }
+        return true;
+    }
     winnerName = null;
     announceText = 'ROUND 1 - FIGHT!';
     announceTimer = 75;
@@ -211,7 +232,7 @@ class FightEngine {
     }
     completeRound(winner) {
         // A timeout tie replays the round; wins are never awarded twice.
-        if (this.roundOver || this.roundBreakFrames > 0 || this.roundIntroFrames > 0)
+        if (this.roundOver || this.versusIntroFrames > 0 || this.roundBreakFrames > 0 || this.roundIntroFrames > 0)
             return;
         if (winner === 0)
             this.p1RoundWins++;
@@ -285,7 +306,7 @@ class FightEngine {
             winnerName: this.winnerName,
             announceText: this.announceTimer > 0 ? this.announceText : null,
             roundNumber: this.roundNumber, p1RoundWins: this.p1RoundWins, p2RoundWins: this.p2RoundWins,
-            roundBreakFrames: this.roundBreakFrames, roundIntroFrames: this.roundIntroFrames,
+            roundBreakFrames: this.roundBreakFrames, roundIntroFrames: this.roundIntroFrames, versusIntroFrames: this.versusIntroFrames,
         };
     }
     /** Network wire format: never transmits sprite images, source photos or player input history. */
@@ -344,21 +365,22 @@ class FightEngine {
         this.p2RoundWins = state.snapshot.p2RoundWins;
         this.roundBreakFrames = state.snapshot.roundBreakFrames;
         this.roundIntroFrames = state.snapshot.roundIntroFrames;
+        this.versusIntroFrames = state.snapshot.versusIntroFrames ?? 0;
     }
     queueNetworkAction(index, slot) {
         const f = index === 0 ? this.p1 : this.p2;
-        if (this.roundOver || this.roundBreakFrames > 0 || this.roundIntroFrames > 0 || (slot === 'SUPER' && f.meter < 100))
+        if (this.roundOver || this.versusIntroFrames > 0 || this.roundBreakFrames > 0 || this.roundIntroFrames > 0 || (slot === 'SUPER' && f.meter < 100))
             return;
         f.bufferedActions.push({ slot, frame: this.frameCount });
         if (f.bufferedActions.length > 4)
             f.bufferedActions.shift();
     }
     queueNetworkJump(index) {
-        if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames)
+        if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames)
             (index === 0 ? this.p1 : this.p2).bufferedJumpFrame = this.frameCount;
     }
     queueNetworkDash(index, dir) {
-        if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames)
+        if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames)
             (index === 0 ? this.p1 : this.p2).bufferedDash = { dir, frame: this.frameCount };
     }
     /** Captura pulsaciones incluso durante HITSTOP. La orden dura ~0,38 s,
@@ -384,7 +406,7 @@ class FightEngine {
             slot = 'LIGHT';
         if (input.guard)
             f.bufferedActions = [];
-        if (slot !== null && !input.guard && !this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) {
+        if (slot !== null && !input.guard && !this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) {
             f.bufferedActions.push({ slot, frame: this.frameCount });
             if (f.bufferedActions.length > 4)
                 f.bufferedActions.shift();
@@ -400,7 +422,7 @@ class FightEngine {
     }
     /** Eventos desde pantalla táctil, capturados al tocar sin depender de RAF. */
     queueTouchAction(slot) {
-        if (this.roundOver || this.roundBreakFrames > 0 || this.roundIntroFrames > 0 || (slot === 'SUPER' && this.p1.meter < 100))
+        if (this.roundOver || this.versusIntroFrames > 0 || this.roundBreakFrames > 0 || this.roundIntroFrames > 0 || (slot === 'SUPER' && this.p1.meter < 100))
             return;
         this.p1.bufferedActions.push({ slot, frame: this.frameCount });
         if (this.p1.bufferedActions.length > 4)
@@ -408,11 +430,11 @@ class FightEngine {
     }
     /** Independent jump press: reliably survives short taps between animation frames. */
     queueTouchJump() {
-        if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames)
+        if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames)
             this.p1.bufferedJumpFrame = this.frameCount;
     }
     queueTouchDash(dir) {
-        if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames)
+        if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames)
             this.p1.bufferedDash = { dir, frame: this.frameCount };
     }
     /** Se usa al pausar: nunca debe ejecutarse un golpe almacenado al reanudar. */
@@ -436,6 +458,8 @@ class FightEngine {
     }
     step() {
         this.frameCount++;
+        if (this.advanceVersusIntro())
+            return;
         if (this.roundBreakFrames > 0) {
             this.roundBreakFrames--;
             if (this.roundBreakFrames === 0) {

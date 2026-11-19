@@ -108,7 +108,7 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     }
     queueNetworkAction(index, slot) {
         const f = this.getFighters()[index];
-        if (!f || this.roundOver || this.countdownFrames > 0 || this.stocks[index] === 0 || this.respawnAt[index])
+        if (!f || this.roundOver || this.versusIntroFrames > 0 || this.countdownFrames > 0 || this.stocks[index] === 0 || this.respawnAt[index])
             return;
         if (slot === 'SUPER' && f.meter < 100)
             return;
@@ -118,12 +118,12 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     }
     queueNetworkJump(index) {
         const f = this.getFighters()[index];
-        if (f && !this.roundOver && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
+        if (f && !this.roundOver && this.versusIntroFrames === 0 && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
             f.bufferedJumpFrame = this.frameCount;
     }
     queueNetworkDash(index, dir) {
         const f = this.getFighters()[index];
-        if (f && !this.roundOver && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
+        if (f && !this.roundOver && this.versusIntroFrames === 0 && this.countdownFrames === 0 && this.stocks[index] > 0 && !this.respawnAt[index])
             f.bufferedDash = { dir, frame: this.frameCount };
     }
     setSeatInput(index, input) {
@@ -257,6 +257,8 @@ class MultiFightEngine extends FightEngine_1.FightEngine {
     }
     step() {
         this.frameCount++;
+        if (this.advanceVersusIntro())
+            return;
         if (this.roundOver) {
             this.advanceEndPresentation();
             return;

@@ -229,6 +229,8 @@ export interface EngineSnapshot {
   p2RoundWins: number;
   roundBreakFrames: number;
   roundIntroFrames: number;
+  /** Remaining pre-combat VS presentation frames; synchronized by the server. */
+  versusIntroFrames?: number;
   multi?: import('./MultiFightEngine').MultiMatchSummary;
 }
 
@@ -280,6 +282,26 @@ export class FightEngine {
   public p2RoundWins = 0;
   public roundBreakFrames = 0;
   public roundIntroFrames = 0;
+  /** Only used when enabled by a match screen or authoritative online room. */
+  public versusIntroFrames = 0;
+  /** Freeze world time during the VS screen; the actual round countdown begins afterward. */
+  public beginVersusIntro(frames = 90): void {
+    this.versusIntroFrames = Math.max(0, Math.floor(frames));
+  }
+  /** Prevent buffered attacks/inputs leaking from the presentation into the real fight. */
+  protected advanceVersusIntro(): boolean {
+    if (this.versusIntroFrames <= 0) return false;
+    this.versusIntroFrames--;
+    for (const f of this.getFighters()) {
+      f.bufferedActions.length = 0;
+      f.bufferedJumpFrame = null;
+      f.bufferedDash = null;
+      if (this.versusIntroFrames === 0) {
+        f.actionPrevInput = { ...(f.index === 0 ? this.p1Input : this.p2Input) };
+      }
+    }
+    return true;
+  }
   public winnerName: string | null = null;
   public announceText: string | null = 'ROUND 1 - FIGHT!';
   public announceTimer: number = 75;
@@ -428,7 +450,7 @@ export class FightEngine {
 
   private completeRound(winner: 0|1|null): void {
     // A timeout tie replays the round; wins are never awarded twice.
-    if(this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0)return;
+    if(this.roundOver || this.versusIntroFrames>0 || this.roundBreakFrames>0 || this.roundIntroFrames>0)return;
     if(winner===0)this.p1RoundWins++;
     if(winner===1)this.p2RoundWins++;
     const roundWinner=winner===null?'EMPATE':winner===0?this.p1.profile.fighterName:this.p2.profile.fighterName;
@@ -498,7 +520,7 @@ export class FightEngine {
       winnerName: this.winnerName,
       announceText: this.announceTimer > 0 ? this.announceText : null,
       roundNumber: this.roundNumber, p1RoundWins:this.p1RoundWins, p2RoundWins:this.p2RoundWins,
-      roundBreakFrames:this.roundBreakFrames,roundIntroFrames:this.roundIntroFrames,
+      roundBreakFrames:this.roundBreakFrames,roundIntroFrames:this.roundIntroFrames,versusIntroFrames:this.versusIntroFrames,
     };
   }
 
@@ -558,19 +580,20 @@ export class FightEngine {
     this.p2RoundWins=state.snapshot.p2RoundWins;
     this.roundBreakFrames=state.snapshot.roundBreakFrames;
     this.roundIntroFrames=state.snapshot.roundIntroFrames;
+    this.versusIntroFrames=state.snapshot.versusIntroFrames??0;
   }
 
   public queueNetworkAction(index: 0 | 1, slot: MoveSlot): void {
     const f = index === 0 ? this.p1 : this.p2;
-    if (this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && f.meter < 100)) return;
+    if (this.roundOver || this.versusIntroFrames>0 || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && f.meter < 100)) return;
     f.bufferedActions.push({slot,frame:this.frameCount});
     if (f.bufferedActions.length > 4) f.bufferedActions.shift();
   }
   public queueNetworkJump(index: 0 | 1): void {
-    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedJumpFrame=this.frameCount;
+    if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedJumpFrame=this.frameCount;
   }
   public queueNetworkDash(index: 0 | 1, dir: -1 | 1): void {
-    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedDash={dir,frame:this.frameCount};
+    if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) (index === 0 ? this.p1 : this.p2).bufferedDash={dir,frame:this.frameCount};
   }
 
   /** Captura pulsaciones incluso durante HITSTOP. La orden dura ~0,38 s,
@@ -589,7 +612,7 @@ export class FightEngine {
     } else if (pressed('heavy')) slot = 'HEAVY';
     else if (pressed('light')) slot = 'LIGHT';
     if (input.guard) f.bufferedActions = [];
-    if (slot !== null && !input.guard && !this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) {
+    if (slot !== null && !input.guard && !this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) {
       f.bufferedActions.push({ slot, frame: this.frameCount });
       if (f.bufferedActions.length > 4) f.bufferedActions.shift();
     }
@@ -602,18 +625,18 @@ export class FightEngine {
 
   /** Eventos desde pantalla táctil, capturados al tocar sin depender de RAF. */
   public queueTouchAction(slot: MoveSlot): void {
-    if (this.roundOver || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && this.p1.meter < 100)) return;
+    if (this.roundOver || this.versusIntroFrames>0 || this.roundBreakFrames>0 || this.roundIntroFrames>0 || (slot === 'SUPER' && this.p1.meter < 100)) return;
     this.p1.bufferedActions.push({ slot, frame: this.frameCount });
     if (this.p1.bufferedActions.length > 4) this.p1.bufferedActions.shift();
   }
 
   /** Independent jump press: reliably survives short taps between animation frames. */
   public queueTouchJump(): void {
-    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedJumpFrame = this.frameCount;
+    if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedJumpFrame = this.frameCount;
   }
 
   public queueTouchDash(dir: 1 | -1): void {
-    if (!this.roundOver && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedDash = { dir, frame: this.frameCount };
+    if (!this.roundOver && !this.versusIntroFrames && !this.roundBreakFrames && !this.roundIntroFrames) this.p1.bufferedDash = { dir, frame: this.frameCount };
   }
 
   /** Se usa al pausar: nunca debe ejecutarse un golpe almacenado al reanudar. */
@@ -637,6 +660,7 @@ export class FightEngine {
 
   public step(): void {
     this.frameCount++;
+    if (this.advanceVersusIntro()) return;
     if(this.roundBreakFrames>0){
       this.roundBreakFrames--;
       if(this.roundBreakFrames===0){

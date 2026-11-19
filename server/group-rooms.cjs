@@ -33,6 +33,7 @@ function start(room){
   if(room.players.length!==4||room.players.some(p=>!p.peer||!p.ready)){lobby(room);return;}
   if(room.randomStage){const options=GROUP_STAGES.filter(id=>id!==room.stage);room.stage=options[randomInt(options.length)];}
   room.engine=new MultiFightEngine(room.players.map(p=>p.profile),room.mode,room.stage,'NORMAL');
+  room.engine.beginVersusIntro();
   room.engine.remoteHumanControls=true;
   room.status='playing';room.matchId=randomUUID();room.resultRecorded=false;
   for(const p of room.players){p.mask=0;p.vote=false;p.lastSeq=-1;}
@@ -192,6 +193,7 @@ function handle(peer,msg){
       if(room.players.length===4&&room.players.every(p=>p.vote&&p.peer)){
       if(room.randomStage){const remaining=GROUP_STAGES.filter(s=>s!==room.stage);room.stage=remaining[randomInt(remaining.length)];}
       room.engine=new MultiFightEngine(room.players.map(p=>p.profile),room.mode,room.stage,'NORMAL');
+  room.engine.beginVersusIntro();
       room.engine.remoteHumanControls=true;
       room.matchId=randomUUID();room.resultRecorded=false;
       for(const p of room.players){p.vote=false;p.mask=0;p.lastSeq=-1;}
