@@ -351,3 +351,22 @@
   .pb-community-detail .pb-community-detail-body{gap:6px}
   .pb-community-detail .pb-community-moves span{padding:2px 3px;line-height:1.15}
 }
+
+/* V55 · 16-bit numbered trophies + compact personal match history. */
+.pb-community-page .pb-rank-entry>.pb-pixel-cup-total{display:inline-flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:5px;flex:0 0 auto;min-width:48px;color:#fff;font:700 clamp(13px,1.6vw,19px)/1 'Pixelify Sans',monospace;text-shadow:2px 2px 0 #050a19;white-space:nowrap}
+.pb-pixel-cup-total strong{font:inherit;color:#fff}
+.pb-pixel-cup{display:block;width:clamp(19px,2vw,25px);height:clamp(19px,2vw,25px);flex:none;image-rendering:pixelated;filter:drop-shadow(2px 2px 0 #071223)}
+.pb-h2h{display:flex;flex-direction:column;gap:5px;min-height:0;flex:1;border:2px solid #5681b2;background:#091a33;padding:7px}
+.pb-h2h header{font:700 clamp(10px,1.3vw,13px) 'Pixelify Sans',monospace;color:#ffdf82;flex:none}
+.pb-h2h-score{display:flex;gap:8px;flex:none}
+.pb-h2h-score strong{font:700 13px 'Pixelify Sans',monospace;color:white}
+.pb-h2h-games{min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:3px;scrollbar-width:thin}
+.pb-h2h p{color:#b4d7ee;font:700 11px Oxanium,system-ui}
+.pb-h2h-game{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:7px;background:#112a4b;border:1px solid #3c638f;padding:4px 6px;min-height:29px;font:700 11px 'Pixelify Sans',monospace}
+.pb-h2h-game b{color:#9feab7}.pb-h2h-game .pb-h2h-derrota{color:#ffaca5}.pb-h2h-game .pb-h2h-empate{color:#ffe194}
+.pb-h2h-game span{white-space:nowrap}.pb-h2h-game small{text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:700 11px 'Pixelify Sans',monospace;color:#cae6ff}
+@media(orientation:landscape) and (max-height:520px){.pb-h2h{padding:4px;gap:3px}.pb-h2h-score strong{font-size:11px}.pb-h2h-game{min-height:23px;padding:2px 4px;font-size:10px}}
+@media(max-width:520px){.pb-community-page .pb-rank-entry>.pb-pixel-cup-total{font-size:14px;gap:3px;min-width:37px}.pb-pixel-cup{width:20px;height:20px}.pb-h2h-game{grid-template-columns:auto minmax(0,1fr)}.pb-h2h-game small{grid-column:1/-1;text-align:left}}
+/* Give the match history room inside narrow/mobile profile dialogs. */
+.pb-community-page .pb-community-author-grid{flex:0 0 auto;max-height:clamp(55px,17vh,125px);overflow:hidden}
+.pb-community-page .pb-community-author-grid .pb-league-frame{max-height:100%;height:min(12vh,64px);width:min(12vh,64px)}

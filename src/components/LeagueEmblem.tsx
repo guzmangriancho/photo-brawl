@@ -22,3 +22,16 @@ export function LeagueBadge({trophies=0,progress=false}:{trophies?:number;progre
     </span>}
   </span>;
 }
+
+/** Numeric trophy total for leaderboards: no league name, pure pixel-art cup. */
+export function PixelCupTotal({trophies}:{trophies:number}){
+  return <span className="pb-pixel-cup-total" title={`${trophies} copas`} aria-label={`${trophies} copas`}>
+    <strong>{trophies.toLocaleString('es-ES')}</strong>
+    <svg className="pb-pixel-cup" viewBox="0 0 24 24" role="img" aria-label="Copa" shapeRendering="crispEdges">
+      <path fill="#9b511c" d="M5 2h14v3h4v8h-4v3h-4v3h4v3H5v-3h4v-3H5v-3H1V5h4z"/>
+      <path fill="#ffda55" d="M6 3h12v9h-3v3H9v-3H6zM2 6h3v6H3V9H2zM19 6h3v3h-1v3h-2zM10 16h4v4h4v1H6v-1h4z"/>
+      <path fill="#fff6b1" d="M7 4h3v7H8V8H7zM3 6h2v2H3zM12 17h2v2h-2z"/>
+      <path fill="#de8c29" d="M15 5h2v6h-2zM9 12h6v2H9zM7 20h10v1H7z"/>
+    </svg>
+  </span>;
+}
