@@ -1,3 +1,5 @@
+> **V52 — Explorar y ranking compactos (19/11/2026).** Retratos cuadrados, 3 filas en móvil vertical, nombres libres de superposiciones y marcos sin letra en la esquina. La lista de copas se mueve al popup **LIGAS**; ranking limpio en apaisado. **Solo Vercel, sin SQL nuevo.** [Guía V52](docs/V52_EXPLORAR_RANKING_COMPACTO.md).
+
 > **V51 — nuevo sistema de progresión (19/11/2026).** ELO global conservado; copas por luchador y por pareja de usuarios (2v2), seis ligas y marcos de retrato 16-bit. **Antes de desplegar, ejecuta** `supabase/migrations/202611190001_progression_leagues_duos.sql` en Supabase SQL Editor, luego actualiza **Render** y **Vercel**. Consulta [la guía completa V51](docs/V51_PROGRESION_RANKINGS_LIGAS.md) para reglas, pruebas y migración. No se modifican retroactivamente los resultados históricos.
 
 # PHOTO BRAWL V50 · CREADOR SIMPLIFICADO Y OVERLAYS 16-BIT

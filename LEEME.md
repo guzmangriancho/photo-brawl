@@ -1,3 +1,7 @@
+PHOTO BRAWL V52 — EXPLORAR Y RANKING COMPACTOS
+
+Retratos cuadrados, dos columnas y tres filas en móvil vertical, nombres sin superposiciones, marcos sin inicial, ligas en popup y ranking horizontal optimizado. Se conserva V51 (ELO, copas y dúos). Para actualizar desde V51, despliega solo el frontend en Vercel. No hay nueva migración SQL ni cambios en Render. Ver docs/V52_EXPLORAR_RANKING_COMPACTO.md.
+
 # PHOTO BRAWL V51 · COPAS, LIGAS PIXEL ART Y RANKING DE DÚOS
 
 **NUEVO · V51 se basa en V50 y conserva V49.** Sistema híbrido con **ELO global intacto**, **copas independientes por cada luchador**, **copas por parejas de cuentas en 2v2** y seis ligas (Bronce, Plata, Oro, Diamante, Maestro, Leyenda). Marcos 16-bit en galería, selección, pantalla VS y rankings. Bonus de +5 por primera victoria diaria UTC con hasta 3 luchadores diferentes. Copas exclusivamente por clasificatorias autentificadas confirmadas por Render; no amistosas/CPU.

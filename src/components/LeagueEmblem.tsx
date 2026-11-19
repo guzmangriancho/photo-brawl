@@ -8,7 +8,7 @@ export function LeagueFrame({trophies=0,children,compact=false,className=''}:{
 }){
   const league=leagueFor(trophies);
   return <span className={`pb-league-frame pb-league--${league.key.toLowerCase()} ${compact?'is-compact':''} ${className}`.trim()} title={`${league.label} · ${trophies} copas`}>
-    {children}<span className="pb-league-frame-stamp" aria-hidden="true">{league.label[0]}</span>
+    {children}
   </span>;
 }
 export function LeagueBadge({trophies=0,progress=false}:{trophies?:number;progress?:boolean}){
