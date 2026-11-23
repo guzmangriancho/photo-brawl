@@ -38,6 +38,8 @@ function harness(initialFighters){
     '../services/useFriends':{useFriends:()=>({social:{friends:[],incoming:[],outgoing:[],invitations:[],sent:[]},socialError:'',refreshSocial:async()=>{}})},
     '../services/friendsService':{sendFriendRequest:async()=> 'sent',replyFriend:async()=>{},removeFriend:async()=>{},sendGameInvitation:async()=>{},replyGameInvitation:async()=>{}},
     '../services/publishedFighters':{ensureRankedOwnFighter:async()=>{}},
+    './ArcadeExchange':{ArcadeExchange:()=>null,ArcadeExchangeButton:()=>null},
+    '../services/arcadeBitcoin':{recoverArcadeStake:()=>{}},
     './FighterCreator':{FighterCreator},'./UltimateWorkshop':{UltimateWorkshop:stubComponent('UltimateWorkshop')},
     '../services/ultimateForms':{applyUltimate:(base)=>base,loadUltimate:async()=>null,ultimateProgress:async()=>({unlocked:false})},
     './OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./FighterTransfers':{FighterTransfers},'./PwaInstallPrompt':{PwaInstallPrompt},
