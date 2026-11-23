@@ -28,7 +28,7 @@ type StartupState={uid:string|null;phase:'waiting'|'checking'|'restoring'|'ready
 function LoadingScreen({message}:{message:string}){
   return (
     <div className="pb-app pb-loading-roster" role="status">
-      <div className="pb-loading-plaque">PHOTO <b>BRAWL</b>
+      <div className="pb-loading-plaque pb-loading-plaque-fixed">PHOTO <b>BRAWL</b>
         <span className="pb-loading-brawl" aria-hidden="true">
           <span className="pb-px-fighter pb-px-fighter-a"><i/></span>
           <span className="pb-px-fighter pb-px-fighter-b"><i/></span>
