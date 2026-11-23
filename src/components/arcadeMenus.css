@@ -399,6 +399,11 @@
 .pb-loading-bar i:nth-child(7){animation-delay:1.02s}
 .pb-loading-bar i:nth-child(8){animation-delay:1.19s}
 @keyframes pb-bar-seg{0%,100%{background:#132c4e}12%{background:#ffbd58}26%{background:#ffe49a}48%{background:#132c4e}}
+/* Fixed-size loading plaque: status text and animated dots never change its width. */
+.pb-loading-plaque-fixed{box-sizing:border-box;width:min(340px,calc(100vw - 24px));flex:none}
+.pb-loading-plaque-fixed .pb-loading-status{position:relative;display:block;max-width:100%;white-space:normal}
+.pb-loading-plaque-fixed .pb-loading-status::after{position:absolute;left:100%;top:0;white-space:pre}
+@media (max-height:360px){.pb-loading-plaque-fixed{padding:10px 24px;gap:4px;font-size:clamp(22px,8vh,30px)}}
 @media (prefers-reduced-motion:reduce){.pb-px-fighter-a,.pb-px-fighter-b,.pb-px-pow,.pb-loading-bar i,.pb-loading-status::after{animation:none}}
 
 
