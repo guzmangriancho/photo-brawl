@@ -1,4 +1,3 @@
-import {settleArcadeStake} from '../services/arcadeBitcoin';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CpuDifficulty,
@@ -25,7 +24,6 @@ import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConic
 import './fightArena.css';
 
 interface FightArenaProps {
-  arcadeStakeId?:string;
   p1Profile: FighterProfile;
   p2Profile: FighterProfile;
   mode: GameMode;
@@ -98,7 +96,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, onExit, roster, onRematch, arcadeStakeId,
+  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
@@ -160,10 +158,6 @@ export const FightArena: React.FC<FightArenaProps> = ({
     versusIntroFrames:90, timer: 99, roundOver: false, winnerName: null, announceText: 'ROUND 1 - FIGHT!',
     roundNumber:1,p1RoundWins:0,p2RoundWins:0,roundBreakFrames:0,roundIntroFrames:0,
   });
-  useEffect(()=>{
-    if(!arcadeStakeId||!snapshot.roundOver)return;
-    try{settleArcadeStake(arcadeStakeId,!snapshot.winnerName?'refund':snapshot.winnerName===p1Profile.fighterName?'win':'loss');}catch{/* Credits must not affect match results. */}
-  },[arcadeStakeId,snapshot.roundOver,snapshot.winnerName,p1Profile.fighterName]);
   const [paused, setPaused] = useState(false);
   const [fixedStick, setFixedStick] = useState(false);
   const [southpaw, setSouthpaw] = useState(false);
