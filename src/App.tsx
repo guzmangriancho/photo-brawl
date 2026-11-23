@@ -1,3 +1,4 @@
+import {beginArcadeStake} from './services/arcadeBitcoin';
 import React, { useEffect, useState } from 'react';
 import {
   CpuDifficulty,
@@ -63,6 +64,7 @@ export function App() {
     battleMode?: GroupBattleMode;
     fighters?: FighterProfile[];
     rankTrophies?:number[];
+    arcadeStakeId?:string;
   } | null>(null);
 
   // Keep automatic background backups for edits/imports, but the initial
@@ -163,7 +165,9 @@ export function App() {
     const arena=group && !LARGE_ARENA_IDS.includes(stage)?LARGE_ARENA_IDS[0]:stage;
     const groupRoster=[p1,p2,extra?.[0]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p1,
       extra?.[1]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p2];
-    setMatchConfig({p1,p2,mode,stage:arena,difficulty,battleMode:group?mode:undefined,
+    let arcadeStakeId:string|undefined;
+    if(mode==='1P_VS_CPU'){try{arcadeStakeId=beginArcadeStake()?.id;}catch{/* Never block combat on simulated credits. */}}
+    setMatchConfig({p1,p2,mode,stage:arena,difficulty,arcadeStakeId,battleMode:group?mode:undefined,
       fighters:group?groupRoster:undefined});
     setFightKey(value=>value+1);
     setScreen('FIGHT');
@@ -186,7 +190,7 @@ export function App() {
 
   const handleRematch=(profiles:FighterProfile[],stage?:StageId)=>{
     setMatchConfig(old=>old?{...old,p1:profiles[0]||old.p1,p2:profiles[1]||old.p2,
-      fighters:old.battleMode?profiles:undefined,stage:stage||old.stage,rankTrophies:old.online?.match?.rankTrophies||old.rankTrophies}:old);
+      arcadeStakeId:undefined,fighters:old.battleMode?profiles:undefined,stage:stage||old.stage,rankTrophies:old.online?.match?.rankTrophies||old.rankTrophies}:old);
     setFightKey(v=>v+1);
   };
   const handleExit=()=>{
@@ -218,7 +222,7 @@ export function App() {
         onRematch={handleRematch} onExit={handleExit}/>;
     }
     return (
-      <FightArena key={fightKey} roster={fighters} onRematch={handleRematch}
+      <FightArena arcadeStakeId={matchConfig.arcadeStakeId} key={fightKey} roster={fighters} onRematch={handleRematch}
         p1Profile={matchConfig.p1}
         p2Profile={matchConfig.p2}
         mode={matchConfig.mode}
