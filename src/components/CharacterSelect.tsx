@@ -1,3 +1,5 @@
+import {ArcadeExchange,ArcadeExchangeButton} from './ArcadeExchange';
+import {recoverArcadeStake} from '../services/arcadeBitcoin';
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
@@ -98,6 +100,8 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
+  const [showExchange,setShowExchange]=useState(false);
+  useEffect(()=>{try{recoverArcadeStake();}catch{/* Game remains playable without local storage. */}},[]);
   const {user:accountUser}=usePlayerAccount();
   const {social,socialError,refreshSocial}=useFriends(accountUser?.id);
   const [showFriends,setShowFriends]=useState(false);
@@ -488,6 +492,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   ] : [];
   return <main className="pb-app"><div className={`pb-menu-shell pb-screen-${page.toLowerCase()}`}>
     {favoriteError&&<div className="pb-favorite-error" role="alert" onClick={()=>setFavoriteError('')}>{favoriteError}</div>}
+    {showExchange&&<ArcadeExchange onClose={()=>setShowExchange(false)}/>}
     {page !== 'HOME' && <button type="button" className="pb-back-button" onClick={back} aria-label="Volver"><ArrowLeft size={16}/> VOLVER</button>}
 
     {page === 'HOME' && <div className="pb-home pb-page-anim">
@@ -501,7 +506,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <button type="button" className={`pb-arcade-button pb-gold pb-select-button ${!featured ? 'pb-create-first' : ''}`} onClick={featured ? () => go('FIGHTERS') : openCreator}><Camera size={18}/>{featured ? 'ELEGIR LUCHADOR' : 'CREAR CON FOTO'}<ChevronRight size={17}/></button>
       </section>
       <section className="pb-home-controls">
-        <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small></div>
+        <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>YOUR PHOTO. YOUR FIGHT.</small></div>
         <div className="pb-mode-heading">{featured ? 'ELIGE UN MODO' : 'DESCUBRE LOS MODOS'}</div>
         <div className="pb-home-modes" role="group" aria-label="Modo de juego">
           {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
@@ -510,6 +515,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
+        <ArcadeExchangeButton onClick={()=>setShowExchange(true)}/>
         <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
