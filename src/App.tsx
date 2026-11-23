@@ -24,6 +24,23 @@ import type { OnlineStart } from './network/protocol';
 
 type StartupState={uid:string|null;phase:'waiting'|'checking'|'restoring'|'ready'|'error';error:string;warning:string};
 
+// Loading screen: a short game-like status under a pixel duel, never a wall of explanation.
+function LoadingScreen({message}:{message:string}){
+  return (
+    <div className="pb-app pb-loading-roster" role="status">
+      <div className="pb-loading-plaque">PHOTO <b>BRAWL</b>
+        <span className="pb-loading-brawl" aria-hidden="true">
+          <span className="pb-px-fighter pb-px-fighter-a"><i/></span>
+          <span className="pb-px-fighter pb-px-fighter-b"><i/></span>
+          <span className="pb-px-pow"/>
+        </span>
+        <span className="pb-loading-bar" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></span>
+        <small className="pb-loading-status">{message}</small>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const {user,loading:authLoading}=usePlayerAccount();
   const [startup,setStartup]=useState<StartupState>({uid:null,phase:'waiting',error:'',warning:''});
@@ -178,14 +195,14 @@ export function App() {
 
   // Neither combat nor selection is available without a verified session.
   // Keep the existing account modal, but make it non-dismissible here.
-  if(authLoading)return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>COMPROBANDO SESIÓN…</small></div></div>;
+  if(authLoading)return <LoadingScreen message="COMPROBANDO SESIÓN"/>;
   if(!user||!supabase)return <div className="pb-app pb-loading-roster pb-auth-required-screen">
     <div className="pb-loading-plaque" aria-hidden="true">PHOTO <b>BRAWL</b></div>
     <AccountPanel requiredLogin onClose={()=>{}} onRestored={()=>{}}/>
   </div>;
   if(startup.uid!==user.id||startup.phase==='waiting'||startup.phase==='checking'||startup.phase==='restoring'){
-    const message=startup.uid===user.id&&startup.phase==='restoring'?'2/2 · RECUPERANDO DE LA NUBE…':'1/2 · COMPROBANDO SINCRONIZACIÓN…';
-    return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>{message}</small><small>No cierres la aplicación durante la recuperación.</small></div></div>;
+    const message=startup.uid===user.id&&startup.phase==='restoring'?'2/2 · RECUPERANDO LA NUBE':'1/2 · COMPROBANDO SINCRONIZACIÓN';
+    return <LoadingScreen message={message}/>;
   }
   if(startup.phase==='error')return <div className="pb-app pb-loading-roster" role="alert"><div className="pb-loading-plaque">SINCRONIZACIÓN PENDIENTE
     <small>{startup.error}</small><small>Tus luchadores locales no se han borrado. Comprueba tu conexión e inténtalo de nuevo.</small>
@@ -216,7 +233,7 @@ export function App() {
 
   if (rosterError) return <div className="pb-app pb-loading-roster" role="alert"><div className="pb-loading-plaque">COLECCIÓN NO DISPONIBLE<small>{rosterError}</small><small>Tus luchadores no se han borrado. No limpies los datos del navegador ni desinstales la PWA.</small><button type="button" onClick={()=>location.reload()}>REINTENTAR</button></div></div>;
 
-  if (!rosterLoaded) return <div className="pb-app pb-loading-roster" role="status"><div className="pb-loading-plaque">PHOTO <b>BRAWL</b><small>CARGANDO TUS LUCHADORES…</small></div></div>;
+  if (!rosterLoaded) return <LoadingScreen message="CARGANDO TUS LUCHADORES"/>;
 
   return (
     <>
