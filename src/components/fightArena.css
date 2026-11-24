@@ -769,7 +769,8 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .pb-tutorial-in-fight>div{display:flex;justify-content:center;gap:8px;pointer-events:auto;margin-top:2px}
 .pb-tutorial-in-fight button{border:1px solid #649cc6;background:#244b77;color:#fff;font:900 10px 'Pixelify Sans',sans-serif;padding:4px 10px;border-radius:3px;touch-action:manipulation}
 .pb-tutorial-in-fight button:first-child{border-color:#c2a15c;color:#ffe09c}
-@media(orientation:portrait){.pb-tutorial-in-fight{top:clamp(90px,16vh,140px);width:min(94vw,355px);padding:6px 9px}}
+/* Vertical: el panel va debajo de la arena (que ocupa ~53vw desde 88px), nunca sobre los luchadores. */
+@media(orientation:portrait){.pb-tutorial-in-fight{top:calc(94px + 53vw);width:min(94vw,355px);padding:6px 9px}}
 @media(orientation:landscape) and (max-height:410px){.pb-tutorial-in-fight{top:54px;width:min(310px,43vw);padding:4px 8px;gap:2px}.pb-tutorial-in-fight small{font-size:9px}.pb-tutorial-in-fight button{padding:2px 7px}}
 
 /* V18 · Portraits span from the P1/P2 label to the bottom of the Super meter.
