@@ -28,6 +28,8 @@ export interface NetworkFighter {
   jumpsRemaining: number; airDashUsed: boolean; airUpSpecialUsed: boolean; hasArmorActive: boolean;
   currentAttack: Record<string, unknown> | null;
   grabbedBy: number | null; grabSlamTimer: number;
+  /** Fase 2: opcional para tolerar servidores anteriores. */
+  guardMeter?: number;
 }
 export interface NetworkState {
   frame: number;
