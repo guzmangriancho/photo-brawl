@@ -1,34 +1,8 @@
-import React,{useEffect,useState} from 'react';
-import {Bell,BellOff,Check,Gamepad2,Loader2,MailPlus,UserMinus,UsersRound,X} from 'lucide-react';
+import React,{useState} from 'react';
+import {Check,Gamepad2,Loader2,MailPlus,UserMinus,UsersRound,X} from 'lucide-react';
 import {PlayerAvatar} from './PlayerAvatar';
 import type {GameInvitation,PublicFriend,SocialMode,SocialSnapshot} from '../services/friendsService';
-import {disablePush,enablePush,pushState,type PushSupport} from '../services/pushService';
 import './friends.css';
-
-export function PushBlock(){
- const [state,setState]=useState<PushSupport|'loading'>('loading');
- const [busy,setBusy]=useState(false);
- const [note,setNote]=useState('');
- useEffect(()=>{let on=true;void pushState().then(s=>{if(on)setState(s);}).catch(()=>{if(on)setState('unsupported');});
-  return()=>{on=false;};},[]);
- const toggle=async()=>{
-  if(busy)return;
-  setBusy(true);setNote('');
-  try{
-   if(state==='enabled'){await disablePush();setState('available');setNote('Avisos desactivados en este dispositivo.');}
-   else{const next=await enablePush();setState(next);if(next==='denied')setNote('El navegador tiene los avisos bloqueados: actívalos en sus ajustes.');}
-  }catch(e){setNote(e instanceof Error?e.message:'No se pudo cambiar el aviso.');}
-  finally{setBusy(false);}
- };
- if(state==='loading'||state==='unsupported')return null;
- return <section className="pb-push-block"><h3>AVISOS PUSH</h3>
-  <p className="pb-push-hint">Recibe un aviso aunque la app esté cerrada cuando un amigo te invite a un combate o te envíe una solicitud.{state==='unconfigured'?' (Aún no activado en el servidor.)':''}</p>
-  {state!=='unconfigured'&&<button type="button" disabled={busy||state==='denied'} onClick={()=>void toggle()}>
-   {state==='enabled'?<><BellOff size={15}/> DESACTIVAR</>:<><Bell size={15}/> ACTIVAR AVISOS</>}</button>}
-  {state==='enabled'&&<small className="pb-push-on"><Bell size={13}/> ACTIVOS EN ESTE DISPOSITIVO</small>}
-  {note&&<p className="pb-push-hint" role="status">{note}</p>}
- </section>;
-}
 
 type Props={social:SocialSnapshot;error:string;roomMode:SocialMode|null;roomRanked:boolean;isHost:boolean;defaultMode:SocialMode;defaultRanked:boolean;
  onClose:()=>void;onRequest:(username:string)=>Promise<string>;onReply:(id:string,accept:boolean)=>Promise<void>;
@@ -41,11 +15,6 @@ export function FriendsPanel({social,error,roomMode,roomRanked,isHost,defaultMod
  const [ranked,setRanked]=useState(defaultRanked);
  const [busy,setBusy]=useState('');
  const [notice,setNotice]=useState('');
- const [invited,setInvited]=useState<Record<string,boolean>>({});
- const markInvited=(id:string)=>{
-  setInvited(v=>({...v,[id]:true}));
-  setTimeout(()=>setInvited(v=>{const n={...v};delete n[id];return n;}),5000);
- };
  const action=async(key:string,fn:()=>Promise<unknown>)=>{
   if(busy)return;
   setBusy(key);setNotice('');
@@ -83,7 +52,7 @@ export function FriendsPanel({social,error,roomMode,roomRanked,isHost,defaultMod
        <label className="pb-friend-ranked"><input type="checkbox" checked={ranked} onChange={e=>setRanked(e.target.checked)}/> RANKED</label>
       </>}
      </div>}
-     {social.friends.length?<div className="pb-friends-list">{social.friends.map(p=>profile(p,<><button className={`pb-friend-invite-btn ${invited[p.id]?'is-sent':''}`} type="button" disabled={!!busy||inviteLocked||!!invited[p.id]} title={inviteLocked?'Solo el anfitrión puede invitar':'Invitar a jugar'} onClick={()=>action(p.id,async()=>{await onInvite(p.id,inviteMode,inviteRanked);markInvited(p.id);})}><Gamepad2 size={15}/> {invited[p.id]?'✓ ENVIADA':'INVITAR'}</button><button className="pb-friend-remove" type="button" title="Eliminar amigo" aria-label={`Eliminar a ${p.username}`} disabled={!!busy} onClick={()=>{if(window.confirm(`¿Eliminar a @${p.username} de tus amigos?`))void action(p.id,()=>onRemove(p.id));}}><UserMinus size={15}/></button></>))}</div>:<p className="pb-friends-empty">Busca a un jugador por su @usuario para agregarlo.</p>}
+     {social.friends.length?social.friends.map(p=>profile(p,<><button className="pb-friend-invite-btn" type="button" disabled={!!busy||inviteLocked} title={inviteLocked?'Solo el anfitrión puede invitar':'Invitar a jugar'} onClick={()=>action(p.id,()=>onInvite(p.id,inviteMode,inviteRanked))}><Gamepad2 size={15}/> INVITAR</button><button className="pb-friend-remove" type="button" title="Eliminar amigo" aria-label={`Eliminar a ${p.username}`} disabled={!!busy} onClick={()=>{if(window.confirm(`¿Eliminar a @${p.username} de tus amigos?`))void action(p.id,()=>onRemove(p.id));}}><UserMinus size={15}/></button></>)):<p className="pb-friends-empty">Busca a un jugador por su @usuario para agregarlo.</p>}
      {inviteLocked&&<p className="pb-friends-empty">Solo el anfitrión puede enviar invitaciones a esta sala.</p>}
     </section>
     {social.outgoing.length>0&&<section><h3>ENVIADAS · {social.outgoing.length}</h3>{social.outgoing.map(p=>profile(p,<button type="button" disabled={!!busy} onClick={()=>action(p.id,()=>onRemove(p.id))}>CANCELAR</button>))}</section>}
