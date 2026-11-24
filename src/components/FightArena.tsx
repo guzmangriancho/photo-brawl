@@ -22,6 +22,8 @@ import { VersusIntro } from './VersusIntro';
 import { TUTORIAL_LESSONS, prepareTutorialLesson, tutorialLessonCompleted } from './tutorialLessons';
 import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
 import './fightArena.css';
+import './economy.css';
+import type { EconomyResult } from '../network/protocol';
 
 interface FightArenaProps {
   p1Profile: FighterProfile;
@@ -139,6 +141,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
   const [rematchRequested,setRematchRequested]=useState(false);
   const [otherWantsRematch,setOtherWantsRematch]=useState(false);
   const [onlineLatency,setOnlineLatency]=useState<number|null>(null);
+  const [economyResult,setEconomyResult]=useState<EconomyResult|null>(null);
   const [rankedResult,setRankedResult]=useState<{
     recorded:boolean;reason?:string;
     host_rating_before?:number;guest_rating_before?:number;
@@ -239,10 +242,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
       }),
       online.on('opponent_left',()=>setOnlineIssue('closed')),
       online.on('rematch',(event:{stage?:StageId;p1?:FighterProfile;p2?:FighterProfile}|null)=>{
-        setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setPaused(false);
+        setRematchRequested(false);setOtherWantsRematch(false);setRankedResult(null);setEconomyResult(null);setPaused(false);
         onRematch([event?.p1||p1Profile,event?.p2||p2Profile],event?.stage);
       }),
       online.on('ranked_result',(result:{recorded:boolean;reason?:string;host_rating_before?:number;guest_rating_before?:number;host_rating?:number;guest_rating?:number})=>setRankedResult(result)),
+      online.on('economy',(result:EconomyResult)=>setEconomyResult(result)),
       online.on('rematch_vote',(votes:{host:boolean;guest:boolean})=>{
         setOtherWantsRematch(online.role==='host'?votes.guest:votes.host);
       }),
@@ -614,6 +618,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
                     </div>}
                     {rankedResult&&!rankedDetailsReady&&<span>{rankedResult.recorded?'RESULTADO GUARDADO':'NO SE PUDO VERIFICAR EL RESULTADO'}</span>}
                   </div>:<span>AMISTOSO · SIN CAMBIOS DE ELO</span>}
+                  {rankedOnline&&economyResult&&!economyResult.group&&(()=>{const mine=online?.role==='host'?economyResult.host:economyResult.guest;if(!mine)return null;const net=mine.reward+mine.wager;return <div className="pb-fight-coins"><span>MONEDAS {net>=0?'+':''}{net}</span>{mine.wager!==0&&<span>APUESTA {mine.wager>0?'+':''}{mine.wager}</span>}<span>SALDO {mine.balance}</span></div>;})()}
                   {otherWantsRematch&&<b>TU RIVAL QUIERE REVANCHA</b>}
                 </div>}/>
             </div>
