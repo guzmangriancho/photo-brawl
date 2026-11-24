@@ -63,7 +63,6 @@ export function App() {
     battleMode?: GroupBattleMode;
     fighters?: FighterProfile[];
     rankTrophies?:number[];
-    daily?:string;
   } | null>(null);
 
   // Keep automatic background backups for edits/imports, but the initial
@@ -170,14 +169,6 @@ export function App() {
     setScreen('FIGHT');
   };
 
-  // Reto diario: rival de la comunidad elegido en servidor, CPU normal, sin copas ni ELO.
-  const handleStartDaily = (p1: FighterProfile, p2: FighterProfile, stage: StageId, day: string) => {
-    if (p1.isPreset || p2.isPreset) return;
-    setMatchConfig({p1,p2,mode:'1P_VS_CPU',stage,difficulty:'NORMAL',daily:day});
-    setFightKey(value=>value+1);
-    setScreen('FIGHT');
-  };
-
   const handleStartTutorial = (presetId: string) => {
     const presets = getPresetFighters();
     const selected = presets.find(f => f.id === presetId) ?? presets[0];
@@ -235,7 +226,6 @@ export function App() {
         difficulty={matchConfig.difficulty}
         online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
         tutorial={matchConfig.tutorial}
-        daily={matchConfig.daily}
         onExit={handleExit}
       />
     );
@@ -255,7 +245,6 @@ export function App() {
       onStartMatch={handleStartMatch}
       onOnlineMatch={handleOnlineMatch}
       onStartTutorial={handleStartTutorial}
-      onStartDaily={handleStartDaily}
     />
     {startup.warning&&<div className="pb-startup-warning" role="status">{startup.warning}</div>}
     </>
