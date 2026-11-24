@@ -30,9 +30,9 @@ function make(){const e=new FightEngine(profile('P1'),profile('P2'),'TRAINING','
 const step=(e,n=1)=>{for(let i=0;i<n;i++)e.step();};
 const lesson=(id)=>TUTORIAL_LESSONS.find(item=>item.id===id);
 
-test('escuela arcade tiene 14 ejercicios distintos, progresión y contenido táctil/teclado',()=>{
-  assert.equal(TUTORIAL_LESSONS.length,15);
-  assert.equal(new Set(TUTORIAL_LESSONS.map(x=>x.id)).size,15);
+test('escuela arcade tiene 17 ejercicios distintos, progresión y contenido táctil/teclado',()=>{
+  assert.equal(TUTORIAL_LESSONS.length,18);
+  assert.equal(new Set(TUTORIAL_LESSONS.map(x=>x.id)).size,18);
   assert.equal(TUTORIAL_LESSONS.at(-1).id,'COMPLETE');
   for(const item of TUTORIAL_LESSONS){assert.ok(item.instruction.length>12);assert.ok(item.tip);assert.ok(item.keyboard);}
 });
@@ -130,4 +130,46 @@ test('dash y los tres especiales se reconocen por estado real, no solo por la or
   assert.equal(tutorialLessonCompleted('UP',e,410),true);
   e.resetRound();e.queueTouchAction('SUPER');step(e);
   assert.equal(tutorialLessonCompleted('SUPER',e,410),true);
+});
+
+test('combos con intención: entrada, mezcla baja y empuje se detectan por impactos reales',()=>{
+  // ENTRADA: avance + A desde lejos, luego jab.
+  let e=make();prepareTutorialLesson(e,lesson('RUSH_IN'));
+  assert.equal(e.p2.x,560);
+  e.queueTouchAction('RUSH');step(e,14);
+  assert.equal(e.p1.currentAttack?.slot==='RUSH'||e.p1.comboCount>=1,true,'el paso conecta desde la distancia del reto');
+  assert.equal(tutorialLessonCompleted('RUSH_IN',e,410),false);
+  e.queueTouchAction('LIGHT');let done=false;for(let i=0;i<20&&!done;i++){step(e,1);done=tutorialLessonCompleted('RUSH_IN',e,410);}
+  assert.equal(done,true);
+  // MEZCLA BAJA: dos jabs bloqueados y bajo que entra.
+  e=make();prepareTutorialLesson(e,lesson('LOW_CHAIN'));
+  step(e,30);e.queueTouchAction('LIGHT');step(e,5);e.queueTouchAction('LIGHT');step(e,5);
+  assert.equal(tutorialLessonCompleted('LOW_CHAIN',e,410),false);
+  e.queueTouchAction('LOW');done=false;for(let i=0;i<30&&!done;i++){step(e,1);done=tutorialLessonCompleted('LOW_CHAIN',e,410);}
+  assert.equal(done,true);
+});
+
+test('A-A-AVANCE+A es un empuje: menos daño, menos desventaja en bloqueo y más retroceso que el remate',()=>{
+  const run=(third)=>{
+    const e=make();e.trainingDummyMode='IDLE';e.p1.x=410;e.p2.x=492;
+    e.queueTouchAction('LIGHT');step(e,14);e.queueTouchAction('LIGHT');step(e,14);
+    const hp=e.p2.hp;const x=e.p2.x;
+    e.queueTouchAction(third);
+    let atk=null;for(let i=0;i<40&&!atk?.hasHit;i++){step(e,1);atk=e.p1.currentAttack;}
+    const out={name:atk?.name,slot:atk?.slot,hit:atk?.hasHit,pushback:atk?.pushback,damage:atk?.damage,blockstun:atk?.blockstun};
+    return out;
+  };
+  const heavy=run('LIGHT'),push=run('RUSH');
+  assert.equal(heavy.slot,'HEAVY');assert.notEqual(heavy.name,'EMPUJE');
+  assert.equal(push.slot,'HEAVY');assert.equal(push.name,'EMPUJE');assert.equal(push.hit,true);
+  assert.ok(push.damage<heavy.damage);assert.ok(push.pushback>heavy.pushback);assert.ok(push.blockstun<heavy.blockstun);
+});
+
+test('el empuje no crea bucles: tras A-A-AVANCE+A no se encadena otro golpe sin una nueva cadena',()=>{
+  const e=make();e.p1.x=410;e.p2.x=492;
+  e.queueTouchAction('LIGHT');step(e,14);e.queueTouchAction('LIGHT');step(e,14);
+  e.queueTouchAction('RUSH');step(e,30);
+  assert.equal(e.p1.currentAttack?.name==='EMPUJE'||e.p1.state!=='ATTACK',true);
+  e.queueTouchAction('RUSH');step(e,40);
+  assert.ok(e.p1.comboCount<=5,'el combo está acotado');
 });
