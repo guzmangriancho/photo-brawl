@@ -29,7 +29,7 @@ import type { OnlineStart, RoomView } from '../network/protocol';
 import { PwaInstallPrompt } from './PwaInstallPrompt';
 import { markCreatorOpen, wasCreatorOpen } from '../services/creatorDraftService';
 import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter, editCustomFighter } from '../services/storageService';
-import { currentUserIsAdmin, syncRenamedFighter, syncFighterArtwork } from '../services/communityService';
+import { currentUserIsAdmin, syncRenamedFighter, syncFighterArtwork, deleteCloudFighter } from '../services/communityService';
 import { usePlayerAccount } from '../services/usePlayerAccount';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
@@ -469,6 +469,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const removeCustom = async (id: string) => {
     try {
       if(favorite.localId===id)await writeFavoriteFighter(null);
+      // Remove the cloud copy first: startup sync restores any cloud fighter missing locally.
+      // If this fails nothing is deleted locally, so the fighter cannot reappear half-deleted.
+      await deleteCloudFighter(id);
       await deleteCustomFighter(id); onFighterDeleted(id);
       if (p1Id === id) setP1Id('');
       if (p2Id === id) setP2Id('');
@@ -590,6 +593,6 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   {showCreator && <FighterCreator onClose={closeCreator} onCreated={handleCreated} />}
   {showUltimate&&baseFeatured&&ultimateRank?.unlocked&&<UltimateWorkshop base={baseFeatured} onClose={()=>setShowUltimate(false)} onSaved={form=>{setUltimateReady(form);setUltimateEnabled(true);setUltimateError('');}}/>}
   <PwaInstallPrompt visible={page === 'HOME' && !showCreator && !showApiKey && !confirmDelete && !showTutorial && !showAccount && !transferring} requestId={installRequest}/>
-  {confirmDelete && <div className="pb-modal-backdrop"><section className="pb-modal pb-frame" role="alertdialog" aria-modal="true" aria-label="Borrar luchador"><PanelTitle label="CONFIRMACIÓN">¿BORRAR LUCHADOR?</PanelTitle><p className="pb-modal-note">Se eliminará permanentemente de este dispositivo.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setConfirmDelete(null)}>CANCELAR</button><button type="button" className="pb-mini-button pb-red" onClick={() => removeCustom(confirmDelete)}><Trash2 size={15}/> BORRAR</button></div></section></div>}
+  {confirmDelete && <div className="pb-modal-backdrop"><section className="pb-modal pb-frame" role="alertdialog" aria-modal="true" aria-label="Borrar luchador"><PanelTitle label="CONFIRMACIÓN">¿BORRAR LUCHADOR?</PanelTitle><p className="pb-modal-note">Se eliminará permanentemente de tu colección.</p><div className="pb-modal-actions"><button type="button" className="pb-mini-button pb-muted" onClick={() => setConfirmDelete(null)}>CANCELAR</button><button type="button" className="pb-mini-button pb-red" onClick={() => removeCustom(confirmDelete)}><Trash2 size={15}/> BORRAR</button></div></section></div>}
   </main>;
 };
