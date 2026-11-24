@@ -1,6 +1,7 @@
 'use strict';
 const {randomInt,randomBytes,randomUUID} = require('node:crypto');
 const rankedApi=require('./ranked.cjs');
+const economyApi=require('./economy.cjs');
 const groups=require('./group-rooms.cjs');
 const {FightEngine} = require('./runtime/engine/FightEngine.js');
 const {unpackControls}=require('./runtime/network/protocol.js');
@@ -31,7 +32,7 @@ function lobby(room){
   for(const player of [room.host,room.guest])if(player?.peer){
     send(player,{type:'room',room:{
       code:room.code,role:player.role,status:status(room),
-      stage:room.stage,randomStage:room.randomStage===true,ranked:room.ranked,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
+      stage:room.stage,randomStage:room.randomStage===true,ranked:room.ranked,wager:room.ranked?room.wager||0:0,countdownEndsAt:room.status==='countdown'?room.countdownEndsAt:null,
       host:{name:room.host.profile.fighterName,ready:room.host.ready,connected:Boolean(room.host.peer)},
       guest:room.guest?{name:room.guest.profile.fighterName,ready:room.guest.ready,connected:Boolean(room.guest.peer)}:null,
     }});
@@ -42,15 +43,56 @@ function cancelCountdown(room){
   room.countdownTimer=null;room.countdownEndsAt=null;
   if(room.status==='countdown')room.status='waiting';
 }
+function resetReady(room){room.host.ready=false;if(room.guest)room.guest.ready=false;}
+function wagerReason(room,reason){
+  const name=reason==='host_insufficient'?room.host.profile.fighterName:reason==='guest_insufficient'?room.guest?.profile.fighterName:null;
+  return name?`${name} no tiene monedas para la apuesta de ${room.wager}. Baja la apuesta o juega sin ella.`:'No se pudo bloquear la apuesta. Inténtalo de nuevo o juega sin apuesta.';
+}
+/** Liquidación económica: apuesta (si hay) y premio. Se reintenta; si falla del todo la apuesta bloqueada se devuelve más tarde. */
+function settleEconomy(room,info,attempt=0){
+  if(!economyApi.available())return;
+  economyApi.settleMatch(info).then(economy=>{
+    if(room.escrow&&room.escrow.id===info.id)room.escrow.done=true;
+    each(room,{type:'economy',economy});
+  }).catch(error=>{
+    console.error('[economy] liquidación fallida:',error.message);
+    if(attempt<3)setTimeout(()=>settleEconomy(room,info,attempt+1),1500*(attempt+1)).unref?.();
+  });
+}
+/** Abandono o desconexión definitiva con apuesta bloqueada: pierde quien se va; si se van los dos, se devuelve. */
+function resolveAbandoned(room,loser){
+  const escrow=room.escrow;
+  if(!escrow||escrow.done||(room.engine&&room.engine.roundOver))return;
+  escrow.done=true;
+  const action=loser?.accountId?economyApi.forfeitWager({id:escrow.id,loserId:loser.accountId}):economyApi.refundWager(escrow.id);
+  void action.catch(error=>{console.error('[economy] abandono sin liquidar:',error.message);});
+}
 function startMatch(room){
   if(room.status!=='countdown')return;
   cancelCountdown(room);
   if(!room.guest||!room.host.ready||!room.guest.ready||!room.host.peer||!room.guest.peer){lobby(room);return;}
+  const stake=room.ranked&&room.wager>0&&economyApi.available()?room.wager:0;
+  if(!stake){beginMatch(room,randomUUID(),null);return;}
+  const id=randomUUID();
+  room.locking=true;
+  economyApi.lockWager({id,hostId:room.host.accountId,guestId:room.guest.accountId,stake}).then(result=>{
+    room.locking=false;
+    const alive=rooms.has(room.code)&&room.status==='waiting'&&room.guest&&room.host.ready&&room.guest.ready&&room.host.peer&&room.guest.peer;
+    if(result.ok&&!alive){void economyApi.refundWager(id).catch(error=>console.error('[economy] devolución fallida:',error.message));if(rooms.has(room.code))lobby(room);return;}
+    if(!result.ok){resetReady(room);each(room,{type:'error',message:wagerReason(room,result.reason)});lobby(room);return;}
+    beginMatch(room,id,{id,stake,done:false});
+  }).catch(error=>{
+    room.locking=false;console.error('[economy] no se pudo bloquear la apuesta:',error.message);
+    if(!rooms.has(room.code))return;
+    resetReady(room);each(room,{type:'error',message:'No se pudo bloquear la apuesta. Inténtalo de nuevo o juega sin apuesta.'});lobby(room);
+  });
+}
+function beginMatch(room,matchId,escrow){
   if(room.randomStage)room.stage=pickRandomStage(room.hasStarted?room.stage:null);
   room.hasStarted=true;
   room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
   room.engine.beginVersusIntro();
-  room.resultRecorded=false;room.matchId=randomUUID();
+  room.resultRecorded=false;room.matchId=matchId;room.escrow=escrow;
   room.status='playing';room.host.vote=false;room.guest.vote=false;
   room.host.mask=0;room.guest.mask=0;
   each(room,{type:'start',code:room.code,p1:room.host.profile,p2:room.guest.profile,stage:room.stage,rankTrophies:room.ranked?[room.host.trophies||0,room.guest.trophies||0]:undefined});
@@ -64,9 +106,11 @@ function startMatch(room){
     if(room.ranked && room.engine.roundOver && !room.resultRecorded){
       room.resultRecorded=true;
       const {p1RoundWins,p2RoundWins}=room.engine;
+      const info={id:room.matchId,hostId:room.host.accountId,guestId:room.guest.accountId,hostRounds:p1RoundWins,guestRounds:p2RoundWins,reward:false};
       void rankedApi.recordResult({id:room.matchId,hostId:room.host.accountId,guestId:room.guest.accountId,hostRounds:p1RoundWins,guestRounds:p2RoundWins,stage:room.stage,hostFighterId:room.host.profile.id,guestFighterId:room.guest.profile.id})
-        .then(result=>{if(result.recorded&&result.host_fighter&&result.guest_fighter){room.host.trophies=result.host_fighter.after;room.guest.trophies=result.guest_fighter.after;}each(room,{type:'ranked_result',result});})
-        .catch(error=>{console.error('[ranked] No se pudo registrar el resultado:',error.message);each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});});
+        .then(result=>{if(result.recorded&&result.host_fighter&&result.guest_fighter){room.host.trophies=result.host_fighter.after;room.guest.trophies=result.guest_fighter.after;}each(room,{type:'ranked_result',result});info.reward=result.recorded===true;})
+        .catch(error=>{console.error('[ranked] No se pudo registrar el resultado:',error.message);each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});})
+        .finally(()=>settleEconomy(room,info));
     }
     if(room.engine.roundNumber!==previousRound){room.host.mask=0;room.guest.mask=0;}
     if(room.engine.frameCount%2===0)sendState(room);
@@ -185,6 +229,21 @@ function handle(peer,msg) {
     }
     lobby(room);return;
   }
+  if(msg.type==='wager') {
+    if(!room.ranked||player.role!=='host'||room.status!=='waiting'||room.locking)return fail(peer,'La apuesta solo se puede cambiar en la sala, antes de empezar.');
+    const amount=Number(msg.amount);
+    if(!economyApi.WAGER_STEPS.includes(amount))return fail(peer,'Apuesta no válida.');
+    if(amount>0&&!economyApi.available())return fail(peer,'Las apuestas no están disponibles ahora mismo.');
+    if(amount===(room.wager||0))return;
+    const apply=()=>{if(peer.room!==room||room.status!=='waiting'||room.locking)return;room.wager=amount;resetReady(room);lobby(room);};
+    if(amount>0){
+      void economyApi.wallet(player.accountId).then(wallet=>{
+        if(!(wallet.coins>=amount))return fail(peer,'No tienes monedas suficientes para esa apuesta.');
+        apply();
+      }).catch(()=>fail(peer,'No se pudo comprobar tu monedero.'));
+    }else apply();
+    return;
+  }
   // Start is exclusively server-controlled once both users ready up.
   if(msg.type==='start')return fail(peer,'La partida empieza automáticamente cuando ambos estén listos.');
   if(msg.type==='input') {
@@ -215,19 +274,37 @@ function handle(peer,msg) {
     const nextProfile=msg.profile?validateProfile(msg.profile):null;
     if(msg.profile&&!nextProfile)return fail(peer,'Luchador de revancha no válido.');
     const vote=()=>{
-      if(peer.room!==room||room.status!=='playing'||!room.engine?.roundOver)return;
+      if(peer.room!==room||room.status!=='playing'||!room.engine?.roundOver||room.locking)return;
       if(nextProfile)player.profile=nextProfile;
       player.vote=true;
       each(room,{type:'rematch_vote',host:room.host.vote,guest:room.guest.vote});
       if(room.host.vote && room.guest?.vote && room.host.peer && room.guest.peer){
-      room.resultRecorded=false;room.matchId=randomUUID();
-      if(room.randomStage)room.stage=pickRandomStage(room.stage);
-      room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
-  room.engine.beginVersusIntro();
-      room.host.mask=0;room.guest.mask=0;
-      room.host.lastSeq=-1;room.guest.lastSeq=-1;
-      room.host.vote=false;room.guest.vote=false;
-      each(room,{type:'rematch',stage:room.stage,p1:room.host.profile,p2:room.guest.profile,rankTrophies:room.ranked?[room.host.trophies||0,room.guest.trophies||0]:undefined});sendState(room);
+      const startRematch=(escrow)=>{
+        room.resultRecorded=false;room.matchId=escrow?.id||randomUUID();room.escrow=escrow;
+        if(room.randomStage)room.stage=pickRandomStage(room.stage);
+        room.engine=new FightEngine(room.host.profile,room.guest.profile,'1P_VS_2P',room.stage,'NORMAL');
+        room.engine.beginVersusIntro();
+        room.host.mask=0;room.guest.mask=0;
+        room.host.lastSeq=-1;room.guest.lastSeq=-1;
+        room.host.vote=false;room.guest.vote=false;
+        each(room,{type:'rematch',stage:room.stage,p1:room.host.profile,p2:room.guest.profile,rankTrophies:room.ranked?[room.host.trophies||0,room.guest.trophies||0]:undefined,wager:escrow?escrow.stake:0});sendState(room);
+      };
+      const stake=room.ranked&&room.wager>0&&economyApi.available()?room.wager:0;
+      if(!stake)startRematch(null);
+      else{
+        const id=randomUUID();room.locking=true;
+        economyApi.lockWager({id,hostId:room.host.accountId,guestId:room.guest.accountId,stake}).then(result=>{
+          room.locking=false;
+          const alive=rooms.has(room.code)&&room.status==='playing'&&room.engine?.roundOver&&room.host.vote&&room.guest?.vote&&room.host.peer&&room.guest?.peer;
+          if(result.ok&&!alive){void economyApi.refundWager(id).catch(error=>console.error('[economy] devolución fallida:',error.message));return;}
+          if(!alive)return;
+          if(!result.ok){room.wager=0;each(room,{type:'error',message:'Revancha sin apuesta: '+wagerReason({...room,wager:stake},result.reason)});lobby(room);startRematch(null);return;}
+          startRematch({id,stake,done:false});
+        }).catch(error=>{
+          room.locking=false;console.error('[economy] revancha sin apuesta:',error.message);
+          if(rooms.has(room.code)&&room.status==='playing'&&room.engine?.roundOver&&room.host.vote&&room.guest?.vote){room.wager=0;each(room,{type:'error',message:'Revancha sin apuesta: no se pudo bloquear.'});lobby(room);startRematch(null);}
+        });
+      }
       }
     };
     if(room.ranked&&nextProfile){
@@ -263,6 +340,7 @@ function leave(peer,explicit=false){
     send(player,{type:'left'});
     if(room.status==='playing'){
       const other=player.role==='host'?room.guest:room.host;
+      resolveAbandoned(room,player);
       send(other,{type:'opponent_left'});
       remove(room);
     } else if(player.role==='host'){
@@ -283,6 +361,7 @@ function cleanup(){
     if(gone.length) {
       if(room.status==='playing') {
         const survivor=room.host.peer?room.host:room.guest?.peer?room.guest:null;
+        resolveAbandoned(room,gone.length===1?gone[0]:null);
         send(survivor,{type:'opponent_left'});remove(room);
       } else if(gone.includes(room.host)){
         send(room.guest,{type:'opponent_left'});remove(room);
@@ -294,4 +373,10 @@ function cleanup(){
   }
 }
 const timer=setInterval(cleanup,1000);timer.unref();
+// Apuestas bloqueadas sin liquidar (reinicio del servidor, fallo de red): se devuelven. Al arrancar no queda ninguna sala en memoria.
+if(economyApi.available()){
+  const sweep=minutes=>economyApi.refundStale(minutes).then(count=>{if(count)console.log(`[economy] ${count} apuestas devueltas`);}).catch(()=>{});
+  setTimeout(()=>sweep(2),6000).unref();
+  setInterval(()=>sweep(45),5*60_000).unref();
+}
 module.exports={handle,closed,leave,rooms,validateProfile,cleanup,pickRandomStage};
