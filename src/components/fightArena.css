@@ -1158,3 +1158,29 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 @keyframes arena-ko-first {0%{opacity:0;transform:translateX(-50%) scale(1.5)}23%,75%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0}}
 @keyframes arena-winner-enter {0%{opacity:0}100%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.arena-ko-first{animation:none;display:none}.arena-win-second,.arena-victory-moment>span{animation:none}}
+
+/* Fase 1 combate · CUBRIR y SALTO con zona táctil cómoda (>= 44-48 px donde cabe)
+   y borde de captura extra. Solo tamaño: no cambia el comportamiento de guardia. */
+.mobile-utility-row > .mobile-guard,
+.mobile-utility-row > .mobile-jump { height: clamp(48px,8dvh,56px); position: relative; }
+.mobile-utility-row > .mobile-guard::before,
+.mobile-utility-row > .mobile-jump::before { content: ''; position: absolute; inset: -5px -3px; }
+.mobile-utility-row > .mobile-guard strong,
+.mobile-utility-row > .mobile-jump strong { font-size: clamp(11px,3vw,14px); }
+@media (orientation: portrait) and (max-width:750px) {
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: 50px; }
+}
+@media (orientation: portrait) and (max-width:345px) {
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: 46px; }
+  .mobile-guard strong { font-size: 11px; }
+}
+@media (orientation: landscape) and (max-height:420px) {
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: clamp(38px,12dvh,46px); }
+}
+@media (orientation: landscape) and (max-height:310px) {
+  .mobile-utility-row > .mobile-guard,
+  .mobile-utility-row > .mobile-jump { height: 34px; }
+}
