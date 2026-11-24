@@ -67,3 +67,22 @@ test('network state carries guardMeter and client tolerates old servers',()=>{
   c.applyNetworkState({...old,frame:old.frame+1});
   assert.equal(c.p1.guardMeter,100,'missing field keeps the default');
 });
+
+test('tap-spamming guard does not make jabs harmless and heavies are never parried',()=>{
+  const run=(slot)=>{
+    const e=make();let parries=0,thrown=0;const hp0=e.p2.hp;
+    for(let f=0;f<600;f++){
+      if(f%12===0){e.queueTouchAction(slot);thrown++;}
+      e.p2Input.guard=(f%6)<2;
+      const before=e.parryBursts.length;
+      e.step();
+      if(e.parryBursts.length>before)parries++;
+      assert.ok(e.p2.guardMeter<=100&&e.p2.guardMeter>=0,'meter stays in 0..100');
+    }
+    return {parries,thrown,lost:hp0-e.p2.hp};
+  };
+  const jab=run('LIGHT');
+  assert.ok(jab.parries<=jab.thrown/4,'spam parries only a minority of jabs: '+JSON.stringify(jab));
+  assert.ok(jab.lost>0,'defender still takes damage while spamming');
+  assert.equal(run('HEAVY').parries,0,'heavy attacks are not parryable');
+});
