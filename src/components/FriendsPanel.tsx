@@ -5,7 +5,7 @@ import type {GameInvitation,PublicFriend,SocialMode,SocialSnapshot} from '../ser
 import {disablePush,enablePush,pushState,type PushSupport} from '../services/pushService';
 import './friends.css';
 
-function PushBlock(){
+export function PushBlock(){
  const [state,setState]=useState<PushSupport|'loading'>('loading');
  const [busy,setBusy]=useState(false);
  const [note,setNote]=useState('');
@@ -66,7 +66,6 @@ export function FriendsPanel({social,error,roomMode,roomRanked,isHost,defaultMod
       <button type="button" disabled={!username.trim()||!!busy} onClick={()=>action('request',async()=>{
        const result=await onRequest(username);setUsername('');setNotice(result==='accepted'?'¡Ahora sois amigos!':result==='already_friends'?'Ya sois amigos':result==='already_sent'?'Solicitud ya enviada':'Solicitud enviada');
       })}><MailPlus size={16}/> AÑADIR</button></div></div>
-    <PushBlock/>
     {social.invitations.length>0&&<section><h3>INVITACIONES · {social.invitations.length}</h3>{social.invitations.map(i=><div className="pb-friend-invite" key={i.id}>
      <strong>{i.sender.display_name} <small>@{i.sender.username}</small></strong><span>{modeLabel(i.battle_mode)} · {i.ranked?'CLASIFICATORIO':'AMISTOSO'}</span>
      <div><button type="button" disabled={!!busy} onClick={()=>action(i.id,()=>onJoin(i))}><Gamepad2 size={15}/> UNIRME</button><button type="button" disabled={!!busy} onClick={()=>action(i.id,()=>onDecline(i.id))}>RECHAZAR</button></div>
