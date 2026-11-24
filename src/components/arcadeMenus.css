@@ -750,3 +750,7 @@
  .pb-daily-info strong{font-size:12px}
  .pb-daily-info small{font-size:8px}
 }
+@media (orientation:portrait){
+ .pb-home-controls{gap:6px}
+ .pb-home-modes{min-height:clamp(150px,20vh,180px)}
+}
