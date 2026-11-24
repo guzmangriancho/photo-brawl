@@ -8,7 +8,7 @@ import {
 import { loadImage } from './SpriteProcessor';
 import { STAGE_ART, getLargeArena } from '../data/stages';
 import { soundFX } from './SoundFX';
-import { drawAttackFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawSuperMeteorsFX, drawProjectileFX, drawHitstopSparkFX, drawParryBurstFX } from './ArcadeVFX';
+import { drawAttackFX, drawNormalAttackFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawSuperMeteorsFX, drawProjectileFX, drawHitstopSparkFX, drawParryBurstFX } from './ArcadeVFX';
 import type { NetworkState, NetworkFighter } from '../network/protocol';
 
 // Visual assets are loaded only in browsers. The authoritative Node combat server
@@ -2736,6 +2736,7 @@ export class FightEngine {
     // Each attack and guard has its own crisp arcade silhouette. Never draw
     // a debug-style rectangle over a fighter during actual gameplay.
     drawAttackFX(ctx, f, this.frameCount);
+    drawNormalAttackFX(ctx, f, this.frameCount);
     drawGuardFX(ctx, f, this.frameCount);
 
     if (f.spriteSheet) {
