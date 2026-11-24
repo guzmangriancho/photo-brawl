@@ -35,3 +35,15 @@ export function PixelCupTotal({trophies}:{trophies:number}){
     </svg>
   </span>;
 }
+
+/** Compact fighter-card plate: league name + pixel cup total, with a thin bar toward the next league. */
+export function LeagueCupPlate({trophies=0}:{trophies?:number}){
+  const league=leagueFor(trophies);
+  return <span className={`pb-league-plate pb-league--${league.key.toLowerCase()}`} title={`${league.label}: ${trophies} copas`}>
+    <span className="pb-league-plate-name"><span aria-hidden="true">◆</span>{league.label}</span>
+    <PixelCupTotal trophies={trophies}/>
+    {league.next!==null&&<span className="pb-league-plate-bar" role="progressbar" aria-label={`Hacia ${leagueFor(league.next).label}`} aria-valuemin={league.min} aria-valuemax={league.next} aria-valuenow={trophies}>
+      <span style={{width:`${leagueProgress(trophies)*100}%`}}/>
+    </span>}
+  </span>;
+}
