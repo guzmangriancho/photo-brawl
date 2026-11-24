@@ -3,7 +3,7 @@ import {
   ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
-  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Upload, ClipboardPaste, UserPlus,
+  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Coins, Upload, ClipboardPaste, UserPlus,
 } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
@@ -31,6 +31,8 @@ import { markCreatorOpen, wasCreatorOpen } from '../services/creatorDraftService
 import { deleteCustomFighter, getGeminiApiKey, setGeminiApiKey, renameCustomFighter, editCustomFighter } from '../services/storageService';
 import { currentUserIsAdmin, syncRenamedFighter, syncFighterArtwork, deleteCloudFighter } from '../services/communityService';
 import { usePlayerAccount } from '../services/usePlayerAccount';
+import { useWallet } from '../services/economyService';
+import { SlotShop } from './SlotShop';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
 import { requestAutomaticMigration } from '../services/automaticFighterMigration';
@@ -99,6 +101,8 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
   const {user:accountUser}=usePlayerAccount();
+  const {wallet,refresh:refreshWallet}=useWallet(accountUser?.id);
+  const [showSlotShop,setShowSlotShop]=useState(false);
   const {social,socialError,refreshSocial}=useFriends(accountUser?.id);
   const [showFriends,setShowFriends]=useState(false);
   const [friendDefault,setFriendDefault]=useState<{mode:SocialMode;ranked:boolean}>({mode:'1V1',ranked:false});
@@ -345,6 +349,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (showSlotShop) { setShowSlotShop(false); return; }
       if (showFriends) { setShowFriends(false); return; }
       if (transferring) { setTransferring(null); return; }
       if (showAccount) { setShowAccount(false); return; }
@@ -358,7 +363,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showUltimate,ultimateLoading, showApiKey, showTutorial, showAccount, transferring, showFriends]);
+  }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showUltimate,ultimateLoading, showApiKey, showTutorial, showAccount, transferring, showFriends, showSlotShop]);
   const startFromHome = () => {
     if (page !== 'HOME') return;
     if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
@@ -459,7 +464,11 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     finally{setRenamingBusy(false);}
   };
   const openKey = () => { setApiKeyInput(getGeminiApiKey()); setShowApiKey(true); soundFX.selectBeep(); };
-  const openCreator = () => { markCreatorOpen(true); setShowCreator(true); soundFX.selectBeep(); };
+  const slotsFull = !!wallet && fighters.length >= wallet.slots;
+  const openCreator = () => {
+    if (slotsFull) { setShowSlotShop(true); soundFX.selectBeep(); return; }
+    markCreatorOpen(true); setShowCreator(true); soundFX.selectBeep();
+  };
   const closeCreator = () => { markCreatorOpen(false); setShowCreator(false); };
   const handleCreated = (created: FighterProfile) => {
     onFighterCreated(created); setP1Id(created.id); setRosterPage(0);
@@ -504,7 +513,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         <button type="button" className={`pb-arcade-button pb-gold pb-select-button ${!featured ? 'pb-create-first' : ''}`} onClick={featured ? () => go('FIGHTERS') : openCreator}><Camera size={18}/>{featured ? 'ELEGIR LUCHADOR' : 'CREAR CON FOTO'}<ChevronRight size={17}/></button>
       </section>
       <section className="pb-home-controls">
-        <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small></div>
+        <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small>{wallet&&<button type="button" className="pb-coin-chip" aria-label={`${wallet.coins} monedas, ${fighters.length} de ${wallet.slots} slots`} onClick={()=>setShowSlotShop(true)}><Coins size={14}/>{wallet.coins}<small>{fighters.length}/{wallet.slots}</small></button>}</div>
         <div className="pb-mode-heading">{featured ? 'ELIGE UN MODO' : 'DESCUBRE LOS MODOS'}</div>
         <div className="pb-home-modes" role="group" aria-label="Modo de juego">
           {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
@@ -520,7 +529,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     {page === 'FIGHTERS' && fighters.length === 0 && <div className="pb-subpage pb-roster-empty-layout pb-page-anim"><section className="pb-frame pb-roster-welcome"><div className="pb-empty-avatar"><Camera size={40}/></div><PanelTitle label="TU COLECCIÓN · 0 LUCHADORES">TU PRIMER LUCHADOR</PanelTitle><p>Cuando crees tu primer personaje aparecerá aquí para elegirlo, ver sus movimientos y jugar con él.</p><button type="button" className="pb-arcade-button pb-gold" onClick={openCreator}><Camera size={18}/> CREAR CON FOTO <ChevronRight size={17}/></button></section></div>}
 
     {page === 'FIGHTERS' && fighters.length > 0 && <div className="pb-subpage pb-roster-layout pb-page-anim">
-      <section className="pb-frame pb-roster-panel"><PanelTitle label={`MIS LUCHADORES · ${fighters.length} CREADOS`}>ELIGE TU LUCHADOR</PanelTitle>
+      <section className="pb-frame pb-roster-panel"><PanelTitle label={wallet?`MIS LUCHADORES · ${fighters.length}/${wallet.slots} SLOTS`:`MIS LUCHADORES · ${fighters.length} CREADOS`}>ELIGE TU LUCHADOR</PanelTitle>
         <div className="pb-portrait-grid">{fighters.slice(rosterPage * 6, rosterPage * 6 + 6).map(f => <div key={f.id} className="pb-portrait-choice-wrap"><button type="button" onClick={() => pickFighter(f)} aria-pressed={f.id === featured?.id} className={`pb-portrait-choice ${f.id === featured?.id ? 'is-active' : ''}`}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span>{f.id === featured?.id && <i><Check size={11}/></i>}</button></div>)}</div>
         <div className="pb-panel-bottom"><div className="pb-pagination"><button type="button" disabled={rosterPage === 0} onClick={() => setRosterPage(rosterPage - 1)} aria-label="Página anterior"><ChevronLeft size={16}/></button><span>{rosterPage + 1} / {rosterPages}</span><button type="button" disabled={rosterPage >= rosterPages - 1} onClick={() => setRosterPage(rosterPage + 1)} aria-label="Página siguiente"><ChevronRight size={16}/></button></div><button type="button" className="pb-mini-button pb-purple" onClick={openCreator}><Camera size={15}/> CREAR CON FOTO</button></div>
       </section>
@@ -588,6 +597,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     <div><button type="button" onClick={()=>acceptIncomingInvite(social.invitations[0])}>UNIRME</button><button type="button" onClick={()=>openFriends()}>VER INVITACIONES</button></div>
     {socialActionError&&<small role="alert">{socialActionError}</small>}
   </div>}
+  {showSlotShop && wallet && <SlotShop wallet={wallet} used={fighters.length} onClose={()=>setShowSlotShop(false)} onBought={()=>{void refreshWallet();}} onCreate={()=>{setShowSlotShop(false);markCreatorOpen(true);setShowCreator(true);}}/>}
   {showAccount && <AccountPanel onClose={()=>setShowAccount(false)} onRestored={onFighterCreated}/>}
   {transferring&&<FighterTransfers fighter={transferring} onClose={()=>setTransferring(null)}/>}
   {showCreator && <FighterCreator onClose={closeCreator} onCreated={handleCreated} />}
