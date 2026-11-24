@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
+  ArrowLeft, BookOpen, CalendarDays, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
   UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Upload, ClipboardPaste, UserPlus,
@@ -15,6 +15,7 @@ import { FriendsPanel } from './FriendsPanel';
 import {useFriends} from '../services/useFriends';
 import {sendFriendRequest,replyFriend,removeFriend,sendGameInvitation,replyGameInvitation,type GameInvitation,type SocialMode} from '../services/friendsService';
 import {notifySocial} from '../services/pushService';
+import {readDaily,loadDailyFighter,dailyTitle,nextMilestone,type DailyState} from '../services/dailyService';
 import {ensureRankedOwnFighter} from '../services/publishedFighters';
 import { CommunityPage } from './CommunityPage';
 import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
@@ -56,6 +57,7 @@ interface CharacterSelectProps {
   onStartMatch: (p1: FighterProfile, p2: FighterProfile, mode: GameMode, stage: StageId, difficulty: CpuDifficulty, extra?: [FighterProfile,FighterProfile]) => void;
   onOnlineMatch: (match: OnlineStart, session: OnlineSession) => void;
   onStartTutorial: (presetId: string) => void;
+  onStartDaily: (p1: FighterProfile, p2: FighterProfile, stage: StageId, day: string) => void;
 }
 const ARCHETYPES: Record<string, string> = {
   RUSHDOWN: 'RÁPIDO / OFENSIVO', GRAPPLER_TANK: 'POTENCIA / AGARRES',
@@ -97,7 +99,7 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
   return <div className="pb-panel-title"><span>{label}</span><h2>{children}</h2></div>;
 }
 
-export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
+export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial, onStartDaily }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
   const {user:accountUser}=usePlayerAccount();
   const {social,socialError,refreshSocial}=useFriends(accountUser?.id);
@@ -121,6 +123,34 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     void ownFighterRanks().then(ranks=>{if(mounted)setOwnCups(ranks);}).catch(()=>{});
     return()=>{mounted=false;};
   },[accountUser?.id,page]);
+  const [daily,setDaily]=useState<DailyState|null>(null);
+  const [dailyFighter,setDailyFighter]=useState<FighterProfile|null>(null);
+  const [dailyBusy,setDailyBusy]=useState(false);
+  const [dailyError,setDailyError]=useState('');
+  useEffect(()=>{
+    if(!accountUser)return;
+    let mounted=true;
+    const load=async()=>{
+      try{
+        const state=await readDaily();
+        if(!mounted)return;
+        setDaily(state);setDailyError('');
+        if(state.available&&state.feature){
+          const fighter=await loadDailyFighter(state.feature).catch(()=>null);
+          if(mounted)setDailyFighter(fighter);
+        }else if(mounted)setDailyFighter(null);
+      }catch(error){if(mounted){setDaily(null);setDailyError(error instanceof Error?error.message:'');}}
+    };
+    void load();
+    const refresh=()=>void load();
+    window.addEventListener('pb-daily-refresh',refresh);
+    return()=>{mounted=false;window.removeEventListener('pb-daily-refresh',refresh);};
+  },[accountUser?.id]);
+  const startDaily=()=>{
+    if(!featured||!daily?.feature||!dailyFighter||dailyBusy)return;
+    setDailyBusy(true);
+    onStartDaily(featured,dailyFighter,daily.feature.stage,daily.feature.day);
+  };
   const [verifiedAdminId,setVerifiedAdminId]=useState<string|null>(null);
   const adminAllowed=Boolean(accountUser?.id && accountUser.id===verifiedAdminId);
   const [showAllFighters,setShowAllFighters]=useState(false);
@@ -512,6 +542,18 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
+        {daily?.available&&daily.feature&&<section className="pb-daily-card pb-frame" aria-label="Combate diario">
+          {dailyFighter&&<div className="pb-daily-art"><FighterPortrait fighter={dailyFighter}/></div>}
+          <div className="pb-daily-info">
+            <span className="pb-daily-kicker"><CalendarDays size={12}/> COMBATE DIARIO{dailyTitle(daily.monthWins)&&<b className="pb-daily-title">{dailyTitle(daily.monthWins)}</b>}</span>
+            <strong>{daily.feature.fighterName}</strong>
+            <small>{STAGE_ART[daily.feature.stage]?.short||''} · {daily.monthWins} VICTORIA{daily.monthWins===1?'':'S'} ESTE MES{nextMilestone(daily.monthWins)?` · SIGUIENTE: ${nextMilestone(daily.monthWins)!.title} (${nextMilestone(daily.monthWins)!.wins})`:' · TÍTULO MÁXIMO DEL MES'}</small>
+          </div>
+          {daily.myResult?.won
+            ?<div className="pb-daily-won" role="status"><Check size={14}/> GANADO</div>
+            :<button type="button" className="pb-mini-button pb-gold pb-daily-play" disabled={!featured||!dailyFighter||dailyBusy} onClick={startDaily}><Swords size={14}/> {daily.myResult?'REINTENTAR':'JUGAR'}</button>}
+        </section>}
+        {dailyError&&page==='HOME'&&<small className="pb-daily-error" role="status">{dailyError}</small>}
         <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
