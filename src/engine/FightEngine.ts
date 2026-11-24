@@ -8,7 +8,7 @@ import {
 import { loadImage } from './SpriteProcessor';
 import { STAGE_ART, getLargeArena } from '../data/stages';
 import { soundFX } from './SoundFX';
-import { drawAttackFX, drawNormalAttackFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawSuperMeteorsFX, drawProjectileFX, drawHitstopSparkFX, drawParryBurstFX } from './ArcadeVFX';
+import { drawAttackFX, drawNormalAttackFX, drawGuardMeterFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawSuperMeteorsFX, drawProjectileFX, drawHitstopSparkFX, drawParryBurstFX } from './ArcadeVFX';
 import type { NetworkState, NetworkFighter } from '../network/protocol';
 
 // Visual assets are loaded only in browsers. The authoritative Node combat server
@@ -27,6 +27,14 @@ function readyStageImage(stage: StageId): HTMLImageElement | null {
 }
 
 export const STAGE_WIDTH = 960;
+
+/** Fase 2 guardia limitada. Valores iniciales a probar, no equilibrio definitivo. */
+export const GUARD_MAX = 100;
+const GUARD_REGEN_PER_FRAME = 0.5;   // solo mientras no se mantiene CUBRIR
+const GUARD_BREAK_STUN = 28;         // ~0.47 s expuesto al romperse
+const GUARD_AFTER_BREAK = 40;        // reserva al recuperarse
+const PARRY_HITSTOP = 9;             // pausa breve del parry (antes 5)
+const PARRY_BURST_LIFE = 16;
 export const STAGE_HEIGHT = 540;
 export const FLOOR_Y = 472;
 const WALL_MARGIN = 64;
@@ -172,6 +180,8 @@ export interface FighterRuntime {
   hp: number;
   maxHp: number;
   meter: number; // 0..100
+  /** Fase 2: reserva de guardia 0..100. Baja al bloquear y sube sola al no cubrirse. */
+  guardMeter: number;
   state: FighterState;
   stateFrame: number;
   hitstunFrames: number;
@@ -355,6 +365,7 @@ export class FightEngine {
       hp: maxHp,
       maxHp,
       meter: this.mode === 'TRAINING' ? 100 : 0,
+      guardMeter: GUARD_MAX,
       state: 'IDLE',
       stateFrame: 0,
       hitstunFrames: 0,
@@ -534,7 +545,7 @@ export class FightEngine {
       lightChainCount:f.lightChainCount,comboCount:f.comboCount,comboDamage:f.comboDamage,
       comboTimer:f.comboTimer,jumpsRemaining:f.jumpsRemaining,airDashUsed:f.airDashUsed,airUpSpecialUsed:f.airUpSpecialUsed,
       hasArmorActive:f.hasArmorActive,currentAttack:f.currentAttack as unknown as Record<string,unknown> | null,
-      grabbedBy:f.grabbedBy,grabSlamTimer:f.grabSlamTimer,
+      grabbedBy:f.grabbedBy,grabSlamTimer:f.grabSlamTimer,guardMeter:f.guardMeter,
     });
     return {
       frame:this.frameCount,snapshot:this.getSnapshot(),p1:fighter(this.p1),p2:fighter(this.p2),
@@ -862,6 +873,7 @@ export class FightEngine {
   protected updateFighter(f: FighterRuntime, opp: FighterRuntime, input: InputState): void {
     f.stateFrame++;
     if (f.invincibleFrames > 0) f.invincibleFrames--;
+    if (!input.guard && f.guardMeter < GUARD_MAX) f.guardMeter = Math.min(GUARD_MAX, f.guardMeter + GUARD_REGEN_PER_FRAME);
 
     if (f.comboTimer > 0) {
       f.comboTimer--;
@@ -1731,6 +1743,32 @@ export class FightEngine {
     }
   }
 
+  /**
+   * Fase 2: cada golpe bloqueado gasta guardia. Al vaciarse se rompe: el golpe
+   * sigue sin hacer dano, pero el defensor queda expuesto un instante.
+   * El muneco del Training no gasta guardia para no romper las lecciones.
+   * Devuelve true si la guardia se rompio.
+   */
+  private drainGuard(attacker: FighterRuntime, defender: FighterRuntime, cost: number, x: number, y: number): boolean {
+    if (this.mode === 'TRAINING' && defender.index === 1) return false;
+    const before = Number.isFinite(defender.guardMeter) ? defender.guardMeter : GUARD_MAX;
+    defender.guardMeter = Math.max(0, before - cost);
+    if (defender.guardMeter > 0) return false;
+    defender.guardMeter = GUARD_AFTER_BREAK;
+    defender.state = 'HURT';
+    defender.stateFrame = 0;
+    defender.blockstunFrames = 0;
+    defender.hitstunFrames = GUARD_BREAK_STUN;
+    defender.vx = attacker.facing * 5;
+    this.hitstopFrames = Math.max(this.hitstopFrames, 8);
+    this.shakeIntensity = Math.max(this.shakeIntensity, 9);
+    soundFX.guardBreak();
+    this.shockwaves.push({ x, y, radius: 14, maxRadius: 90, color: '#fbbf24', alpha: 0.9 });
+    this.spawnHitSparks(x, y, '#fbbf24', 14, attacker.facing);
+    this.addCallout(defender.x, defender.y - 150, 'GUARDIA ROTA', '#fbbf24');
+    return true;
+  }
+
   protected canDamage(_attacker: FighterRuntime, _defender: FighterRuntime): boolean { return true; }
   protected onDamage(_attacker: FighterRuntime, _defender: FighterRuntime, _amount: number): void {}
   public shouldRenderFighter(_fighter:FighterRuntime):boolean {return true;}
@@ -1799,7 +1837,9 @@ export class FightEngine {
     // Interrumpe el jab y deja espacio para que el defensor pueda responder.
     if (atk.slot === 'LIGHT' && validGuard && this.frameCount - defender.blockPressFrame <= 4) {
       soundFX.parry();
-      this.hitstopFrames = 5;
+      this.hitstopFrames = PARRY_HITSTOP;
+      this.shakeIntensity = Math.max(this.shakeIntensity, 5);
+      defender.guardMeter = GUARD_MAX;
       defender.invincibleFrames = 12;
       defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
       defender.stateFrame = 0;
@@ -1812,7 +1852,7 @@ export class FightEngine {
       attacker.hitstunFrames = 18;
       attacker.vx = -attacker.facing * 11;
       this.addMeter(defender, 16);
-      this.parryBursts.push({x: hitX, y: hitY, life: 11, facing: defender.facing});
+      this.parryBursts.push({x: hitX, y: hitY, life: PARRY_BURST_LIFE, facing: defender.facing});
       this.addCallout(defender.x, defender.y - 155, 'PARRY!', '#befaff');
       return;
     }
@@ -1829,7 +1869,9 @@ export class FightEngine {
       this.addMeter(defender, 6);
       this.applyCornerAwarePushback(attacker, defender, atk.pushback * 0.8);
       this.spawnHitSparks(hitX, hitY, '#60a5fa', 10, attacker.facing);
-      this.addCallout(defender.x, defender.y - 140, 'GUARD', '#93c5fd');
+      if (!this.drainGuard(attacker, defender, Math.min(24, Math.max(10, Math.round(atk.damage / 6))), hitX, hitY)) {
+        this.addCallout(defender.x, defender.y - 140, 'GUARD', '#93c5fd');
+      }
       return;
     }
 
@@ -2056,7 +2098,9 @@ export class FightEngine {
         if (validGuard && this.frameCount - defender.blockPressFrame <= 4) {
           soundFX.parry();
           this.addMeter(defender, 15);
-          this.parryBursts.push({x:p.x,y:p.y,life:11,facing:defender.facing});
+          this.hitstopFrames = Math.max(this.hitstopFrames, PARRY_HITSTOP - 2);
+          defender.guardMeter = GUARD_MAX;
+          this.parryBursts.push({x:p.x,y:p.y,life:PARRY_BURST_LIFE,facing:defender.facing});
           this.addCallout(defender.x, defender.y - 150, 'PARRY!', '#38bdf8');
           this.projectiles.splice(i, 1);
           continue;
@@ -2069,6 +2113,7 @@ export class FightEngine {
           defender.blockstunFrames = 7;
           this.applyCornerAwarePushback(attacker, defender, 8);
           this.spawnHitSparks(p.x, p.y, '#60a5fa', 10);
+          this.drainGuard(attacker, defender, Math.min(18, Math.max(8, Math.ceil(p.damage / 8))), p.x, p.y);
           this.projectiles.splice(i, 1);
           continue;
         }
@@ -2738,6 +2783,7 @@ export class FightEngine {
     drawAttackFX(ctx, f, this.frameCount);
     drawNormalAttackFX(ctx, f, this.frameCount);
     drawGuardFX(ctx, f, this.frameCount);
+    drawGuardMeterFX(ctx, f, this.frameCount);
 
     if (f.spriteSheet) {
       ctx.save();
