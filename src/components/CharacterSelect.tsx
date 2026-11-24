@@ -16,7 +16,7 @@ import {useFriends} from '../services/useFriends';
 import {sendFriendRequest,replyFriend,removeFriend,sendGameInvitation,replyGameInvitation,type GameInvitation,type SocialMode} from '../services/friendsService';
 import {ensureRankedOwnFighter} from '../services/publishedFighters';
 import { CommunityPage } from './CommunityPage';
-import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
+import {LeagueFrame,LeagueBadge,LeagueCupPlate} from './LeagueEmblem';
 import {ownFighterRanks} from '../services/progressionService';
 import { AccountPanel } from './AccountPanel';
 import { FavoriteButton } from './FavoriteButton';
@@ -495,7 +495,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
 
     {page === 'HOME' && <div className="pb-home pb-page-anim">
       <section className="pb-featured pb-frame" aria-label="Luchador seleccionado">
-        <div className="pb-featured-kicker">TU LUCHADOR {featured&&<LeagueBadge trophies={ownCups[featured.id]?.trophies??0}/>}</div>
+        <div className="pb-featured-kicker"><span className="pb-featured-label">TU LUCHADOR</span>{featured&&<LeagueCupPlate trophies={ownCups[featured.id]?.trophies??0}/>}</div>
         {featured ? <>
           <h1 className="pb-featured-name">{featured.fighterName}</h1>
           <div className="pb-featured-art"><div className="pb-halo"/><div className="pb-fighter-stand pb-fighter-idle" role="img" aria-label={`Animación idle de ${featured.fighterName}`} style={{ backgroundImage: `url("${featured.spriteSheetDataUrl}")` }}/></div>
