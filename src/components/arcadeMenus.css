@@ -739,9 +739,9 @@
 .pb-home-controls::-webkit-scrollbar{display:none}
 .pb-home-modes{min-height:clamp(144px,34vh,240px)}
 @media (orientation:landscape) and (max-height:430px){
- .pb-home-brand>span{font-size:clamp(22px,3.6vw,28px)}
+ .pb-home-brand>span{font-size:clamp(20px,3.2vw,24px)}
  .pb-mode-heading{font-size:8px;margin:0}
- .pb-home-controls{gap:4px}
+ .pb-home-controls{gap:3px}
  .pb-home-footer button{min-height:22px}
  .pb-match-option{min-height:30px;padding:2px 8px}
  .pb-start{min-height:34px;font-size:20px}
@@ -749,8 +749,8 @@
  .pb-daily-art{width:34px;height:34px}
  .pb-daily-info{gap:0}
  .pb-daily-kicker{font-size:8px}
- .pb-daily-info strong{font-size:12px}
- .pb-daily-info small{font-size:8px}
+ .pb-daily-info strong{font-size:12px;line-height:1.15}
+ .pb-daily-info small{font-size:8px;line-height:1.2}
 }
 @media (orientation:portrait){
  .pb-home-controls{gap:6px}
