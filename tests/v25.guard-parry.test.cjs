@@ -71,7 +71,7 @@ test('perfect guard of jab interrupts opponent, pushes backward, and produces a 
  assert.ok(e.p1.vx<0,'knockback is away from the defender');
  assert.equal(e.p2.hp,e.p2.maxHp);
  assert.ok(e.parryBursts.length>0);
- assert.equal(e.parryBursts[0].life,10);
+ assert.equal(e.parryBursts[0].life,15);
  step(e,16);assert.ok(e.p1.x<x-15);
 });
 
@@ -134,7 +134,7 @@ test('parry effect and cooldown are synchronized by online snapshot', () => {
  const client=make();client.applyNetworkState(wire);
  assert.equal(client.p1.state,'HURT');
  assert.equal(client.parryBursts.length,1);
- assert.equal(client.parryBursts[0].life,10);
+ assert.equal(client.parryBursts[0].life,15);
 });
 
 test('mobile touch controls and keyboard each expose an independent guard button', () => {
