@@ -326,8 +326,10 @@ export async function deleteCloudFighter(localId:string):Promise<void> {
   const entry=await cloudEntry(localId);
   if(!entry)return;
   const db=needDb();
-  const {error}=await db.from('fighters').delete().eq('id',entry.id).eq('owner_id',entry.owner_id);
+  const {data,error}=await db.from('fighters').delete().eq('id',entry.id).eq('owner_id',entry.owner_id).select('id');
   if(error)throw error;
+  // RLS can reject a delete without an error: never report success when no row was removed.
+  if(!data?.length)throw new Error('No se pudo borrar el luchador de tu cuenta. Inténtalo de nuevo.');
   const privatePaths=[entry.private_portrait_path,entry.private_sheet_path];
   await db.storage.from('fighter-private').remove(privatePaths);
   const publicPaths=[entry.public_portrait_path,entry.public_sheet_path].filter((v):v is string=>Boolean(v));
