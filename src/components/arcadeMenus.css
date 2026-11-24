@@ -743,6 +743,8 @@
  .pb-mode-heading{font-size:8px;margin:0}
  .pb-home-controls{gap:4px}
  .pb-home-footer button{min-height:22px}
+ .pb-match-option{min-height:30px;padding:2px 8px}
+ .pb-start{min-height:34px;font-size:20px}
  .pb-daily-card{padding:4px 8px;gap:8px}
  .pb-daily-art{width:34px;height:34px}
  .pb-daily-info{gap:0}
