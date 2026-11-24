@@ -732,19 +732,15 @@
 .pb-daily-error{display:block;margin-top:6px;font-size:10px;opacity:.7}
 
 
-/* V58.1 · Corrección móvil: la tira del combate diario restaba alto a los modos en
-   pantallas bajas y se solapaban; ahora conservan un alto mínimo y la columna se
-   desplaza suavemente solo cuando no cabe todo. */
+/* V58.1 · Inicio sin scroll: sin subtítulo ni botón de opciones, la columna cabe
+   entera; el alto mínimo de la rejilla evita que los modos se aplasten y el scroll
+   solo queda como red de seguridad en pantallas aún más bajas. */
 .pb-home-controls{overflow-y:auto;scrollbar-width:none}
 .pb-home-controls::-webkit-scrollbar{display:none}
-.pb-home-modes{min-height:clamp(144px,34vh,240px)}
+.pb-home-modes{min-height:clamp(180px,44vh,240px)}
 @media (orientation:landscape) and (max-height:430px){
- .pb-home-brand>span{font-size:clamp(20px,3.2vw,24px)}
- .pb-mode-heading{font-size:8px;margin:0}
- .pb-home-controls{gap:3px}
- .pb-home-footer button{min-height:22px}
- .pb-match-option{min-height:30px;padding:2px 8px}
- .pb-start{min-height:34px;font-size:20px}
+ .pb-home-controls{gap:4px}
+ .pb-home-footer button{min-height:26px}
  .pb-daily-card{padding:4px 8px;gap:8px}
  .pb-daily-art{width:34px;height:34px}
  .pb-daily-info{gap:0}
@@ -754,5 +750,5 @@
 }
 @media (orientation:portrait){
  .pb-home-controls{gap:6px}
- .pb-home-modes{min-height:clamp(150px,20vh,180px)}
+ .pb-home-modes{min-height:clamp(160px,24vh,220px)}
 }
