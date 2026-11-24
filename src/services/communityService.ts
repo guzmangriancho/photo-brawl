@@ -249,7 +249,11 @@ export async function backupMissingLocalFighters(fighters:FighterProfile[],onPro
         }
         existing++;
       }else{await saveFighterCloud(fighter);uploaded++;}
-    }catch(error){failed.push(`${fighter.fighterName}: ${error instanceof Error?error.message:'No se pudo guardar'}`);}
+    }catch(error){
+      const detail=error as {hint?:string;message?:string};
+      const slotsFull=detail?.hint==='SLOTS_FULL';
+      failed.push(`${slotsFull?'[SLOTS_FULL] ':''}${fighter.fighterName}: ${detail?.message||'No se pudo guardar'}`);
+    }
     onProgress?.(i+1,fighters.length);
   }
   return {uploaded,existing,failed};

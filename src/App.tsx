@@ -81,7 +81,7 @@ export function App() {
     });
     void promise.then(report=>{
       if(active)setStartup({uid:user.id,phase:'ready',error:'',
-        warning:report.failed.length?`No se pudieron recuperar ${report.failed.length} luchadores de la nube: ${report.failed[0]}. Vuelve a intentarlo desde CUENTA → MIS COPIAS.`:''});
+        warning:report.pendingSlots?`${report.pendingSlots} luchadores siguen solo en este móvil por falta de slots. No se han borrado. Abre el monedero para comprar espacio y después CUENTA → COMPROBAR SINCRONIZACIÓN.`:report.failed.length?`No se pudieron recuperar ${report.failed.length} luchadores de la nube: ${report.failed[0]}. Vuelve a intentarlo desde CUENTA → MIS COPIAS.`:''});
     }).catch(error=>{
       if(active)setStartup({uid:user.id,phase:'error',error:error instanceof Error?error.message:String(error),warning:''});
     });

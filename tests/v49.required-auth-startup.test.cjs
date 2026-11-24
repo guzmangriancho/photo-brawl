@@ -7,7 +7,7 @@ const ts=require('typescript');
 const root=path.resolve(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 
-function serviceHarness({phase='synced',failed=[],cloudFighters=[{id:'from_cloud'}]}={}){
+function serviceHarness({phase='synced',migrationErrors=[],failed=[],cloudFighters=[{id:'from_cloud'}]}={}){
   const events=[];
   let uid='account_A';
   let releaseSync;
@@ -16,7 +16,7 @@ function serviceHarness({phase='synced',failed=[],cloudFighters=[{id:'from_cloud
   const restoreGate=new Promise(resolve=>releaseRestore=resolve);
   const mock={
     './supabaseClient':{supabase:{auth:{async getUser(){events.push('verify:'+uid);return {data:{user:uid?{id:uid}:null},error:null};}}}},
-    './automaticFighterMigration':{async runAutomaticMigrationNow(expected){events.push('sync:'+expected);await syncGate;return {phase,message:'La colección pertenece a otra cuenta.'};}},
+    './automaticFighterMigration':{async runAutomaticMigrationNow(expected){events.push('sync:'+expected);await syncGate;return {phase,errors:migrationErrors,message:'La colección pertenece a otra cuenta.'};}},
     './communityService':{async restoreCloudFightersReport(){events.push('restore');await restoreGate;return {fighters:cloudFighters,failed};}},
     './storageService':{async mergeCustomFighters(rows){events.push('merge:'+rows.map(f=>f.id).join(','));return {added:rows,updated:[],conflicts:0,unchanged:0};}},
   };
@@ -103,4 +103,19 @@ test('V49 can start a new run on a subsequent open, and PWA shell cache is versi
   await second.promise;
   assert.equal(h.events.filter(e=>e==='restore').length,2);
   assert.match(read('public/sw.js'),/pb-shell-v\d+[\w-]*/);
+});
+
+
+test('slot-only pending uploads preserve local fighters and allow access to the shop',async()=>{
+  const h=serviceHarness({phase:'error',migrationErrors:['[SLOTS_FULL] QA: Sin espacio']});
+  const {promise}=h.svc.startStartupCloudRestore('account_A',()=>{});
+  h.releaseSync();await tick();h.releaseRestore();
+  assert.equal((await promise).pendingSlots,1);
+  assert.ok(h.events.includes('merge:from_cloud'));
+});
+test('mixed slot and network upload failures still stop startup',async()=>{
+  const h=serviceHarness({phase:'error',migrationErrors:['[SLOTS_FULL] QA: Sin espacio','Connection failed']});
+  const {promise}=h.svc.startStartupCloudRestore('account_A',()=>{});
+  h.releaseSync();await assert.rejects(promise,/otra cuenta/);
+  assert.ok(!h.events.includes('restore'));
 });

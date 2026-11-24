@@ -10,7 +10,7 @@ import {restoreCloudFightersReport} from './communityService';
 import {mergeCustomFighters} from './storageService';
 
 export type StartupCloudPhase='checking'|'restoring';
-export type StartupCloudResult={restored:number;updated:number;failed:string[]};
+export type StartupCloudResult={restored:number;updated:number;failed:string[];pendingSlots?:number};
 type ProgressListener=(phase:StartupCloudPhase)=>void;
 type ActiveRun={uid:string;phase:StartupCloudPhase;listeners:Set<ProgressListener>;promise:Promise<StartupCloudResult>};
 let activeRun:ActiveRun|null=null;
@@ -41,7 +41,12 @@ export function startStartupCloudRestore(uid:string,onProgress:ProgressListener)
 
     notify(run,'checking');
     const migration=await runAutomaticMigrationNow(uid);
-    if(migration.phase!=='synced')throw new Error(migration.message);
+    // A cached old client can have saved extra local fighters before slots existed.
+    // Keep those originals and let the player reach the shop, without ignoring
+    // account/network failures or pretending the pending copies are in the cloud.
+    const pendingSlots=migration.phase==='error' && migration.errors?.length>0 &&
+      migration.errors.every(error=>error.startsWith('[SLOTS_FULL] ')) ? migration.errors.length : 0;
+    if(migration.phase!=='synced'&&!pendingSlots)throw new Error(migration.message);
 
     // Always restore AFTER the previous synchronization has completed.
     notify(run,'restoring');
@@ -53,7 +58,7 @@ export function startStartupCloudRestore(uid:string,onProgress:ProgressListener)
     const merged=await mergeCustomFighters(cloud.fighters);
     // Individual corrupt/missing cloud assets are reported, but other fighters
     // remain accessible: a single failed image must not permanently lock play.
-    return {restored:merged.added.length,updated:merged.updated.length,failed:cloud.failed};
+    return {restored:merged.added.length,updated:merged.updated.length,failed:cloud.failed,pendingSlots};
   })().finally(()=>{if(activeRun===run)activeRun=null;});
   return {promise:run.promise,unsubscribe:()=>run.listeners.delete(onProgress)};
 }
