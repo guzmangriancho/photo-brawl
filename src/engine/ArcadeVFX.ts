@@ -240,6 +240,45 @@ export function drawAttackFX(ctx: CanvasRenderingContext2D, f: FighterRuntime, f
   ctx.restore();
 }
 
+
+/**
+ * Fase 1 combate: lectura de golpes normales. Solo dibujo (sin RNG ni cambios
+ * de estado): aviso corto durante el arranque de golpes fuertes y estela
+ * durante los fotogramas activos. Color por altura: medio rojo, bajo cian,
+ * alto naranja. Los jabs (LIGHT) no avisan porque arrancan en 3-5 fotogramas.
+ */
+export function drawNormalAttackFX(ctx: CanvasRenderingContext2D, f: FighterRuntime, frame: number): void {
+  const a=f.currentAttack;
+  if (f.state!=='ATTACK'||!a)return;
+  const normal=a.slot==='LIGHT'||a.slot==='HEAVY'||a.slot==='RUSH'||a.slot==='LOW';
+  const tellable=normal&&a.slot!=='LIGHT' || a.slot==='SP_NEUTRAL'||a.slot==='SP_FORWARD'||a.slot==='SP_UP';
+  const color=a.height==='LOW'?'#67e8f9':a.height==='OVERHEAD'?'#fb923c':'#fb7185';
+  const heavy=a.slot==='HEAVY'||a.slot==='RUSH';
+  const y=a.height==='LOW'?-26:a.height==='OVERHEAD'?-120:-78;
+  if (f.stateFrame<a.startup){
+    if(!tellable||a.startup<6)return;
+    const t=clamp(f.stateFrame/Math.max(1,a.startup),0,1);
+    ctx.save();ctx.translate(Q(f.x),Q(f.y));ctx.scale(f.facing,1);
+    ctx.globalAlpha=.55+.35*t;
+    const r=Q(10+t*10);
+    diamond(ctx,Q(34),y,r,color);
+    diamond(ctx,Q(34),y,Q(r*.45),'#ffffff');
+    streak(ctx,Q(52),y-8,Q(14+t*10),0,1.5,'#ffffff');
+    streak(ctx,Q(52),y+8,Q(14+t*10),0,1.5,'#ffffff');
+    ctx.restore();
+    return;
+  }
+  if(!normal||f.stateFrame>=a.startup+a.active)return;
+  const k=clamp((f.stateFrame-a.startup)/Math.max(1,a.active),0,1);
+  const len=Q((heavy?96:70)+k*22);
+  const w=heavy?7:4;
+  ctx.save();ctx.translate(Q(f.x),Q(f.y));ctx.scale(f.facing,1);
+  ctx.globalAlpha=clamp(.95-k*.55,.3,.95);
+  streak(ctx,Q(26),y,len,a.height==='OVERHEAD'?Q(24):a.height==='LOW'?-Q(8):-Q(14),w,color);
+  streak(ctx,Q(30),y,Q(len*.8),a.height==='OVERHEAD'?Q(20):a.height==='LOW'?-Q(6):-Q(11),w*.4,'#ffffff');
+  ctx.restore();
+}
+
 /** Slim angular parry/block shield in front of the actual sprite. */
 export function drawGuardFX(ctx: CanvasRenderingContext2D, f: FighterRuntime, frame: number):void {
   if (f.state!=='BLOCK_STAND'&&f.state!=='BLOCK_CROUCH')return;
