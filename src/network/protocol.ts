@@ -14,6 +14,8 @@ export interface RoomView {
   /** When enabled, the server rolls a new arena for every match/rematch. */
   randomStage?: boolean;
   ranked?: boolean;
+  /** Apuesta virtual por jugador en clasificatorias 1 vs 1 (0 = sin apuesta). */
+  wager?: number;
   battleMode?: GroupBattleMode;
   slot?: number;
   maxPlayers?: number;
@@ -65,6 +67,14 @@ export interface OnlineStart {
   fighters?: FighterProfile[];
   rankTrophies?: number[];
   slot?: number;
+}
+export interface EconomyResult {
+  group?: boolean;
+  winner?: PlayerRole;
+  stake?: number;
+  host?: { reward: number; wager: number; balance: number };
+  guest?: { reward: number; wager: number; balance: number };
+  players?: { seat: number; reward: number; balance: number }[];
 }
 export interface OnlineIncoming {
   type: string;
