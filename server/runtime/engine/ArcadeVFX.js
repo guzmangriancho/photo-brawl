@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.drawAttackFX = drawAttackFX;
+exports.drawNormalAttackFX = drawNormalAttackFX;
 exports.drawGuardFX = drawGuardFX;
 exports.drawSuperFlashFX = drawSuperFlashFX;
 exports.drawShockwaveFX = drawShockwaveFX;
@@ -11,6 +12,7 @@ exports.drawSuperMeteorsFX = drawSuperMeteorsFX;
 exports.drawProjectileFX = drawProjectileFX;
 exports.drawHitstopSparkFX = drawHitstopSparkFX;
 exports.drawParryBurstFX = drawParryBurstFX;
+exports.drawGuardMeterFX = drawGuardMeterFX;
 const Q = (v) => Math.round(v / 2) * 2;
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -281,6 +283,50 @@ function drawAttackFX(ctx, f, frame) {
     }
     ctx.restore();
 }
+/**
+ * Fase 1 combate: lectura de golpes normales. Solo dibujo (sin RNG ni cambios
+ * de estado): aviso corto durante el arranque de golpes fuertes y estela
+ * durante los fotogramas activos. Color por altura: medio rojo, bajo cian,
+ * alto naranja. Los jabs (LIGHT) no avisan porque arrancan en 3-5 fotogramas.
+ */
+function drawNormalAttackFX(ctx, f, frame) {
+    const a = f.currentAttack;
+    if (f.state !== 'ATTACK' || !a)
+        return;
+    const normal = a.slot === 'LIGHT' || a.slot === 'HEAVY' || a.slot === 'RUSH' || a.slot === 'LOW';
+    const tellable = normal && a.slot !== 'LIGHT' || a.slot === 'SP_NEUTRAL' || a.slot === 'SP_FORWARD' || a.slot === 'SP_UP';
+    const color = a.height === 'LOW' ? '#67e8f9' : a.height === 'OVERHEAD' ? '#fb923c' : '#fb7185';
+    const heavy = a.slot === 'HEAVY' || a.slot === 'RUSH';
+    const y = a.height === 'LOW' ? -26 : a.height === 'OVERHEAD' ? -120 : -78;
+    if (f.stateFrame < a.startup) {
+        if (!tellable || a.startup < 6)
+            return;
+        const t = clamp(f.stateFrame / Math.max(1, a.startup), 0, 1);
+        ctx.save();
+        ctx.translate(Q(f.x), Q(f.y));
+        ctx.scale(f.facing, 1);
+        ctx.globalAlpha = .55 + .35 * t;
+        const r = Q(10 + t * 10);
+        diamond(ctx, Q(34), y, r, color);
+        diamond(ctx, Q(34), y, Q(r * .45), '#ffffff');
+        streak(ctx, Q(52), y - 8, Q(14 + t * 10), 0, 1.5, '#ffffff');
+        streak(ctx, Q(52), y + 8, Q(14 + t * 10), 0, 1.5, '#ffffff');
+        ctx.restore();
+        return;
+    }
+    if (!normal || f.stateFrame >= a.startup + a.active)
+        return;
+    const k = clamp((f.stateFrame - a.startup) / Math.max(1, a.active), 0, 1);
+    const len = Q((heavy ? 96 : 70) + k * 22);
+    const w = heavy ? 7 : 4;
+    ctx.save();
+    ctx.translate(Q(f.x), Q(f.y));
+    ctx.scale(f.facing, 1);
+    ctx.globalAlpha = clamp(.95 - k * .55, .3, .95);
+    streak(ctx, Q(26), y, len, a.height === 'OVERHEAD' ? Q(24) : a.height === 'LOW' ? -Q(8) : -Q(14), w, color);
+    streak(ctx, Q(30), y, Q(len * .8), a.height === 'OVERHEAD' ? Q(20) : a.height === 'LOW' ? -Q(6) : -Q(11), w * .4, '#ffffff');
+    ctx.restore();
+}
 /** Slim angular parry/block shield in front of the actual sprite. */
 function drawGuardFX(ctx, f, frame) {
     if (f.state !== 'BLOCK_STAND' && f.state !== 'BLOCK_CROUCH')
@@ -480,15 +526,27 @@ function drawHitstopSparkFX(ctx, particles, hitstopFrames) {
 }
 /** 11-frame parry spark: tiny 16-bit light explosion with sharp 4px pixels. */
 function drawParryBurstFX(ctx, burst) {
-    const age = 11 - burst.life;
+    const total = 16;
+    const age = Math.max(0, total - burst.life);
     const radius = 10 + age * 4;
     const x = Math.round(burst.x / 4) * 4;
     const y = Math.round(burst.y / 4) * 4;
     ctx.save();
-    ctx.globalAlpha = Math.max(0, burst.life / 11);
+    ctx.globalAlpha = Math.max(0, Math.min(1, burst.life / 11));
+    // Fase 2: aro doble que se expande + destello al inicio, ademas de la cruz.
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.round(radius * 1.5), 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = '#7de6ff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.round(radius * 0.9), 0, TAU);
+    ctx.stroke();
     // A small bright center + rectangular cross and four diagonal sparks.
-    ctx.fillStyle = age < 4 ? '#ffffff' : '#d5ffff';
-    const core = Math.max(4, 16 - age);
+    ctx.fillStyle = age < 5 ? '#ffffff' : '#d5ffff';
+    const core = Math.max(4, 20 - age);
     ctx.fillRect(x - core / 2, y - core / 2, core, core);
     ctx.fillStyle = '#7de6ff';
     ctx.fillRect(x - radius, y - 4, radius * 2, 8);
@@ -500,5 +558,34 @@ function drawParryBurstFX(ctx, burst) {
         ctx.fillRect(x + direction * Math.round(radius * .65), y - Math.round(radius * .65), 8, 8);
         ctx.fillRect(x + direction * Math.round(radius * .65), y + Math.round(radius * .65), 8, 8);
     }
+    ctx.restore();
+}
+/**
+ * Fase 2: barra de guardia pixelada sobre el luchador. Solo aparece cuando la
+ * reserva no esta llena (o mientras se cubre), para no ensuciar la pantalla.
+ * Si el servidor no envia guardMeter, no se dibuja nada.
+ */
+function drawGuardMeterFX(ctx, f, frame) {
+    const g = f.guardMeter;
+    if (typeof g !== 'number' || !Number.isFinite(g))
+        return;
+    const blocking = f.state === 'BLOCK_STAND' || f.state === 'BLOCK_CROUCH';
+    if ((g >= 99.5 && !blocking) || f.state === 'KO')
+        return;
+    const w = 56, h = 8;
+    const x = Q(f.x - w / 2);
+    const y = Q(f.y - f.hurtbox.height - 26);
+    const k = Math.max(0, Math.min(1, g / 100));
+    const low = k < 0.25;
+    ctx.save();
+    ctx.globalAlpha = low && frame % 8 < 4 ? 0.55 : 0.95;
+    ctx.fillStyle = '#0a1426';
+    ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.fillStyle = '#26354f';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = k > 0.5 ? '#60a5fa' : k > 0.25 ? '#fbbf24' : '#f87171';
+    ctx.fillRect(x, y, Math.round(w * k), h);
+    ctx.fillStyle = '#ffffff66';
+    ctx.fillRect(x, y, Math.round(w * k), 2);
     ctx.restore();
 }
