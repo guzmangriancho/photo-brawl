@@ -1537,7 +1537,7 @@ class FightEngine {
         SoundFX_1.soundFX.guardBreak();
         this.shockwaves.push({ x, y, radius: 14, maxRadius: 90, color: '#fbbf24', alpha: 0.9 });
         this.spawnHitSparks(x, y, '#fbbf24', 14, attacker.facing);
-        this.addCallout(defender.x, defender.y - 150, 'GUARDIA ROTA', '#fbbf24');
+        this.addCallout(Math.max(120, Math.min(exports.STAGE_WIDTH - 120, defender.x)), defender.y - 150, 'GUARDIA ROTA', '#fbbf24'); // sin recorte en los bordes
         return true;
     }
     canDamage(_attacker, _defender) { return true; }
