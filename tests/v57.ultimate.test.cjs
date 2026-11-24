@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('fs');
 const vm=require('vm');
 const path=require('path');
-const ts=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript');
+const ts=require('typescript');
 const root=path.resolve(__dirname,'..');
 const source=name=>fs.readFileSync(path.join(root,name),'utf8');
 function loadService(file,mocks){
