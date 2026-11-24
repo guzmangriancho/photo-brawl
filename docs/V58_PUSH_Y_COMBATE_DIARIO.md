@@ -54,3 +54,13 @@ Aplicar `supabase/migrations/202611240002_v58_daily_battles.sql` en el SQL Edito
 ## Pruebas
 
 `npm run test:v58` — contratos de servidor push, RLS, determinismo del día, coherencia de resultados, hitos ≤28 y cableado UI.
+
+## Revertir
+
+Los 23 commits de V58 en `main` son independientes por archivo. Para revertir solo una novedad:
+
+- **Avisos push (10 commits)**: `V58: dependencia web-push para avisos`, `V58: servidor de avisos Web Push (web-push, VAPID por entorno)`, `V58: endpoints de avisos push en el servidor`, `V58: lockfile con web-push`, `V58: tabla pb_push_subscriptions con RLS (escrituras solo rol servicio)`, `V58: cliente push (suscripcion y envio al servidor)`, `V58: service worker muestra avisos push`, `V58: estilos del boton de avisos en Amigos`, `V58: opt-in de avisos push en Amigos + avisos de solicitud, invitacion y aceptacion`, `V58: aviso push al aceptar combate (selector)`. Tras revertir, borra las variables `VAPID_*` en Render; la tabla `pb_push_subscriptions` puede quedar sin uso.
+- **Combate diario (6 commits)**: `V58: combate diario comunitario (seleccion determinista, primera victoria, reintentos)`, `V58: cliente de combate diario`, `V58: modo diario en arena (reintentos, snapshot de victoria)`, `V58: estilos tarjeta combate diario`, `V58: tarjeta de combate diario en Inicio con hitos cosmeticos del mes`, `V58: cableado del combate diario en App`. La tabla del combate diario puede quedar sin uso.
+- **Pruebas y documentación (7 commits)**: `Tests: v57 resuelve typescript desde node_modules local (portabilidad)` (independiente de V58), `Tests: v15 soporta servicios nuevos en el harness`, `Tests: v50 admite nuevo nombre de cache del SW`, `Tests: v52 admite nuevo nombre de cache del SW`, `V58: pruebas de contrato (push + diario)`, `V58: documentacion de avisos push y combate diario`, `V58: scripts y metadatos de pruebas v58`.
+
+Orden recomendado: revierte primero los commits de cliente y después los de servidor/SQL de la misma novedad, para que la app nunca llame a rutas retiradas. En `CharacterSelect.tsx` el commit del combate diario sustituye al de avisos push: revertir solo el diario restaura la versión con avisos.
