@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Coins, ChevronLeft, ChevronRight, Copy, Gamepad2, Globe2, Link, Loader2, ShieldCheck, UsersRound, Wifi, X, UserPlus } from 'lucide-react';
 import type { FighterProfile, StageId, GroupBattleMode } from '../types/fighter';
+import { WAGER_STEPS, useWallet } from '../services/economyService';
 import { STAGE_ART, STAGE_IDS, LARGE_ARENA_IDS } from '../data/stages';
 import type { RoomView } from '../network/protocol';
 import { OnlineSession } from '../network/OnlineSession';
@@ -9,6 +10,7 @@ import { supabaseConfigured } from '../services/supabaseClient';
 import { PublishedFighterPicker } from './PublishedFighterPicker';
 import { ensureRankedOwnFighter } from '../services/publishedFighters';
 import './online.css';
+import './economy.css';
 
 interface Props {
   fighter: FighterProfile|null; fighters: FighterProfile[]; stage: StageId;
@@ -27,6 +29,7 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
   const [fighterPage,setFighterPage]=useState(0);
   const [source,setSource]=useState<'OWN'|'PUBLIC'>('OWN');
   const {user}=usePlayerAccount();
+  const {wallet}=useWallet(user?.id);
   useEffect(()=>{
     if(room?.status!=='countdown'||!room.countdownEndsAt)return;
     const update=()=>setRemaining(Math.max(1,Math.ceil((room.countdownEndsAt!-Date.now())/1000)));
@@ -127,6 +130,13 @@ export function OnlineLobby({fighter,fighters,stage,session,room,externalError,o
         {room.role==='guest' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
         {room.role==='host' && room.status!=='waiting' && <div className="pb-online-stage-current"><span>ESCENARIO</span><strong>{room.randomStage?'ALEATORIO · CAMBIA EN CADA REVANCHA':STAGE_ART[room.stage].name}</strong></div>}
         {room.status==='countdown' && <div className="pb-online-countdown" role="status" aria-live="off"><span>PREPARADOS · A COMBATIR</span><strong>{remaining}</strong><small>INICIO AUTOMÁTICO</small></div>}
+        {room.ranked&&!room.battleMode&&wallet&&(room.role==='host'||(room.wager??0)>0)&&<div className="pb-online-wager"><span><Coins size={13}/> APUESTA</span>
+          {room.role==='host'&&room.status==='waiting'
+            ?<div className="pb-online-wager-steps" role="group" aria-label="Apuesta en monedas">{WAGER_STEPS.map(n=><button key={n} type="button" className={(room.wager??0)===n?'on':''} aria-pressed={(room.wager??0)===n} disabled={n>wallet.coins} onClick={()=>session?.wager(n)}>{n===0?'NO':n}</button>)}</div>
+            :<strong>{(room.wager??0)>0?`${room.wager} MONEDAS CADA UNO · EL GANADOR SE LLEVA ${(room.wager??0)*2}`:'SIN APUESTA'}</strong>}
+          {room.role==='guest'&&(room.wager??0)>wallet.coins&&<small>NO TIENES MONEDAS SUFICIENTES PARA ACEPTAR</small>}
+          {room.role==='guest'&&(room.wager??0)>0&&(room.wager??0)<=wallet.coins&&<small>AL PULSAR LISTO ACEPTAS LA APUESTA</small>}
+        </div>}
         <div className="pb-online-ready-actions"><button type="button" className={myReady?'is-ready':''} onClick={()=>session?.ready(!myReady)}><Check size={17}/> {room.status==='countdown'?'CANCELAR':myReady?'ESTOY LISTO ✓':'ESTOY LISTO'}</button><button type="button" onClick={onClose}><ArrowLeft size={16}/> VOLVER AL MENÚ</button></div>
 
         <button className="pb-online-leave" type="button" onClick={()=>{session?.close();onSession(null);}}>ABANDONAR SALA</button>
