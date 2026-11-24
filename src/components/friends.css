@@ -21,3 +21,11 @@
 .pb-push-block>button{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.08em;font-weight:700;padding:8px 14px;border:2px solid rgba(247,201,72,.6);background:rgba(247,201,72,.12);color:inherit;border-radius:4px;cursor:pointer}
 .pb-push-block>button:disabled{opacity:.45;cursor:default}
 .pb-push-on{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.1em;color:#7ee787;font-weight:700}
+
+/* V59.5 · Amigos: lista a dos columnas en horizontal y confirmación de invitación */
+.pb-friends-list{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+@media (orientation:landscape) and (min-width:700px){
+ .pb-friends-dialog{width:min(780px,95vw)}
+ .pb-friends-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+.pb-friends-dialog .pb-friend-invite-btn.is-sent{background:#2c3e5d;border-color:#7897b4;color:#cfe3f7}
