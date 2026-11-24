@@ -731,3 +731,14 @@
 .pb-daily-won{display:flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;color:#7ee787;font-weight:700;flex:none}
 .pb-daily-error{display:block;margin-top:6px;font-size:10px;opacity:.7}
 
+
+/* V58.1 · Corrección móvil: la tira del combate diario restaba alto a los modos en
+   pantallas bajas y se solapaban; ahora conservan un alto mínimo y la columna se
+   desplaza suavemente solo cuando no cabe todo. */
+.pb-home-controls{overflow-y:auto;scrollbar-width:none}
+.pb-home-controls::-webkit-scrollbar{display:none}
+.pb-home-modes{min-height:clamp(168px,34vh,240px)}
+@media (orientation:landscape) and (max-height:430px){
+ .pb-daily-card{padding:5px 8px;gap:8px}
+ .pb-daily-art{width:36px;height:36px}
+}
