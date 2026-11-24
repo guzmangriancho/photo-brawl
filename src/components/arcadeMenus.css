@@ -717,3 +717,19 @@
 .pb-home-footer .pb-friend-main-button{border-color:#e0bf7a;color:#ffe7a2}
 .pb-home-footer button{min-width:0;white-space:nowrap;font-size:clamp(10px,1.2vw,15px)}
 @media (max-width:400px){.pb-home-footer button{font-size:10px;gap:3px;padding:2px 3px}}
+
+/* V59 · Fighter-card league plate: league name + pixel cup total, replaces the long text badge. */
+.pb-featured-kicker:has(.pb-league-plate){white-space:nowrap;display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px}
+.pb-league-plate{position:relative;display:inline-flex;align-items:center;gap:10px;padding:5px 11px 9px;min-height:34px;max-width:100%;
+ border:3px solid var(--league-mid);background:var(--league-dark);box-shadow:inset 0 0 0 2px var(--league-light),3px 3px 0 #07111f;letter-spacing:0;border-radius:0}
+.pb-league-plate:before,.pb-league-plate:after{content:"";position:absolute;width:6px;height:6px;background:var(--league-light);box-shadow:0 0 0 2px var(--league-dark)}
+.pb-league-plate:before{top:-5px;left:-5px}.pb-league-plate:after{right:-5px;bottom:-5px}
+.pb-league-plate-name{display:inline-flex;align-items:center;gap:5px;color:var(--league-ink);font:700 9px/1 'Press Start 2P',monospace;text-shadow:2px 2px 0 #091021;white-space:nowrap}
+.pb-league-plate-name>span{color:var(--league-light);font-size:10px}
+.pb-league-plate .pb-pixel-cup-total{display:inline-flex;align-items:center;gap:5px;color:#fff;font:700 19px/1 'Pixelify Sans',monospace;padding-left:10px;border-left:2px solid var(--league-mid)}
+.pb-league-plate .pb-pixel-cup{width:23px;height:23px}
+.pb-league-plate-bar{position:absolute;left:5px;right:5px;bottom:3px;height:4px;background:#071426;display:block}
+.pb-league-plate-bar>span{display:block;height:100%;background:var(--league-light)}
+@media (orientation:landscape) and (max-height:530px){.pb-league-plate{padding:3px 9px 8px;min-height:30px}.pb-league-plate-name{font-size:8px}.pb-league-plate .pb-pixel-cup-total{font-size:17px}.pb-league-plate .pb-pixel-cup{width:20px;height:20px}}
+@media (orientation:portrait){.pb-featured:has(.pb-league-plate){grid-template-rows:44px minmax(0,1fr) auto auto}}
+@media (orientation:landscape) and (max-width:720px){.pb-featured-label{display:none}.pb-featured-kicker:has(.pb-league-plate){justify-content:center}.pb-league-plate{gap:7px;padding:3px 7px 8px}.pb-league-plate-name{font-size:7px}.pb-league-plate .pb-pixel-cup-total{font-size:15px;padding-left:7px}.pb-league-plate .pb-pixel-cup{width:18px;height:18px}}
