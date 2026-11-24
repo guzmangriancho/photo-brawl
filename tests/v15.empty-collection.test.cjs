@@ -36,6 +36,8 @@ function harness(initialFighters){
     '../services/favoriteFighterService':{writeFavoriteFighter:async()=>{}},
     './FriendsPanel':{FriendsPanel:stubComponent('FriendsPanel')},
     '../services/useFriends':{useFriends:()=>({social:{friends:[],incoming:[],outgoing:[],invitations:[],sent:[]},socialError:'',refreshSocial:async()=>{}})},
+    '../services/pushService':{notifySocial:async()=>{}},
+    '../services/dailyService':{readDaily:async()=>({available:false,feature:null,myResult:null,monthWins:0,monthPlayed:0}),loadDailyFighter:async()=>null,dailyTitle:()=>'',nextMilestone:()=>null},
     '../services/friendsService':{sendFriendRequest:async()=> 'sent',replyFriend:async()=>{},removeFriend:async()=>{},sendGameInvitation:async()=>{},replyGameInvitation:async()=>{}},
     '../services/publishedFighters':{ensureRankedOwnFighter:async()=>{}},
     './FighterCreator':{FighterCreator},'./UltimateWorkshop':{UltimateWorkshop:stubComponent('UltimateWorkshop')},
