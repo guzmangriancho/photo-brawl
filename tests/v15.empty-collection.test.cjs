@@ -46,6 +46,8 @@ function harness(initialFighters){
     '../services/storageService':{deleteCustomFighter:async()=>{},renameCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},
     '../services/communityService':{syncRenamedFighter:async()=> 'pending',deleteCloudFighter:async()=>{},currentUserIsAdmin:async()=>false},
     '../services/usePlayerAccount':{usePlayerAccount:()=>({user:null,loading:false})},
+    '../services/economyService':{useWallet:()=>({wallet:null,refresh:async()=>null})},
+    './SlotShop':{SlotShop:()=>null},
     '../services/fighterTransferService':{listFighterTransfers:async()=>({incoming:[],outgoing:[]})},
     '../services/supabaseClient':{supabase:null},
     '../services/automaticFighterMigration':{requestAutomaticMigration:()=>{}},
