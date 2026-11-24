@@ -1,8 +1,34 @@
-import React,{useState} from 'react';
-import {Check,Gamepad2,Loader2,MailPlus,UserMinus,UsersRound,X} from 'lucide-react';
+import React,{useEffect,useState} from 'react';
+import {Bell,BellOff,Check,Gamepad2,Loader2,MailPlus,UserMinus,UsersRound,X} from 'lucide-react';
 import {PlayerAvatar} from './PlayerAvatar';
 import type {GameInvitation,PublicFriend,SocialMode,SocialSnapshot} from '../services/friendsService';
+import {disablePush,enablePush,pushState,type PushSupport} from '../services/pushService';
 import './friends.css';
+
+function PushBlock(){
+ const [state,setState]=useState<PushSupport|'loading'>('loading');
+ const [busy,setBusy]=useState(false);
+ const [note,setNote]=useState('');
+ useEffect(()=>{let on=true;void pushState().then(s=>{if(on)setState(s);}).catch(()=>{if(on)setState('unsupported');});
+  return()=>{on=false;};},[]);
+ const toggle=async()=>{
+  if(busy)return;
+  setBusy(true);setNote('');
+  try{
+   if(state==='enabled'){await disablePush();setState('available');setNote('Avisos desactivados en este dispositivo.');}
+   else{const next=await enablePush();setState(next);if(next==='denied')setNote('El navegador tiene los avisos bloqueados: actívalos en sus ajustes.');}
+  }catch(e){setNote(e instanceof Error?e.message:'No se pudo cambiar el aviso.');}
+  finally{setBusy(false);}
+ };
+ if(state==='loading'||state==='unsupported')return null;
+ return <section className="pb-push-block"><h3>AVISOS PUSH</h3>
+  <p className="pb-push-hint">Recibe un aviso aunque la app esté cerrada cuando un amigo te invite a un combate o te envíe una solicitud.{state==='unconfigured'?' (Aún no activado en el servidor.)':''}</p>
+  {state!=='unconfigured'&&<button type="button" disabled={busy||state==='denied'} onClick={()=>void toggle()}>
+   {state==='enabled'?<><BellOff size={15}/> DESACTIVAR</>:<><Bell size={15}/> ACTIVAR AVISOS</>}</button>}
+  {state==='enabled'&&<small className="pb-push-on"><Bell size={13}/> ACTIVOS EN ESTE DISPOSITIVO</small>}
+  {note&&<p className="pb-push-hint" role="status">{note}</p>}
+ </section>;
+}
 
 type Props={social:SocialSnapshot;error:string;roomMode:SocialMode|null;roomRanked:boolean;isHost:boolean;defaultMode:SocialMode;defaultRanked:boolean;
  onClose:()=>void;onRequest:(username:string)=>Promise<string>;onReply:(id:string,accept:boolean)=>Promise<void>;
@@ -40,6 +66,7 @@ export function FriendsPanel({social,error,roomMode,roomRanked,isHost,defaultMod
       <button type="button" disabled={!username.trim()||!!busy} onClick={()=>action('request',async()=>{
        const result=await onRequest(username);setUsername('');setNotice(result==='accepted'?'¡Ahora sois amigos!':result==='already_friends'?'Ya sois amigos':result==='already_sent'?'Solicitud ya enviada':'Solicitud enviada');
       })}><MailPlus size={16}/> AÑADIR</button></div></div>
+    <PushBlock/>
     {social.invitations.length>0&&<section><h3>INVITACIONES · {social.invitations.length}</h3>{social.invitations.map(i=><div className="pb-friend-invite" key={i.id}>
      <strong>{i.sender.display_name} <small>@{i.sender.username}</small></strong><span>{modeLabel(i.battle_mode)} · {i.ranked?'CLASIFICATORIO':'AMISTOSO'}</span>
      <div><button type="button" disabled={!!busy} onClick={()=>action(i.id,()=>onJoin(i))}><Gamepad2 size={15}/> UNIRME</button><button type="button" disabled={!!busy} onClick={()=>action(i.id,()=>onDecline(i.id))}>RECHAZAR</button></div>
