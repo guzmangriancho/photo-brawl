@@ -452,15 +452,21 @@ export function drawHitstopSparkFX(ctx:CanvasRenderingContext2D,particles:Readon
 
 /** 11-frame parry spark: tiny 16-bit light explosion with sharp 4px pixels. */
 export function drawParryBurstFX(ctx: CanvasRenderingContext2D, burst: ParryBurst): void {
-  const age = 11 - burst.life;
+  const total = 16;
+  const age = Math.max(0, total - burst.life);
   const radius = 10 + age * 4;
   const x = Math.round(burst.x / 4) * 4;
   const y = Math.round(burst.y / 4) * 4;
   ctx.save();
-  ctx.globalAlpha = Math.max(0, burst.life / 11);
+  ctx.globalAlpha = Math.max(0, Math.min(1, burst.life / 11));
+  // Fase 2: aro doble que se expande + destello al inicio, ademas de la cruz.
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(x, y, Math.round(radius * 1.5), 0, TAU); ctx.stroke();
+  ctx.strokeStyle = '#7de6ff'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(x, y, Math.round(radius * 0.9), 0, TAU); ctx.stroke();
   // A small bright center + rectangular cross and four diagonal sparks.
-  ctx.fillStyle = age < 4 ? '#ffffff' : '#d5ffff';
-  const core = Math.max(4, 16 - age);
+  ctx.fillStyle = age < 5 ? '#ffffff' : '#d5ffff';
+  const core = Math.max(4, 20 - age);
   ctx.fillRect(x - core / 2, y - core / 2, core, core);
   ctx.fillStyle = '#7de6ff';
   ctx.fillRect(x - radius, y - 4, radius * 2, 8);
@@ -472,5 +478,33 @@ export function drawParryBurstFX(ctx: CanvasRenderingContext2D, burst: ParryBurs
     ctx.fillRect(x + direction * Math.round(radius * .65), y - Math.round(radius * .65), 8, 8);
     ctx.fillRect(x + direction * Math.round(radius * .65), y + Math.round(radius * .65), 8, 8);
   }
+  ctx.restore();
+}
+
+/**
+ * Fase 2: barra de guardia pixelada sobre el luchador. Solo aparece cuando la
+ * reserva no esta llena (o mientras se cubre), para no ensuciar la pantalla.
+ * Si el servidor no envia guardMeter, no se dibuja nada.
+ */
+export function drawGuardMeterFX(ctx: CanvasRenderingContext2D, f: FighterRuntime, frame: number): void {
+  const g = f.guardMeter;
+  if (typeof g !== 'number' || !Number.isFinite(g)) return;
+  const blocking = f.state === 'BLOCK_STAND' || f.state === 'BLOCK_CROUCH';
+  if ((g >= 99.5 && !blocking) || f.state === 'KO') return;
+  const w = 56, h = 8;
+  const x = Q(f.x - w / 2);
+  const y = Q(f.y - f.hurtbox.height - 26);
+  const k = Math.max(0, Math.min(1, g / 100));
+  const low = k < 0.25;
+  ctx.save();
+  ctx.globalAlpha = low && frame % 8 < 4 ? 0.55 : 0.95;
+  ctx.fillStyle = '#0a1426';
+  ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+  ctx.fillStyle = '#26354f';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = k > 0.5 ? '#60a5fa' : k > 0.25 ? '#fbbf24' : '#f87171';
+  ctx.fillRect(x, y, Math.round(w * k), h);
+  ctx.fillStyle = '#ffffff66';
+  ctx.fillRect(x, y, Math.round(w * k), 2);
   ctx.restore();
 }
