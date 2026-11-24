@@ -20,7 +20,6 @@ import { MobileControls } from './MobileControls';
 import { RematchRoster } from './RematchRoster';
 import { VersusIntro } from './VersusIntro';
 import { TUTORIAL_LESSONS, prepareTutorialLesson, tutorialLessonCompleted } from './tutorialLessons';
-import { recordDailyResult } from '../services/dailyService';
 import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
 import './fightArena.css';
 
@@ -33,7 +32,6 @@ interface FightArenaProps {
   online?: OnlineSession;
   rankTrophies?:number[];
   tutorial?: boolean;
-  daily?: string;
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   onExit: () => void;
@@ -98,7 +96,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, daily, onExit, roster, onRematch,
+  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
@@ -185,15 +183,6 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const timer=window.setTimeout(()=>setResultVisible(true),1450);
     return()=>window.clearTimeout(timer);
   },[snapshot.roundOver]);
-  // Reto diario: un solo registro por combate; el servidor aplica primera-victoria y reintentos.
-  const dailyReportedRef=useRef(false);
-  useEffect(()=>{
-    if(!daily||!snapshot.roundOver||dailyReportedRef.current)return;
-    dailyReportedRef.current=true;
-    void recordDailyResult(snapshot.winnerName===p1Profile.fighterName,snapshot.p1RoundWins,snapshot.p2RoundWins,p1Profile.id)
-      .catch(error=>console.warn('No se pudo registrar el reto diario',error))
-      .finally(()=>window.dispatchEvent(new Event('pb-daily-refresh')));
-  },[daily,snapshot.roundOver,snapshot.winnerName,snapshot.p1RoundWins,snapshot.p2RoundWins,p1Profile]);
   const [showLab, setShowLab] = useState(false);
   const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT'>('IDLE');
   const [activeSp1, setActiveSp1] = useState<string>(p1Profile.moveset.specialNeutral.mechanic);
