@@ -9,7 +9,7 @@ const SAVED_MAX_AGE=3*60_000; // Server grace is 90s by default.
 const RETRY_MAX_AGE=85_000;
 type SavedSession={code:string;token:string;savedAt:number};
 let activeRestore: Promise<OnlineSession | null> | null = null;
-export type SessionEvent = 'room'|'start'|'state'|'connection'|'error'|'opponent_left'|'rematch'|'rematch_vote'|'ranked_result';
+export type SessionEvent = 'room'|'start'|'state'|'connection'|'error'|'opponent_left'|'rematch'|'rematch_vote'|'ranked_result'|'economy';
 type Listener = (value: any) => void;
 function endpoint(): string {
   const configured = (import.meta.env.VITE_ONLINE_WS_URL as string | undefined)?.trim();
@@ -138,6 +138,9 @@ export class OnlineSession {
           this.emit('rematch_vote',{host:msg.host,guest:msg.guest,votes:msg.votes,fighters:msg.fighters});
         }else if(msg.type==='ranked_result'){
           this.emit('ranked_result',msg.result);
+        }else if(msg.type==='economy'){
+          this.emit('economy',msg.economy);
+          try{window.dispatchEvent(new Event('pb-wallet-changed'));}catch{}
         }else if(msg.type==='opponent_left'||msg.type==='closed'){
           this.emit('opponent_left',null);this.clearSaved();this.intentionalClose=true;
           ws.close();
@@ -202,6 +205,7 @@ export class OnlineSession {
   choose(profile:FighterProfile){this.send({type:'choose',profile});}
   stage(stage:StageId|'RANDOM'){this.send({type:'stage',stage});}
   ready(value:boolean){this.send({type:'ready',ready:value});}
+  wager(amount:number){this.send({type:'wager',amount});}
   start(){this.send({type:'start'});}
   requestRematch(profile?:FighterProfile){this.send({type:'rematch',profile});}
   sendAction(slot:MoveSlot){if(!this.connected)return;this.queuedActions.push({kind:'move',slot});this.flush();}
