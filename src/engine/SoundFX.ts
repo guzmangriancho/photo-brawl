@@ -107,7 +107,8 @@ export class SoundFXEngine {
   public lightHit(){this.cue('light',()=>{this.noise(.07,.095,1600);this.tone(310,125,.10,'triangle',.12);});}
   public heavyHit(){this.cue('heavy',()=>{this.noise(.13,.14,800);this.tone(175,54,.2,'sawtooth',.15);});}
   public block(){this.cue('block',()=>{this.tone(320,210,.07,'square',.10);this.noise(.043,.04,1800);});}
-  public parry(){this.cue('parry',()=>{this.tone(988,1318,.10,'square',.18);this.tone(1568,2093,.18,'triangle',.14,.045);});}
+  public parry(){this.cue('parry',()=>{this.tone(988,1318,.10,'square',.18);this.tone(1568,2093,.18,'triangle',.14,.045);this.tone(2093,2637,.14,'triangle',.10,.10);this.noise(.03,.07,3400);});}
+  public guardBreak(){this.cue('armor',()=>{this.tone(220,70,.20,'sawtooth',.15);this.noise(.12,.10,900);this.tone(660,330,.10,'square',.09,.03);});}
   public armorAbsorb(){this.cue('armor',()=>{this.tone(120,75,.15,'sawtooth',.13);this.tone(180,100,.11,'triangle',.08);});}
   public projectile(){this.cue('projectile',()=>{this.tone(610,210,.16,'sawtooth',.10);});}
   public commandGrab(){this.cue('grab',()=>{this.tone(160,570,.12,'square',.14);this.tone(160,50,.25,'triangle',.14,.11);});}
