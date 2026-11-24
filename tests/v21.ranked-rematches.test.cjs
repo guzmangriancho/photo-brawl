@@ -24,7 +24,7 @@ test('a server rematch gets a fresh match ID and can be recorded independently',
  const rooms=read('server/rooms.cjs');
  const rematch=rooms.split("if(msg.type==='rematch')")[1]?.split("fail(peer,'Acción no reconocida.')")[0]||'';
  assert.match(rematch,/room\.resultRecorded=false/);
- assert.match(rematch,/room\.matchId=randomUUID\(\)/);
+ assert.match(rematch,/room\.matchId=escrow\?\.id\|\|randomUUID\(\)/);
  assert.match(rematch,/new FightEngine\(/);
 });
 
