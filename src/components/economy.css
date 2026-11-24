@@ -1,0 +1,35 @@
+/* V62: monedas, slots y apuestas. Discreto: mismo marco y colores del juego, sin pantallas nuevas. */
+.pb-coin-chip{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:2px 9px;border:2px solid #ffc750;background:#1a1226;color:#ffe9a8;font:inherit;font-weight:900;font-size:clamp(10px,1.2vw,13px);letter-spacing:.5px;cursor:pointer;box-shadow:2px 2px 0 #472223;white-space:nowrap}
+.pb-coin-chip svg{color:#ffc750;flex:none}
+.pb-coin-chip small{color:#9ce1ff;font-size:.8em;font-weight:900}
+.pb-coin-chip:focus-visible{outline:2px solid #9ce1ff;outline-offset:2px}
+.pb-home-brand-side{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0}
+.pb-slot-shop{align-items:center;text-align:center;max-width:min(380px,94vw);gap:9px}
+.pb-slot-close{position:absolute;top:8px;right:8px;width:30px;height:30px;display:grid;place-items:center;background:transparent;border:0;color:#fff4c7;cursor:pointer}
+.pb-slot-head span{display:block;font-size:10px;letter-spacing:2px;color:#9ce1ff;font-weight:900}
+.pb-slot-head h2{margin:2px 0 0;font-size:clamp(18px,4vw,24px);color:#fff4c7}
+.pb-slot-pips{display:grid;grid-template-columns:repeat(6,18px);justify-content:center;gap:5px}
+.pb-slot-pips i{width:18px;height:18px;border:2px solid #fff4c7;background:#fff4c7}
+.pb-slot-pips i.free{background:transparent}
+.pb-slot-pips i.locked{border-color:#4b4a66;background:#2a2740;opacity:.7}
+.pb-slot-balance{display:flex;align-items:baseline;gap:7px;color:#ffc750}
+.pb-slot-balance svg{align-self:center}
+.pb-slot-balance strong{font-size:clamp(24px,6vw,32px);color:#fff4c7}
+.pb-slot-balance small{font-size:10px;letter-spacing:1.5px;color:#9ce1ff}
+.pb-slot-buy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
+.pb-slot-buy:disabled{opacity:.55;filter:grayscale(.5)}
+.pb-slot-note{margin:0;font-size:11px;font-weight:900;letter-spacing:.6px;color:#ffd1a1}
+.pb-slot-rules{margin:2px 0 0;font-size:9px;line-height:1.55;letter-spacing:.6px;color:#9ce1ff;opacity:.85}
+.pb-slot-error{margin:0;color:#ff8f8f;font-size:11px;font-weight:900}
+.pb-slot-create{display:flex;align-items:center;gap:6px}
+/* Apuesta en la sala online */
+.pb-online-wager{display:flex;flex-direction:column;gap:6px;padding:7px 9px;border:2px solid #ffc75088;background:#1a122688}
+.pb-online-wager>span{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:900;letter-spacing:1.2px;color:#ffe9a8}
+.pb-online-wager>strong{font-size:11px;letter-spacing:.8px;color:#fff4c7}
+.pb-online-wager-steps{display:flex;gap:5px}
+.pb-online-wager-steps button{flex:1;min-height:30px;border:2px solid #4b4a66;background:#14102a;color:#fff4c7;font:inherit;font-weight:900;font-size:11px;cursor:pointer;padding:0 2px}
+.pb-online-wager-steps button.on{border-color:#ffc750;background:#472223;color:#ffc750}
+.pb-online-wager-steps button:disabled{opacity:.4;cursor:not-allowed}
+.pb-online-wager small{font-size:9px;color:#ffb3b3;font-weight:900;letter-spacing:.5px}
+.pb-fight-coins{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;color:#ffc750;font-weight:900}
+@media (max-height:460px){.pb-slot-shop{gap:5px;padding:10px 14px}.pb-slot-rules{display:none}.pb-slot-pips i{width:14px;height:14px}.pb-slot-pips{grid-template-columns:repeat(12,14px);gap:4px}.pb-slot-head h2{font-size:18px}.pb-slot-balance strong{font-size:22px}}
