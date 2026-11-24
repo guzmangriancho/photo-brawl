@@ -50,7 +50,7 @@ test('pixel font is actually requested and legible digits remain arcade-styled',
   assert.match(html,/family=Press\+Start\+2P/);
   assert.match(read('src/components/arcadeMenus.css'),/\.pb-team-digit\{font-family:'Pixelify Sans'/);
   assert.match(read('src/components/groupFightArena.css'),/\.pb-team-digit \{ font: 700 13px\/1 'Pixelify Sans'/);
-  assert.match(read('public/sw.js'),/pb-shell-v5(?:0-arcade-overlay-style|1-progression-leagues-duos|2-gallery-ranking-cleanup|3-favorites-portraits|4-fighter-detail-responsive|6-friends-quick-invites|7-ultimate-awakenings|8-push-daily)/);
+  assert.match(read('public/sw.js'),/pb-shell-v5(?:0-arcade-overlay-style|1-progression-leagues-duos|2-gallery-ranking-cleanup|3-favorites-portraits|4-fighter-detail-responsive|6-friends-quick-invites|7-ultimate-awakenings)/);
 });
 
 test('modified TSX files have zero parser errors',()=>{
