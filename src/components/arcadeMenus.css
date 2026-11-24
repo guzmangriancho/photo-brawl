@@ -732,21 +732,16 @@
 .pb-daily-error{display:block;margin-top:6px;font-size:10px;opacity:.7}
 
 
-/* V58.1 · Inicio sin scroll: sin subtítulo ni botón de opciones, la columna cabe
-   entera; el alto mínimo de la rejilla evita que los modos se aplasten y el scroll
-   solo queda como red de seguridad en pantallas aún más bajas. */
+/* V58.1 · Inicio sin scroll: la rejilla conserva un alto mínimo que se adapta a la
+   altura real (con barra del navegador incluida) y el scroll solo queda como red de
+   seguridad en pantallas todavía más bajas. */
 .pb-home-controls{overflow-y:auto;scrollbar-width:none}
 .pb-home-controls::-webkit-scrollbar{display:none}
-.pb-home-modes{min-height:clamp(180px,44vh,240px)}
+.pb-home-modes{min-height:clamp(150px,44vh,240px)}
 @media (orientation:landscape) and (max-height:430px){
+ .pb-menu-shell{padding-top:max(7px,env(safe-area-inset-top));padding-bottom:max(7px,env(safe-area-inset-bottom))}
  .pb-home-controls{gap:4px}
  .pb-home-footer button{min-height:26px}
- .pb-daily-card{padding:4px 8px;gap:8px}
- .pb-daily-art{width:34px;height:34px}
- .pb-daily-info{gap:0}
- .pb-daily-kicker{font-size:8px}
- .pb-daily-info strong{font-size:12px;line-height:1.15}
- .pb-daily-info small{font-size:8px;line-height:1.2}
 }
 @media (orientation:portrait){
  .pb-home-controls{gap:6px}
