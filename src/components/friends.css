@@ -13,19 +13,3 @@
 .pb-friends-empty{font:700 12px/1.3 'Oxanium',sans-serif;color:#acccdf}.pb-friends-status{font:800 11px 'Oxanium',sans-serif;color:#ffde91;display:flex;gap:6px;align-items:center}.pb-friends-dialog>footer{display:flex;justify-content:flex-end;flex-shrink:0;border-top:1px solid #426288;padding-top:5px}
 .pb-friend-alert{position:fixed;z-index:85;right:max(9px,env(safe-area-inset-right));bottom:max(9px,env(safe-area-inset-bottom));max-width:min(360px,94vw);padding:9px;display:flex;flex-direction:column;gap:6px;background:#122a4d;border:3px solid #ffe07e;color:#fff;box-shadow:5px 5px #000b;font-family:'Pixelify Sans',sans-serif}.pb-friend-alert strong{color:#ffdf7d;font-size:18px}.pb-friend-alert span{font-size:13px}.pb-friend-alert>div{display:flex;gap:6px}.pb-friend-alert button{background:#245d49;border:2px solid #8be7b3;padding:5px 12px;color:#fff;font:800 14px 'Pixelify Sans',sans-serif}.pb-friend-alert button+button{background:#2c3e5d;border-color:#7897b4}
 @media(orientation:landscape) and (max-height:420px){.pb-friends-dialog{max-height:94dvh;width:min(650px,95vw);padding:6px 10px;gap:4px}.pb-friends-dialog>header h2{font-size:21px}.pb-friends-scroll{gap:5px}.pb-friend-row{padding:3px 6px}.pb-friends-dialog button{min-height:25px;padding:3px 6px}.pb-friends-match-options{padding:3px 6px}}
-
-/* V58 · Avisos push */
-.pb-push-block{margin:0 0 14px;display:flex;flex-direction:column;gap:8px}
-.pb-push-block h3{margin:0;font-size:11px;letter-spacing:.14em;opacity:.75}
-.pb-push-hint{margin:0;font-size:11px;line-height:1.45;opacity:.75}
-.pb-push-block>button{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.08em;font-weight:700;padding:8px 14px;border:2px solid rgba(247,201,72,.6);background:rgba(247,201,72,.12);color:inherit;border-radius:4px;cursor:pointer}
-.pb-push-block>button:disabled{opacity:.45;cursor:default}
-.pb-push-on{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.1em;color:#7ee787;font-weight:700}
-
-/* V59.5 · Amigos: lista a dos columnas en horizontal y confirmación de invitación */
-.pb-friends-list{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
-@media (orientation:landscape) and (min-width:700px){
- .pb-friends-dialog{width:min(780px,95vw)}
- .pb-friends-list{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-.pb-friends-dialog .pb-friend-invite-btn.is-sent{background:#2c3e5d;border-color:#7897b4;color:#cfe3f7}
