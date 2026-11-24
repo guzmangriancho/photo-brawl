@@ -105,7 +105,9 @@ test('training collision overlay and gentle camera zoom are only presentation co
   const e=make('SPIRIT_FOREST');
   assert.equal(e.showArenaCollisions,false);
   assert.equal(e.cameraZoom,1);
-  assert.match(fs.readFileSync(path.join(root,'src/components/FightArena.tsx'),'utf8'),/mode === 'TRAINING' && !tutorial && <div className="arena-collision-tools">/);
+  const arena=fs.readFileSync(path.join(root,'src/components/FightArena.tsx'),'utf8');
+  assert.doesNotMatch(arena,/className="arena-collision-tools"/);
+  assert.match(arena,/COLISIONES: \{showArenaCollisions/);
   assert.match(fs.readFileSync(path.join(root,'src/engine/FightEngine.ts'),'utf8'),/const desiredZoom = sameSide && distance < 330/);
   assert.match(fs.readFileSync(path.join(root,'src/engine/FightEngine.ts'),'utf8'),/0\.1 \* Math\.max/);
 });
