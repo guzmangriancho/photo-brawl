@@ -1,6 +1,7 @@
 'use strict';
 const {randomBytes,randomInt,randomUUID}=require('node:crypto');
 const rankedApi=require('./ranked.cjs');
+const economyApi=require('./economy.cjs');
 const {MultiFightEngine}=require('./runtime/engine/MultiFightEngine.js');
 const {unpackControls}=require('./runtime/network/protocol.js');
 const {validateProfile,cleanActions}=require('./validation.cjs');
@@ -48,11 +49,16 @@ function start(room){
     if(room.ranked&&room.engine.roundOver&&!room.resultRecorded){
       room.resultRecorded=true;
       const summary=room.engine.getMultiSummary();
+      const matchId=room.matchId,accountIds=room.players.map(p=>p.accountId),places=summary.players.map(p=>p.place);
       void rankedApi.recordGroupResult({id:room.matchId,mode:room.mode,
         accountIds:room.players.map(p=>p.accountId),
         places:summary.players.map(p=>p.place),stage:room.stage,winningTeam:summary.winningTeam,
         fighterIds:room.players.map(p=>p.profile.id)})
-        .then(result=>{if(result.recorded&&Array.isArray(result.fighters)){for(const f of result.fighters){if(room.players[f.seat])room.players[f.seat].trophies=f.after;}}each(room,{type:'ranked_result',result});})
+        .then(result=>{if(result.recorded&&Array.isArray(result.fighters)){for(const f of result.fighters){if(room.players[f.seat])room.players[f.seat].trophies=f.after;}}each(room,{type:'ranked_result',result});
+          // Monedas por puesto: solo si el ELO se registró; un fallo económico nunca afecta al resultado.
+          if(result.recorded&&economyApi.available())void economyApi.rewardGroup({id:matchId,accountIds,places})
+            .then(economy=>each(room,{type:'economy',economy:{group:true,players:economy.players}}))
+            .catch(error=>console.error('[economy] premio de grupo fallido:',error.message));})
         .catch(error=>{console.error('[ranked4]',error.message);
           each(room,{type:'ranked_result',result:{recorded:false,reason:'server_error'}});});
     }
