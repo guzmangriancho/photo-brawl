@@ -275,7 +275,7 @@ export class MultiFightEngine extends FightEngine {
     const colors=this.battleMode==='2V2'?['#ff626b','#6bbefb','#ff626b','#6bbefb']:
       ['#ff686e','#5dbdff','#ce9aff','#7de7a7'];
     const scale=this.markerScale;
-    const x=Math.round(f.x),y=Math.round(f.y-f.hurtbox.height-14*scale),c=colors[f.index];
+    const x=Math.round(f.x),y=Math.round(f.y-196*f.scale*(f.state==='BLOCK_CROUCH'?0.82:1)-14*scale),c=colors[f.index];
     ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);ctx.imageSmoothingEnabled=false;
     // Pixel-art pointer, 14×12 world units, follows the fighter through zoom and jumps.
     ctx.fillStyle='#020815';ctx.fillRect(-8,-6,16,12);
