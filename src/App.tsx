@@ -8,7 +8,7 @@ import {
 } from './types/fighter';
 import { getPresetFighters } from './data/presetFighters';
 import { getAllCustomFighters } from './services/storageService';
-import { startAutomaticFighterMigration,requestAutomaticMigration } from './services/automaticFighterMigration';
+import { startAutomaticFighterMigration,requestAutomaticMigration,subscribeAutomaticMigration } from './services/automaticFighterMigration';
 import { repairSavedSpriteChroma } from './engine/SpriteProcessor';
 import { reconcileSentFighterTransfers } from './services/fighterTransferService';
 import { supabase } from './services/supabaseClient';
@@ -87,6 +87,12 @@ export function App() {
     });
     return()=>{active=false;unsubscribe();};
   },[user?.id,startupRetry]);
+  // A successful manual retry finishes the pending local copies without a reload.
+  useEffect(()=>subscribeAutomaticMigration(status=>{
+    if(status.phase!=='synced')return;
+    setStartup(old=>old.phase==='ready'&&old.warning.includes('siguen solo en este móvil por falta de slots')
+      ? {...old,warning:''}:old);
+  }),[]);
   // Transfer receipts: when the receiver accepts, the canonical cloud fighter
   // changes owner. Reconcile the sender's local collection on focus/interval,
   // never deleting a fighter from another user's device.

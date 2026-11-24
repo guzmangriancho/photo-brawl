@@ -193,7 +193,8 @@ export async function restoreCloudFightersReport():Promise<CloudRestoreReport> {
     if(page.length<size)break;
   }
   const fighters:FighterProfile[]=[], failed:string[]=[];
-  for(const row of rows){
+  // Bound parallel asset reads. Keep output ordering stable, including failures.
+  async function downloadRow(row:CloudFighter):Promise<{fighter?:FighterProfile;error?:string}>{
     try{
       const [sprite,portrait]=await Promise.all([
         db.storage.from('fighter-private').download(row.private_sheet_path),
@@ -202,10 +203,17 @@ export async function restoreCloudFightersReport():Promise<CloudRestoreReport> {
       if(sprite.error || !sprite.data || portrait.error || !portrait.data){
         throw new Error(sprite.error?.message||portrait.error?.message||'Faltan imágenes');
       }
-      fighters.push({...row.fighter_data,id:row.local_id,
-        spriteSheetDataUrl:await toDataUrl(sprite.data),portraitDataUrl:await toDataUrl(portrait.data)} as FighterProfile);
+      return {fighter:{...row.fighter_data,id:row.local_id,
+        spriteSheetDataUrl:await toDataUrl(sprite.data),portraitDataUrl:await toDataUrl(portrait.data)} as FighterProfile};
     }catch(error){
-      failed.push(`${row.fighter_name}: ${error instanceof Error?error.message:'No se pudo descargar'}`);
+      return {error:`${row.fighter_name}: ${error instanceof Error?error.message:'No se pudo descargar'}`};
+    }
+  }
+  for(let offset=0;offset<rows.length;offset+=3){
+    const batch=await Promise.all(rows.slice(offset,offset+3).map(downloadRow));
+    for(const result of batch){
+      if(result.fighter)fighters.push(result.fighter);
+      if(result.error)failed.push(result.error);
     }
   }
   return {fighters,failed,total:rows.length};
@@ -227,6 +235,16 @@ export async function backupMissingLocalFighters(fighters:FighterProfile[],onPro
     .select('original_local_id').eq('sender_id',initialUser).eq('status','accepted');
   if(sentError)throw sentError;
   const transferred=new Set((sent||[]).map(t=>t.original_local_id));
+  // One owner-scoped lookup per bounded batch, not two HTTP round trips per
+  // unchanged fighter. RLS still applies; writes keep their fresh server checks.
+  const remoteById=new Map<string,CloudFighter>();
+  const ids=fighters.filter(f=>!transferred.has(f.id)).map(f=>f.id);
+  for(let offset=0;offset<ids.length;offset+=100){
+    const {data,error}=await needDb().from('fighters').select('*')
+      .eq('owner_id',initialUser).in('local_id',ids.slice(offset,offset+100));
+    if(error)throw error;
+    for(const entry of (data||[]) as CloudFighter[])remoteById.set(entry.local_id,entry);
+  }
   let uploaded=0,existing=0;
   const failed:string[]=[];
   for(let i=0;i<fighters.length;i++){
@@ -235,8 +253,10 @@ export async function backupMissingLocalFighters(fighters:FighterProfile[],onPro
       existing++;onProgress?.(i+1,fighters.length);continue;
     }
     try{
-      if(expectedUserId && await currentUserId()!==expectedUserId)throw new Error('La sesión cambió durante la copia.');
-      const remote=await cloudEntry(fighter.id);
+      // Local identity guard on every item; initialUser was server-verified above.
+      const {data:session,error:sessionError}=await needDb().auth.getSession();
+      if(sessionError||session.session?.user.id!==initialUser)throw new Error('La sesión cambió durante la copia.');
+      const remote=remoteById.get(fighter.id);
       if(remote){
         // Update edited images too; a new sheet/portrait is the same fighter,
         // never a newly imported duplicate. Keep the cloud/public visibility.

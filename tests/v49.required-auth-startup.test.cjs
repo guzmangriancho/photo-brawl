@@ -119,3 +119,11 @@ test('mixed slot and network upload failures still stop startup',async()=>{
   h.releaseSync();await assert.rejects(promise,/otra cuenta/);
   assert.ok(!h.events.includes('restore'));
 });
+
+
+test('slot warning clears only after confirmed successful migration',()=>{
+  const app=read('src/App.tsx');
+  assert.match(app,/subscribeAutomaticMigration\(status=>/);
+  assert.match(app,/if\(status.phase!=='synced'\)return/);
+  assert.match(app,/old.phase==='ready'&&old.warning.includes/);
+});

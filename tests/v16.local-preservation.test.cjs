@@ -97,6 +97,6 @@ test('V16 cloud restore and backup controls are non-destructive by design',()=>{
  assert.match(account,/mergeCustomFighters\(fighters\)/);
  assert.match(account,/EXPORTAR ARCHIVO/);
  assert.match(account,/IMPORTAR ARCHIVO/);
- assert.match(cloud,/const remote=await cloudEntry\(fighter\.id\)/); // skip existing remote images, sync newer names
+ assert.match(cloud,/const remote=remoteById\.get\(fighter\.id\)/); // skip existing remote images, sync newer names
  assert.doesNotMatch(app,/await saveCustomFighter\(repaired\)/); // preserve original art
 });
