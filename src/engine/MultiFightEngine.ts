@@ -318,7 +318,7 @@ export class MultiFightEngine extends FightEngine {
       invincibleFrames:f.invincibleFrames,projectileCooldownFrames:f.projectileCooldownFrames,
       lightChainCount:f.lightChainCount,comboCount:f.comboCount,comboDamage:f.comboDamage,comboTimer:f.comboTimer,
       jumpsRemaining:f.jumpsRemaining,airDashUsed:f.airDashUsed,airUpSpecialUsed:f.airUpSpecialUsed,hasArmorActive:f.hasArmorActive,
-      currentAttack:f.currentAttack as unknown as Record<string,unknown>|null,grabbedBy:f.grabbedBy,grabSlamTimer:f.grabSlamTimer,
+      currentAttack:f.currentAttack as unknown as Record<string,unknown>|null,grabbedBy:f.grabbedBy,grabSlamTimer:f.grabSlamTimer,guardMeter:f.guardMeter,
     });
     return {...base,snapshot:this.getSnapshot(),fighters:this.getFighters().map(fields)};
   }
