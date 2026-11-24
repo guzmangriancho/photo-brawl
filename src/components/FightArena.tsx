@@ -174,7 +174,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
       navigator.vibrate(duration);
     }
   };
-  const [showHitboxes, setShowHitboxes] = useState(mode === 'TRAINING' && !tutorial);
+  const [showHitboxes, setShowHitboxes] = useState(false);
   const [showArenaCollisions, setShowArenaCollisions] = useState(false);
   const [muted, setMuted] = useState(soundFX.muted);
   const [resultVisible,setResultVisible]=useState(false);
@@ -184,7 +184,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     return()=>window.clearTimeout(timer);
   },[snapshot.roundOver]);
   const [showLab, setShowLab] = useState(false);
-  const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT'>('IDLE');
+  const [dummyMode, setDummyMode] = useState<'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT' | 'PARRY' | 'HEAVY'>('IDLE');
   const [activeSp1, setActiveSp1] = useState<string>(p1Profile.moveset.specialNeutral.mechanic);
   const [activeSp2, setActiveSp2] = useState<string>(p1Profile.moveset.specialForward.mechanic);
   const [activeSp3, setActiveSp3] = useState<string>(p1Profile.moveset.specialUp.mechanic);
@@ -211,7 +211,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
     soundFX.setCrowdedCombat(false);
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
     engine.beginVersusIntro();
-    engine.showHitboxes = mode === 'TRAINING' && !tutorial;
+    engine.showHitboxes = false;
+    engine.trainingFreePlay = mode === 'TRAINING' && !tutorial;
     engine.showArenaCollisions = false;
     if(tutorial)prepareTutorialLesson(engine,TUTORIAL_LESSONS[0]);
     engineRef.current = engine;
@@ -486,7 +487,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     if (fireImmediately) engineRef.current.triggerP1MoveNow(slot);
     else soundFX.selectBeep();
   };
-  const handleDummyChange = (newMode: 'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT') => {
+  const handleDummyChange = (newMode: 'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT' | 'PARRY' | 'HEAVY') => {
     setDummyMode(newMode);
     if (engineRef.current) engineRef.current.trainingDummyMode = newMode;
     soundFX.selectBeep();
@@ -521,14 +522,6 @@ export const FightArena: React.FC<FightArenaProps> = ({
           <div className="arena-stage-vignette" aria-hidden="true" />
           {(snapshot.versusIntroFrames??0)>0 && <VersusIntro
             fighters={[p1Profile,p2Profile]} stage={stage} mode="DUEL" framesLeft={snapshot.versusIntroFrames??0} rankTrophies={rankTrophies} />}
-          {mode === 'TRAINING' && !tutorial && <div className="arena-collision-tools">
-            <button type="button" className={showArenaCollisions?'is-active':''}
-              aria-pressed={showArenaCollisions} onClick={toggleArenaCollisions}
-              title="Mostrar suelo, plataformas, puntos de apoyo y coordenadas">
-              <FlaskConical size={13}/> COLISIONES {showArenaCollisions ? 'ON' : 'OFF'}
-            </button>
-            {showArenaCollisions && <small>CIAN: plataformas · VERDE: suelo · P1/P2: pies</small>}
-          </div>}
           {onlineMode && <div className="arena-online-status" title={`Sala ${online?.code ?? ''} · ${guestOnline?'P2':'P1'} · ${onlineLatency!==null?`${onlineLatency} ms RTT`:'Conectado'}`} aria-label={`Conexión online: ${onlineLatency!==null?`${onlineLatency} milisegundos de ping`:'conectado'}`}>● {onlineLatency!==null?`${onlineLatency} ms`:'ONLINE'}</div>}
           {onlineMode && onlineIssue && <div className="arena-online-scrim"><section className="pb-frame arena-online-dialog" role="status"><h2>{onlineIssue==='closed'?'RIVAL DESCONECTADO':onlineIssue==='opponent'?'ESPERANDO AL RIVAL':'RECONECTANDO…'}</h2><p>{onlineIssue==='closed'?'La partida ha terminado. Vuelve al menú.':onlineIssue==='opponent'?'El combate se detiene temporalmente mientras se recupera la conexión.':'Estamos recuperando tu sesión online…'}</p>{onlineIssue==='closed'&&<button type="button" onClick={onExit}>VOLVER AL MENÚ</button>}</section></div>}
           <div className="arena-hud" aria-label="Estado del combate">
@@ -710,7 +703,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
           <section className="arena-lab-panel" role="dialog" aria-modal="true" aria-label="Laboratorio de mecánicas">
             <header className="arena-lab-header"><div><span className="arena-lab-overline">ENTRENAMIENTO / HERRAMIENTAS</span><h2>LAB DE MOVIMIENTOS</h2><p>Equipa una mecánica o ejecútala al instante.</p></div><button type="button" className="arena-icon-button" aria-label="Cerrar laboratorio" onClick={() => setShowLab(false)}><X size={19}/></button></header>
             {mode === 'TRAINING' && <div className="arena-lab-dummy"><span>RIVAL DE PRUEBAS</span><div className="arena-lab-dummy-buttons">{([
-              {id:'IDLE',label:'QUIETO'}, {id:'GUARD_ALL',label:'CUBRE TODO'}, {id:'GUARD_HIGH',label:'ALTO'}, {id:'GUARD_LOW',label:'BAJO'}, {id:'MASH_LIGHT',label:'ATACA'},
+              {id:'IDLE',label:'QUIETO'}, {id:'GUARD_ALL',label:'CUBRE TODO'}, {id:'GUARD_HIGH',label:'ALTO'}, {id:'GUARD_LOW',label:'BAJO'}, {id:'MASH_LIGHT',label:'ATACA'}, {id:'PARRY',label:'PRACTICA PARRY'}, {id:'HEAVY',label:'PESADO'},
             ] as const).map((dm) => <button key={dm.id} type="button" className={dummyMode === dm.id ? 'is-active' : ''} onClick={() => handleDummyChange(dm.id)}>{dm.label}</button>)}</div></div>}
             <div className="arena-lab-grid">{([
               {slot:'SP_NEUTRAL',title:'SP1 / PROYECTIL',current:activeSp1,items:MECHANIC_LAB_CATALOG.SP_NEUTRAL},

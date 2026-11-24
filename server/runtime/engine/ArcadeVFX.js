@@ -574,7 +574,9 @@ function drawGuardMeterFX(ctx, f, frame) {
         return;
     const w = 56, h = 8;
     const x = Q(f.x - w / 2);
-    const y = Q(f.y - f.hurtbox.height - 26);
+    // Altura del arte (medida ~194 px a escala 1, hurtbox 154): ancla sobre la cabeza dibujada, no sobre la hurtbox.
+    const head = Math.round(196 * f.scale * (f.state === 'BLOCK_CROUCH' ? 0.82 : 1));
+    const y = Q(f.y - head - 16);
     const k = Math.max(0, Math.min(1, g / 100));
     const low = k < 0.25;
     ctx.save();

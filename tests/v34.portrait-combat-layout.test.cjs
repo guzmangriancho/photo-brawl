@@ -19,9 +19,9 @@ test('super is above the four right buttons, not over a button', () => {
   assert.match(controls, /\{superReady\s*&&\s*\(/);
   assert.match(controls, /mobile-super mobile-super-center/);
 });
-test('portrait tuning does not remove combat controls, HUD or training collision switch', () => {
+test('portrait tuning does not remove combat controls, HUD or training collision switch in pause menu', () => {
   assert.match(arena, /className="arena-hud"/);
-  assert.match(arena, /COLISIONES \{showArenaCollisions/);
+  assert.match(arena, /COLISIONES: \{showArenaCollisions/);
   assert.match(controls, /mobile-utility-row/);
   assert.match(controls, /mobile-actions/);
 });
