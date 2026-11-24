@@ -1261,12 +1261,31 @@ export class FightEngine {
     if ((current === 'LIGHT' || current === 'RUSH') &&
         (next === 'LIGHT' || next === 'HEAVY' || next === 'LOW' || next === 'RUSH')) {
       f.bufferedActions.shift();
-      const resolved = next === 'LIGHT' && f.lightChainCount >= 2 ? 'HEAVY'
+      // A-A + AVANCE+A: remate de EMPUJE (poco daño, mucho espacio) en vez de otro jab.
+      const pushFinisher = current === 'LIGHT' && next === 'RUSH' && f.lightChainCount >= 2;
+      const resolved = pushFinisher || (next === 'LIGHT' && f.lightChainCount >= 2) ? 'HEAVY'
         : next === 'RUSH' ? 'LIGHT' : next;
       this.startMove(f, opp, resolved);
+      if (pushFinisher && f.currentAttack) this.makePushFinisher(f.currentAttack);
       return true;
     }
     return false;
+  }
+
+  /** Remate de empuje: más rápido y con menos daño que el fuerte, bloqueo casi
+   * neutro y mucho retroceso. Sirve para ganar espacio o llevar al rival a la pared.
+   * Solo cambia números del golpe en curso: no hay estado nuevo que sincronizar online. */
+  private makePushFinisher(atk: ActiveAttackData): void {
+    atk.name = 'EMPUJE';
+    atk.startup = Math.max(5, atk.startup - 2);
+    atk.recovery = Math.max(11, atk.recovery - 3);
+    atk.damage = Math.round(atk.damage * 0.55);
+    atk.hitstun = 14;
+    atk.blockstun = 6;
+    atk.pushback = 21;
+    atk.launchY = 0;
+    atk.knockdown = false;
+    if (atk.height !== 'OVERHEAD' || atk.mechanic === 'OVERHEAD_SMASH') atk.height = 'MID';
   }
 
   private tryStartAttack(f: FighterRuntime, opp: FighterRuntime, _input: InputState): boolean {
@@ -1332,7 +1351,7 @@ export class FightEngine {
         slot: 'RUSH', name: 'PASO + GOLPE', mechanic: 'DASH_PUNCH',
         startup: isTank ? 8 : 5, active: 5, recovery: 9,
         damage: Math.round(48 * pwr), hitstun: 19, blockstun: 11,
-        pushback: 3.2, launchY: 0, knockdown: false, isGrab: false,
+        pushback: 1.6, launchY: 0, knockdown: false, isGrab: false,
         height: grounded ? 'MID' : 'OVERHEAD', hasArmor: false, invincible: false,
         hitbox: { offsetX: 34, offsetY: -105, width: 105 + reachBonus, height: 54 },
         hasHit: false,
