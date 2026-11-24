@@ -50,7 +50,8 @@
     "test:v56": "node --test tests/v56.friends-invitations.test.cjs",
     "test:v57": "node --test tests/v57.ultimate.test.cjs",
     "test:v58": "node --test tests/v58.delete-fighter-cloud.test.cjs",
-    "test:v59": "node --test tests/v59.league-plate.test.cjs"
+    "test:v59": "node --test tests/v59.league-plate.test.cjs",
+    "test:v60": "node --test tests/v60.guard-parry.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",
