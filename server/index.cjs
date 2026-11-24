@@ -3,7 +3,6 @@ const http=require('node:http');
 const {upgrade}=require('./transport.cjs');
 const {handle,closed}=require('./rooms.cjs');
 const rankedApi=require('./ranked.cjs');
-const pushApi=require('./push.cjs');
 // Render and similar platforms inject PORT; keep ONLINE_PORT for local development.
 const PORT=Number(process.env.PORT||process.env.ONLINE_PORT||8787);
 const ALLOWED=(process.env.ONLINE_ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -19,28 +18,9 @@ function safeOrigin(req){
   }catch{return false;}
 }
 const server=http.createServer((req,res)=>{
-  const path=(req.url||'').split('?')[0];
-  if(path==='/health'){
+  if(req.url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1,ranked:rankedApi.available(),push:pushApi.configured()}));return;
-  }
-  // V58: avisos push. CORS limitado a los orígenes ya permitidos para el juego.
-  if(path.startsWith('/push/')){
-    if(!safeOrigin(req)){res.writeHead(403,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Origen no permitido.'}));return;}
-    const origin=req.headers.origin;
-    if(origin){
-      res.setHeader('Access-Control-Allow-Origin',origin);
-      res.setHeader('Vary','Origin');
-      res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers','Content-Type');
-      res.setHeader('Access-Control-Max-Age','600');
-    }
-    if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
-    void Promise.resolve(pushApi.handle(req,res)).catch(err=>{
-      console.error('[push]',err);
-      if(!res.headersSent){res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Error interno del servidor.'}));}
-    });
-    return;
+    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1,ranked:rankedApi.available()}));return;
   }
   res.writeHead(404);res.end('Not Found');
 });
