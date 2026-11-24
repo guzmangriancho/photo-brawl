@@ -275,7 +275,9 @@ export class FightEngine {
   private cameraZoom = 1;
   private cameraX = STAGE_WIDTH / 2;
   private cameraY = STAGE_HEIGHT / 2;
-  public trainingDummyMode: 'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT' | 'TUTORIAL_JABS' = 'IDLE';
+  public trainingDummyMode: 'IDLE' | 'GUARD_ALL' | 'GUARD_HIGH' | 'GUARD_LOW' | 'MASH_LIGHT' | 'PARRY' | 'HEAVY' | 'TUTORIAL_JABS' = 'IDLE';
+  // Solo Entrenamiento libre (no tutorial): el muñeco se aleja de las paredes y se acerca para practicar.
+  public trainingFreePlay: boolean = false;
 
   public frameCount: number = 0;
   public hitstopFrames: number = 0;
@@ -730,7 +732,7 @@ export class FightEngine {
 
     // Solo el muñeco del tutorial: anticipación visible para aprender el timing.
     // No modifica jabs de jugadores, CPU normal ni el servidor online.
-    if (this.mode === 'TRAINING' && this.trainingDummyMode === 'TUTORIAL_JABS' &&
+    if (this.mode === 'TRAINING' && (this.trainingDummyMode === 'TUTORIAL_JABS' || this.trainingDummyMode === 'PARRY') &&
         this.p2.currentAttack?.slot === 'LIGHT' && this.p2.stateFrame <= 1) {
       this.p2.currentAttack.startup = 30;
     }
@@ -2191,7 +2193,37 @@ export class FightEngine {
     player: FighterRuntime
   ): InputState {
     const inp = createEmptyInput();
+    if (this.trainingFreePlay && dummy.state !== 'ATTACK' && dummy.state !== 'HURT' &&
+        dummy.state !== 'KNOCKDOWN' && dummy.state !== 'KO' && this.isGrounded(dummy)) {
+      const m = 110;
+      const nearWall = dummy.x < m || dummy.x > STAGE_WIDTH - m;
+      const attacking = this.trainingDummyMode === 'MASH_LIGHT' || this.trainingDummyMode === 'PARRY' ||
+        this.trainingDummyMode === 'HEAVY';
+      if (nearWall) {
+        // Sale de la esquina hacia el centro; si el jugador le bloquea el paso, salta por encima.
+        const toCenter = dummy.x < STAGE_WIDTH / 2 ? 1 : -1;
+        if (toCenter > 0) inp.right = true; else inp.left = true;
+        if (Math.abs(player.x - dummy.x) < 90 && Math.sign(player.x - dummy.x) === toCenter && this.frameCount % 40 === 0) inp.up = true;
+        return inp;
+      }
+      if (attacking && Math.abs(player.x - dummy.x) > 120) {
+        if (player.x > dummy.x) inp.right = true; else inp.left = true;
+        return inp;
+      }
+    }
     if (this.trainingDummyMode === 'IDLE') return inp;
+
+    if (this.trainingDummyMode === 'PARRY') {
+      // Jab lento y telegrafiado cada ~1,7 s para practicar el parry con tacto.
+      if (this.frameCount % 100 === 0) inp.light = true;
+      return inp;
+    }
+
+    if (this.trainingDummyMode === 'HEAVY') {
+      // Golpe pesado cada ~2 s: se esquiva o se aguanta; nunca se para con parry.
+      if (this.frameCount % 120 === 0) inp.heavy = true;
+      return inp;
+    }
 
     if (this.trainingDummyMode === 'MASH_LIGHT') {
       // Alternates light attack every ~28 frames so you can test Parry & Counter Hits!
