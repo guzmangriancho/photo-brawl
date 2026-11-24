@@ -312,6 +312,16 @@ export const FightArena: React.FC<FightArenaProps> = ({
         return;
       }
       if (p1Key || p2Key || event.code === 'Space') event.preventDefault();
+      if(p1Key==='light'){
+        // Teclado: ABAJO + golpe = bajo, AVANCE + golpe = entrada, igual que en táctil.
+        if(!event.repeat){
+          const facing=guestOnline?engine.p2.facing:engine.p1.facing;
+          const forward=(facing===1&&keyboardP1.right)||(facing===-1&&keyboardP1.left);
+          const strike:'LIGHT'|'LOW'|'RUSH'=keyboardP1.down?'LOW':forward?'RUSH':'LIGHT';
+          if(onlineMode)online?.sendAction(strike);else engine.queueTouchAction(strike);
+        }
+        return;
+      }
       if(onlineMode && p1Key && !event.repeat){
         const attacks:Partial<Record<keyof InputState, 'LIGHT'|'HEAVY'|'SP_FORWARD'|'SP_UP'|'SUPER'>>={light:'LIGHT',heavy:'HEAVY',spForward:'SP_FORWARD',spUp:'SP_UP',superBtn:'SUPER'};
         if(attacks[p1Key]){online?.sendAction(attacks[p1Key]);return;}

@@ -8,7 +8,7 @@ import { FLOOR_Y, type FightEngine } from '../engine/FightEngine';
 export type TutorialDummyMode = 'IDLE' | 'GUARD_HIGH' | 'TUTORIAL_JABS';
 export type TutorialLessonId =
   | 'MOVE' | 'DASH' | 'JUMP' | 'GUARD_WALK' | 'JAB' | 'CHAIN'
-  | 'FINISHER' | 'LOW' | 'SPECIAL' | 'FORWARD' | 'UP'
+  | 'FINISHER' | 'LOW' | 'RUSH_IN' | 'LOW_CHAIN' | 'PUSH' | 'SPECIAL' | 'FORWARD' | 'UP'
   | 'BLOCK' | 'PARRY' | 'SUPER' | 'COMPLETE';
 
 export interface TutorialLesson {
@@ -18,7 +18,7 @@ export interface TutorialLesson {
   keyboard: string;
   tip: string;
   dummy: TutorialDummyMode;
-  setup?: 'CLOSE' | 'SPECIALS' | 'DEFENSE';
+  setup?: 'CLOSE' | 'GAP' | 'SPECIALS' | 'DEFENSE';
 }
 
 export const TUTORIAL_LESSONS: readonly TutorialLesson[] = [
@@ -30,6 +30,9 @@ export const TUTORIAL_LESSONS: readonly TutorialLesson[] = [
   {id:'CHAIN',title:'ENLAZA JABS',instruction:'Conecta un segundo GOLPE antes de que termine el primero.',keyboard:'TECLADO: F → F',tip:'Dos golpes conectados inician una cadena; machacar A sin acertar no sirve.',dummy:'IDLE'},
   {id:'FINISHER',title:'REMATE FUERTE',instruction:'Tras dos jabs, remata con otro A o mantén A.',keyboard:'TECLADO: F → F → F o H',tip:'El remate fuerte debe alcanzar al rival dentro del combo.',dummy:'IDLE'},
   {id:'LOW',title:'ROMPE GUARDIA',instruction:'El rival se cubre arriba. Haz ABAJO + GOLPE.',keyboard:'TECLADO: S + F',tip:'Los ataques bajos atraviesan la guardia alta. ¡Haz que conecte!',dummy:'GUARD_HIGH',setup:'CLOSE'},
+  {id:'RUSH_IN',title:'ENTRADA',instruction:'Con el rival a distancia, pulsa AVANCE + GOLPE y sigue con otro GOLPE.',keyboard:'TECLADO: D + F → F (si miras a la derecha)',tip:'Úsala para cerrar distancia sin dejar que te vean venir: el paso conecta de lejos y el jab sigue la cadena.',dummy:'IDLE',setup:'GAP'},
+  {id:'LOW_CHAIN',title:'MEZCLA BAJA',instruction:'El rival se cubre de pie. Haz GOLPE, GOLPE y ABAJO + GOLPE.',keyboard:'TECLADO: F → F → S + F',tip:'Si el rival cubre alto, los dos jabs se bloquean pero el tercero baja y entra. Si se agacha, usa el remate fuerte.',dummy:'GUARD_HIGH',setup:'CLOSE'},
+  {id:'PUSH',title:'EMPUJE',instruction:'Haz GOLPE, GOLPE y AVANCE + GOLPE para sacar al rival de tu espacio.',keyboard:'TECLADO: F → F → D + F (si miras a la derecha)',tip:'Hace menos daño que el remate fuerte, pero casi no te deja en desventaja y manda al rival lejos o a la pared. Úsalo para escapar de la presión.',dummy:'IDLE',setup:'CLOSE'},
   {id:'SPECIAL',title:'TÉCNICA NEUTRA',instruction:'Pulsa TÉCNICA (B) sin marcar una dirección.',keyboard:'TECLADO: G',tip:'No puedes disparar sin parar: los proyectiles tienen recuperación.',dummy:'IDLE',setup:'SPECIALS'},
   {id:'FORWARD',title:'TÉCNICA DE AVANCE',instruction:'Pulsa hacia el RIVAL + TÉCNICA (B).',keyboard:'TECLADO: D + G (si miras a la derecha)',tip:'Adelante significa siempre hacia tu adversario.',dummy:'IDLE'},
   {id:'UP',title:'TÉCNICA ANTIAÉREA',instruction:'Marca ARRIBA en el joystick + TÉCNICA.',keyboard:'TECLADO: W + G',tip:'Arriba en el joystick elige la técnica; SALTO va en otro botón.',dummy:'IDLE'},
@@ -52,6 +55,9 @@ export function tutorialLessonCompleted(id: TutorialLessonId, engine: FightEngin
     case 'CHAIN': return p.comboCount >= 2 && attack?.slot === 'LIGHT' && attack.hasHit;
     case 'FINISHER': return p.comboCount >= 3 && attack?.slot === 'HEAVY' && attack.hasHit;
     case 'LOW': return attack?.slot === 'LOW' && attack.hasHit;
+    case 'RUSH_IN': return p.comboCount >= 2 && attack?.slot === 'LIGHT' && attack.hasHit && p.lightChainCount === 1;
+    case 'LOW_CHAIN': return attack?.slot === 'LOW' && attack.hasHit && p.lightChainCount >= 2;
+    case 'PUSH': return attack?.name === 'EMPUJE' && attack.hasHit && p.lightChainCount >= 2;
     case 'SPECIAL': return attack?.slot === 'SP_NEUTRAL';
     case 'FORWARD': return attack?.slot === 'SP_FORWARD';
     case 'UP': return attack?.slot === 'SP_UP';
@@ -67,7 +73,7 @@ export function prepareTutorialLesson(engine: FightEngine, lesson: TutorialLesso
   if (lesson.setup) {
     engine.resetRound();
     engine.p1.x = 410;
-    engine.p2.x = lesson.setup === 'SPECIALS' ? 650 : 492;
+    engine.p2.x = lesson.setup === 'SPECIALS' ? 650 : lesson.setup === 'GAP' ? 560 : 492;
     engine.p1.facing = 1;
     engine.p2.facing = -1;
   }
