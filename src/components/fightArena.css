@@ -1032,7 +1032,7 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .pb-tutorial-in-fight.is-complete{border-color:#facc67}
 .pb-tutorial-in-fight.is-complete .pb-school-progress i{background:#8bf0c1}
 @media(orientation:portrait){
-  .pb-tutorial-in-fight{top:clamp(78px,14vh,138px);width:min(94vw,385px);padding:6px 8px;gap:3px}
+  .pb-tutorial-in-fight{top:calc(79px + 56.3vw);width:min(94vw,385px);padding:6px 8px;gap:3px}
   .pb-school-heading{font-size:9px}
   .pb-tutorial-in-fight>strong{font-size:clamp(14px,4vw,18px)}
   .pb-tutorial-in-fight>small{font-size:clamp(10px,2.7vw,12px)}
