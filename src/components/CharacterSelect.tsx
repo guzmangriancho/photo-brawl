@@ -11,11 +11,10 @@ import { FighterCreator } from './FighterCreator';
 import { UltimateWorkshop } from './UltimateWorkshop';
 import {applyUltimate,loadUltimate,ultimateProgress,type UltimateReady,type UltimateProgress} from '../services/ultimateForms';
 import { OnlineLobby } from './OnlineLobby';
-import { FriendsPanel } from './FriendsPanel';
+import { FriendsPanel, PushBlock } from './FriendsPanel';
 import {useFriends} from '../services/useFriends';
 import {sendFriendRequest,replyFriend,removeFriend,sendGameInvitation,replyGameInvitation,type GameInvitation,type SocialMode} from '../services/friendsService';
 import {notifySocial} from '../services/pushService';
-import {readDaily,loadDailyFighter,dailyTitle,nextMilestone,type DailyState} from '../services/dailyService';
 import {ensureRankedOwnFighter} from '../services/publishedFighters';
 import { CommunityPage } from './CommunityPage';
 import {LeagueFrame,LeagueBadge} from './LeagueEmblem';
@@ -99,7 +98,7 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
   return <div className="pb-panel-title"><span>{label}</span><h2>{children}</h2></div>;
 }
 
-export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial, onStartDaily }) => {
+export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
   const {user:accountUser}=usePlayerAccount();
   const {social,socialError,refreshSocial}=useFriends(accountUser?.id);
@@ -123,34 +122,6 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     void ownFighterRanks().then(ranks=>{if(mounted)setOwnCups(ranks);}).catch(()=>{});
     return()=>{mounted=false;};
   },[accountUser?.id,page]);
-  const [daily,setDaily]=useState<DailyState|null>(null);
-  const [dailyFighter,setDailyFighter]=useState<FighterProfile|null>(null);
-  const [dailyBusy,setDailyBusy]=useState(false);
-  const [dailyError,setDailyError]=useState('');
-  useEffect(()=>{
-    if(!accountUser)return;
-    let mounted=true;
-    const load=async()=>{
-      try{
-        const state=await readDaily();
-        if(!mounted)return;
-        setDaily(state);setDailyError('');
-        if(state.available&&state.feature){
-          const fighter=await loadDailyFighter(state.feature).catch(()=>null);
-          if(mounted)setDailyFighter(fighter);
-        }else if(mounted)setDailyFighter(null);
-      }catch(error){if(mounted){setDaily(null);setDailyError(error instanceof Error?error.message:'');}}
-    };
-    void load();
-    const refresh=()=>void load();
-    window.addEventListener('pb-daily-refresh',refresh);
-    return()=>{mounted=false;window.removeEventListener('pb-daily-refresh',refresh);};
-  },[accountUser?.id]);
-  const startDaily=()=>{
-    if(!featured||!daily?.feature||!dailyFighter||dailyBusy)return;
-    setDailyBusy(true);
-    onStartDaily(featured,dailyFighter,daily.feature.stage,daily.feature.day);
-  };
   const [verifiedAdminId,setVerifiedAdminId]=useState<string|null>(null);
   const adminAllowed=Boolean(accountUser?.id && accountUser.id===verifiedAdminId);
   const [showAllFighters,setShowAllFighters]=useState(false);
@@ -544,18 +515,6 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
         {(featured||mode==='ONLINE') ? <>
           <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
         </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
-        {daily?.available&&daily.feature&&<section className="pb-daily-card pb-frame" aria-label="Combate diario">
-          {dailyFighter&&<div className="pb-daily-art"><FighterPortrait fighter={dailyFighter}/></div>}
-          <div className="pb-daily-info">
-            <span className="pb-daily-kicker"><CalendarDays size={12}/> COMBATE DIARIO{dailyTitle(daily.monthWins)&&<b className="pb-daily-title">{dailyTitle(daily.monthWins)}</b>}</span>
-            <strong>{daily.feature.fighterName}</strong>
-            <small>{STAGE_ART[daily.feature.stage]?.short||''} · {daily.monthWins} VICTORIA{daily.monthWins===1?'':'S'} ESTE MES{nextMilestone(daily.monthWins)?` · SIGUIENTE: ${nextMilestone(daily.monthWins)!.title} (${nextMilestone(daily.monthWins)!.wins})`:' · TÍTULO MÁXIMO DEL MES'}</small>
-          </div>
-          {daily.myResult?.won
-            ?<div className="pb-daily-won" role="status"><Check size={14}/> GANADO</div>
-            :<button type="button" className="pb-mini-button pb-gold pb-daily-play" disabled={!featured||!dailyFighter||dailyBusy} onClick={startDaily}><Swords size={14}/> {daily.myResult?'REINTENTAR':'JUGAR'}</button>}
-        </section>}
-        {dailyError&&page==='HOME'&&<small className="pb-daily-error" role="status">{dailyError}</small>}
         <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
@@ -593,6 +552,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     {page === 'SETTINGS' && <div className="pb-subpage pb-settings-layout pb-page-anim"><section className="pb-frame pb-settings-controls"><PanelTitle label="PERSONALIZA LA EXPERIENCIA">AJUSTES</PanelTitle>
       <div className="pb-setting-row"><div><SlidersHorizontal size={16}/><span>TRANSPARENCIA BOTONES</span></div><label className="pb-opacity"><input aria-label="Transparencia controles" type="range" min="35" max="100" step="5" value={controlOpacity} onChange={e => setControlOpacity(Number(e.target.value))}/><b>{controlOpacity}%</b></label></div>
       {([['JOYSTICK FIJO', stickFixed, () => setStickFixed(!stickFixed)], ['MODO ZURDOS', southpaw, () => setSouthpaw(!southpaw)], ['VIBRACIÓN TÁCTIL', haptics, () => setHaptics(!haptics)], ['SONIDO', !muted, () => { soundFX.muted = !soundFX.muted; setMuted(soundFX.muted); }]] as [string, boolean, () => void][]).map(([title, value, action], i) => <div className="pb-setting-row" key={title}><div>{i === 3 ? (muted ? <VolumeX size={16}/> : <Volume2 size={16}/>) : i === 2 ? <Zap size={16}/> : <Gamepad2 size={16}/>}<span>{title}</span></div><button type="button" className={`pb-toggle ${value ? 'is-on' : ''}`} aria-label={title} aria-pressed={value} onClick={action}><i/></button></div>)}
+      <PushBlock/>
       {adminAllowed&&<div className="pb-setting-row pb-admin-setting"><div><ShieldCheck size={16}/><span>VER TODOS LOS LUCHADORES</span></div><button type="button" className={`pb-toggle ${showAllFighters?'is-on':''}`} role="switch" aria-label="Ver también luchadores no publicados en Comunidad" aria-checked={showAllFighters} onClick={()=>setShowAllFighters(v=>!v)}><i/></button></div>}
     </section><section className="pb-frame pb-settings-info"><PanelTitle label="INFORMACIÓN Y HERRAMIENTAS">MÓVIL Y TECLADO</PanelTitle><div className="pb-control-help"><strong>MÓVIL</strong><span>Joystick · A golpear · B técnica · SALTAR</span><strong>TECLADO P1</strong><span>WASD mover · F golpe · G técnica · H fuerte · ESC pausa</span></div><div className="pb-gemini-status"><KeyRound size={16}/><span>GEMINI: {getGeminiApiKey() ? 'CONFIGURADO' : 'SIN CLAVE'}</span></div><button type="button" className="pb-mini-button pb-purple pb-key-button" onClick={openKey}><KeyRound size={16}/> CONFIGURAR CLAVE GEMINI</button><button type="button" className="pb-mini-button pb-blue pb-pwa-settings-button" onClick={() => { setPage('HOME'); setInstallRequest(n=>n+1); }}><Gamepad2 size={15}/> INSTALAR JUEGO COMO APP</button><small className="pb-settings-hint">Para crear otro personaje, vuelve a Inicio y entra en «Elegir luchador».</small></section></div>}
   </div>
