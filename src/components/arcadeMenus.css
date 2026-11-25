@@ -748,3 +748,25 @@
 .pb-home-modes.pb-modes-single > .pb-mode-wide{grid-column:1 / -1;grid-row:3;justify-content:center;min-height:0}
 .pb-mode-back{display:flex;align-items:center;gap:4px;align-self:flex-start;background:none;border:0;padding:2px 0;cursor:pointer}
 .pb-options-app-settings{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid #577fa5;border-radius:4px;color:#b0dafa;padding:2px 6px;font:800 clamp(9px,1vw,11px) Oxanium,system-ui}
+
+/* CPU vs CPU tactics page */
+.pb-tactics-layout{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) auto}
+.pb-tactics-layout .pb-tactics-start{grid-column:1 / -1}
+.pb-tactics-panel{display:flex;flex-direction:column;gap:clamp(3px,.9vh,9px);min-height:0;overflow:hidden}
+.pb-tactics-head{display:flex;align-items:center;gap:8px;min-width:0}
+.pb-tactics-head img{width:clamp(28px,6vh,44px);height:clamp(28px,6vh,44px);image-rendering:pixelated;border:2px solid #54739d;flex-shrink:0}
+.pb-tactics-head>div{display:flex;flex-direction:column;min-width:0;flex:1}
+.pb-tactics-head small{color:#80d9ff;font-size:clamp(8px,1vw,11px);font-weight:900}
+.pb-tactics-head strong{font-size:clamp(12px,1.6vw,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-tactic-row,.pb-tactic-mix{display:flex;flex-direction:column;gap:1px;min-width:0}
+.pb-tactic-row label,.pb-tactic-mix-title{display:flex;justify-content:space-between;gap:6px;font:800 clamp(8px,.95vw,11px) Oxanium,system-ui;color:#b0dafa;letter-spacing:.4px}
+.pb-tactic-mix-title{color:#ffdf91}
+.pb-tactic-mix-row{display:grid;grid-template-columns:clamp(46px,6vw,64px) minmax(0,1fr) 34px;align-items:center;gap:6px}
+.pb-tactic-mix-row label{font:800 clamp(8px,.95vw,11px) Oxanium,system-ui;color:#b0dafa}
+.pb-tactic-mix-row b{font-size:clamp(9px,1vw,12px);color:#fcde92;text-align:right}
+.pb-tactics-panel input[type=range]{width:100%;height:clamp(14px,2.6vh,22px);accent-color:#ffc750;margin:0}
+@media (orientation:portrait){
+  .pb-tactics-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr)) auto}
+}
+.pb-tactics-panel{padding:clamp(6px,1.2vh,12px) clamp(9px,1.4vw,16px)}
+.pb-tactics-head .pb-mini-button{font-size:clamp(9px,1.1vw,12px);padding:4px 8px;min-height:0}
