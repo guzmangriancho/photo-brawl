@@ -76,7 +76,7 @@ function roundName(r: number, total: number): string {
 function BracketTree({ rounds, total, watching, onWatch }: { rounds: { total: number; matches: BracketMatch[] }[]; total: number; watching: string; onWatch: (id: string) => void }) {
   const box = useRef<HTMLDivElement>(null);
   // Al destaparse una ronda nueva, el cuadro se desplaza a la última columna.
-  useEffect(() => { const el = box.current; if (el && rounds.length > 1) el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' }); }, [rounds.length]);
+  useEffect(() => { const el = box.current; if (el && rounds.length > 1) { const cols = el.querySelectorAll<HTMLElement>('.pb-trn-col'); const last = cols[cols.length - 1]; if (last) el.scrollTo({ left: Math.max(0, last.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft - 4), behavior: 'smooth' }); } }, [rounds.length]);
   return <div className="pb-trn-tree" ref={box} role="group" aria-label="Cuadro de eliminatorias">
     {rounds.map((r, ri) => <div className="pb-trn-col" key={ri}>
       <h4>{roundName(ri + 1, total)}</h4>
