@@ -1,3 +1,9 @@
+/* Main menu: no tagline, and the three root buttons share the space equally. */
+.pb-home-controls .pb-home-brand>small{display:none}
+.pb-home-controls .pb-home-modes.pb-modes-root{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr))}
+.pb-home-controls .pb-home-modes.pb-modes-root>.pb-mode-tile{grid-column:1;grid-row:auto}
+.pb-home-controls .pb-home-modes.pb-modes-root>.pb-mode-tile>svg:last-child{display:block}
+.pb-home-controls .pb-home-modes.pb-modes-root>.pb-mode-tile small{font-size:clamp(8px,1.1vw,12px)}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
