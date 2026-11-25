@@ -5,6 +5,7 @@
  * Uso: node spec-from-export.cjs export.json spec.json [--repo ../..] */
 const fs=require('fs'),path=require('path');
 const [,,inp,outp,...rest]=process.argv;
+const dayArg=rest.indexOf('--day')>=0?Number(rest[rest.indexOf('--day')+1]):null; // numero de dia: lo fija quien lanza el video
 const repo=path.resolve(rest[rest.indexOf('--repo')+1]||path.join(__dirname,'..','..'));
 const ex=JSON.parse(fs.readFileSync(inp,'utf8'));
 const dir=path.dirname(path.resolve(outp)),artDir=path.join(dir,'art');fs.mkdirSync(artDir,{recursive:true});
@@ -36,7 +37,7 @@ async function dl(url,file){if(fs.existsSync(file))return;const r=await fetch(ur
     }
   }
   const final=ms.filter(m=>m.round===last)[0];
-  const spec={font:path.join(__dirname,'assets/PressStart2P-Regular.ttf'),engineDir:engineDir,introStage:rounds[0].stage,introSeconds:4,outroSeconds:5,tournamentLabel:'TORNEO',
+  const spec={font:path.join(__dirname,'assets/PressStart2P-Regular.ttf'),engineDir:engineDir,introStage:rounds[0].stage,introSeconds:4,outroSeconds:5,tournamentLabel:'TORNEO',tournamentDay:Number.isFinite(dayArg)?dayArg:undefined,
     difficulty:ms[0].difficulty,stages,fighters,rounds,champion:final.winner==='a'?final.a.name:final.b.name};
   fs.writeFileSync(outp,JSON.stringify(spec,null,1));console.log('spec escrito:',outp,'campeón',spec.champion,'tramos',rounds.length);
 })().catch(e=>{console.error(e.message);process.exit(1)});

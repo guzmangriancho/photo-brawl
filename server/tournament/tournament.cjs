@@ -183,8 +183,8 @@ async function saveTactics(accountId,tactics){
 // ---------- Programador ----------
 let ticking=false,lastRun=0,lastResult={ok:true,idle:true};
 const MIN_GAP_MS=Number(process.env.TOURNAMENT_MIN_GAP_MS||5000);
-/** e1: siempre al mejor de 3. e2: al mejor de 1 hasta cuartos; semifinales y final al mejor de 3 (propuesta provisional). */
-function roundsToWinFor(t,roundNo){return t.engine_version==='e1'?2:(roundNo>=t.round_count-1?2:1);}
+/** e1: siempre al mejor de 3 (torneos antiguos, inmutables). e2: todas las rondas a un solo round (BO1), sin excepciones. */
+function roundsToWinFor(t,roundNo){return t.engine_version==='e1'?2:1;}
 const yieldLoop=()=>new Promise(r=>setImmediate(r));
 async function simulateBatch(t,matches){
   const ents=await entriesByIds([...new Set(matches.flatMap(m=>[m.entry_a,m.entry_b]))]);

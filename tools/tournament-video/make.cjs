@@ -6,6 +6,8 @@
 const fs=require('fs'),path=require('path'),{spawn}=require('child_process');
 const specPath=path.resolve(process.argv[2]),outFile=path.resolve(process.argv[3]||'out.mp4'),only=process.argv[4];
 const spec=JSON.parse(fs.readFileSync(specPath,'utf8'));
+// Rotulo del torneo: numero de dia fijado por quien lanza el video (spec.tournamentDay), nunca derivado de una fecha.
+const TLABEL=(spec.tournamentDay!=null?'TORNEO \u00b7 D\u00cdA '+spec.tournamentDay:(spec.tournamentLabel||'TORNEO'));
 const base=path.dirname(specPath), R=p=>path.resolve(base,p);
 const nc=require(process.env.CANVAS_MODULE||'@napi-rs/canvas');
 const {createCanvas,loadImage,GlobalFonts}=nc;
@@ -56,7 +58,7 @@ function gradText(txt,x,y,size,top,bot){const g=c.createLinearGradient(0,y-size,
 function fit(txt,max,size){c.font=size+'px "Press Start 2P"';while(c.measureText(txt).width>max&&size>12){size-=2;c.font=size+'px "Press Start 2P"';}return size;}
 function bands(label,sub){
   gradText('PHOTO',VW/2-210,300,64,'#fff3d6','#fff3d6');gradText('BRAWL',VW/2+160,300,64,'#ffd84d','#ff8a1f');
-  outlined(spec.tournamentLabel||'TORNEO','' +VW/2,372,'24px "Press Start 2P"','#8fd8ff',6);
+  outlined(TLABEL,'' +VW/2,372,'24px "Press Start 2P"','#8fd8ff',6);
   const s=fit(label,980,54);outlined(label,VW/2,1470,s+'px "Press Start 2P"','#ffd84d',10);
   if(sub)outlined(sub,VW/2,1540,'24px "Press Start 2P"','#fff3d6',6);
 }
@@ -128,7 +130,7 @@ async function outro(){
     for(let k=0;k<46;k++){const sx=(k*137)%VW,sp=60+(k*53)%90,y=((t*sp+k*97)%(VH+40))-20,sz=6+(k%3)*4;c.fillStyle=COL[k%COL.length];c.globalAlpha=.65;c.fillRect(sx,y,sz,sz);}
     c.globalAlpha=1;
     const a=Math.min(1,t/0.6);c.save();c.globalAlpha=a;
-    outlined(spec.tournamentLabel||'TORNEO','' +VW/2,430,'38px "Press Start 2P"','#8fd8ff',8);
+    outlined(TLABEL,'' +VW/2,385,'38px "Press Start 2P"','#8fd8ff',8);
     gradText('CAMPEÓN',VW/2,560,92,'#ffe27a','#ff9a1f');
     const pop=0.9+0.1*Math.min(1,t/0.7),S=540*pop,px=(VW-S)/2,py=640+(540-S)/2;
     c.fillStyle='#050816';c.fillRect(px-14,py-14,S+28,S+28);c.fillStyle='#ffd84d';c.fillRect(px-8,py-8,S+16,S+16);c.fillStyle='#050816';c.fillRect(px-4,py-4,S+8,S+8);

@@ -8,11 +8,12 @@ así que el vídeo reproduce exactamente los combates guardados (semilla, tácti
 ## Uso
 ```
 cd tools/tournament-video && npm install            # solo @napi-rs/canvas; necesita ffmpeg y python3+numpy
-node spec-from-export.cjs export.json spec.json     # export.json = JSON del torneo (tournament, rounds, matches)
+node spec-from-export.cjs export.json spec.json --day 1     # export.json = JSON del torneo (tournament, rounds, matches)
 ./run.sh spec.json salida [MB]                      # => salida.master.mp4 y salida.whatsapp.mp4 (<= 15.5 MB por defecto)
 ```
 - `make.cjs` dibuja el vídeo mudo y apunta cada golpe en `*.events.json`; `audio.py` sintetiza música y efectos; `run.sh` lo une y comprime.
 - Rondas con más de 6 combates se parten en tramos de 6 (combates simultáneos superpuestos, un color por combate).
+- `--day N` pone el rótulo "TORNEO · DÍA N" (intro y pantalla de campeón); el número lo fija quien lanza el vídeo, no se saca de ninguna fecha. Sin `--day` el rótulo es solo "TORNEO".
 - Velocidad: 6x(prelim/cuartos), 4x (semifinales), 3x (final); cambia `spf` por tramo en el spec.
 - Un spec de un showcase con luchadores de la comunidad (sin torneo real) se arma a mano con el mismo formato: `fighters`, `rounds[].fights[] {a,b,seed}`, `champion`.
 
