@@ -59,15 +59,29 @@ function resultOf(m: TournamentMatchView, myEntry: string) {
   return { won, text: `${mine ?? 0}-${theirs ?? 0}` };
 }
 
+/** Luchadores que se saltan la ronda previa: aparecen en la ronda 2 sin haber jugado la 1. */
+function byesOf(r1: BracketMatch[], r2: BracketMatch[]): { id: string; name?: string; img?: string }[] {
+  const played = new Set(r1.flatMap(m => [m.entryA, m.entryB]));
+  const out: { id: string; name?: string; img?: string }[] = [];
+  for (const m of r2) {
+    if (!played.has(m.entryA)) out.push({ id: m.entryA, name: m.a, img: m.aPortrait });
+    if (!played.has(m.entryB)) out.push({ id: m.entryB, name: m.b, img: m.bPortrait });
+  }
+  return out;
+}
 function roundName(r: number, total: number): string {
   return r === total ? 'FINAL' : r === total - 1 ? 'SEMIFINAL' : r === total - 2 ? 'CUARTOS' : `RONDA ${r}`;
 }
 /** Cuadro de eliminatorias: una columna por ronda, una casilla por combate con retratos; el que cae se apaga en gris. */
 function BracketTree({ rounds, total, watching, onWatch }: { rounds: { total: number; matches: BracketMatch[] }[]; total: number; watching: string; onWatch: (id: string) => void }) {
-  return <div className="pb-trn-tree" role="group" aria-label="Cuadro de eliminatorias">
+  const box = useRef<HTMLDivElement>(null);
+  // Al destaparse una ronda nueva, el cuadro se desplaza a la última columna.
+  useEffect(() => { const el = box.current; if (el && rounds.length > 1) el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' }); }, [rounds.length]);
+  return <div className="pb-trn-tree" ref={box} role="group" aria-label="Cuadro de eliminatorias">
     {rounds.map((r, ri) => <div className="pb-trn-col" key={ri}>
       <h4>{roundName(ri + 1, total)}</h4>
-      <div className="pb-trn-col-body">{r.matches.map(m => {
+      <div className="pb-trn-col-body">{ri === 0 && rounds[1] ? byesOf(rounds[0].matches, rounds[1].matches).map(b => <div className="pb-trn-tmatch pb-trn-bye" key={'bye' + b.id}>
+        <div className="pb-trn-tslot win">{b.img ? <img src={b.img} alt="" draggable={false} /> : <u />}<em>{b.name}</em><b /><Crown size={10} aria-label="pasa" /></div><small>PASA DIRECTO</small></div>) : null}{r.matches.map(m => {
         const aw = m.winnerEntryId === m.entryA, bw = m.winnerEntryId === m.entryB;
         const slot = (name: string | undefined, img: string | undefined, win: boolean, score: number | undefined) =>
           <div className={`pb-trn-tslot ${win ? 'win' : m.revealed ? 'out' : ''}`}>{img ? <img src={img} alt="" draggable={false} /> : <u />}<em>{name}</em><b>{m.revealed ? score : ''}</b>{win && <Crown size={10} aria-label="pasa" />}</div>;
