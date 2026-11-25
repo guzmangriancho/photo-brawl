@@ -5,7 +5,7 @@ const js=ts.transpileModule(fs.readFileSync(path,'utf8'),{fileName:path,compiler
 const vm=require('vm');
 const soundFX=new Proxy({muted:true},{get:(t,p)=>p==='muted'?t.muted:()=>{}});
 const mod={exports:{}};
-vm.runInNewContext(js,{module:mod,exports:mod.exports,require:(id)=>id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('stages')?{STAGE_ART:{},getLargeArena:()=>undefined}:null,console,Math,Date}, {filename:'FightEngine.js'});
+vm.runInNewContext(js,{module:mod,exports:mod.exports,require:(id)=>id.includes('cpuTactics')?require('./helpers/cpuTactics.cjs'):id.includes('SoundFX')?{soundFX}:id.includes('SpriteProcessor')?{loadImage:async()=>null}:id.includes('stages')?{STAGE_ART:{},getLargeArena:()=>undefined}:null,console,Math,Date}, {filename:'FightEngine.js'});
 const {FightEngine}=mod.exports;
 const moveset={lightNormal:{name:'PUÑO',style:'FAST_JAB'},heavyNormal:{name:'GOLPE',style:'LONG_ROUNDHOUSE'},specialNeutral:{name:'BOLA',mechanic:'STRAIGHT_FIREBALL',visualAction:'',primaryHex:'#40d9f5'},specialForward:{name:'IMPULSO',mechanic:'SLIDE_LOW_KICK',visualAction:''},specialUp:{name:'SHORYUKEN',mechanic:'INVINCIBLE_UPPERCUT',visualAction:''},ultimateSuper:{name:'OMEGA',mechanic:'GIANT_BEAM_LASER',visualAction:''}};
 const profile=(name)=>({id:name,fighterName:name,archetype:'SHOTO_BALANCED',stats:{hp:25,power:25,technique:25,speed:25},moveset,passiveTrait:'DOUBLE_JUMP',portraitDataUrl:'',spriteSheetDataUrl:''});

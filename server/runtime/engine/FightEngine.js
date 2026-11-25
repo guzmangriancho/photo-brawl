@@ -5,6 +5,7 @@ const SpriteProcessor_1 = require("./SpriteProcessor");
 const stages_1 = require("../data/stages");
 const SoundFX_1 = require("./SoundFX");
 const ArcadeVFX_1 = require("./ArcadeVFX");
+const cpuTactics_1 = require("./cpuTactics");
 // Visual assets are loaded only in browsers. The authoritative Node combat server
 // never needs Image/DOM APIs. Frames render the old procedural background until ready.
 const stageImageCache = new Map();
@@ -113,9 +114,14 @@ class FightEngine {
     meteors = [];
     crossSlashes = [];
     nextProjId = 1;
+    /** Style of each CPU side (index 0 = P1, 1 = P2). Defaults equal the classic AI. */
+    cpuTactics = [{ ...cpuTactics_1.DEFAULT_CPU_TACTICS }, { ...cpuTactics_1.DEFAULT_CPU_TACTICS }];
+    /** Per-side memory for "after hit / after block" repositioning. */
+    cpuMemory = [{ retreat: 0, outcomeSeen: false }, { retreat: 0, outcomeSeen: false }];
     p1Input = createEmptyInput();
     p2Input = createEmptyInput();
-    constructor(p1Profile, p2Profile, mode, stage, difficulty = 'NORMAL') {
+    constructor(p1Profile, p2Profile, mode, stage, difficulty = 'NORMAL', tactics) {
+        this.cpuTactics = [(0, cpuTactics_1.normalizeCpuTactics)(tactics?.p1), (0, cpuTactics_1.normalizeCpuTactics)(tactics?.p2)];
         this.mode = mode;
         this.stage = stage;
         this.difficulty = difficulty;
@@ -2037,9 +2043,33 @@ class FightEngine {
                     cpu.bufferedActions.push({ slot: followUp, frame: this.frameCount });
             }
         }
+        const tactics = this.cpuTactics[cpu.index] || cpuTactics_1.DEFAULT_CPU_TACTICS;
+        const memory = this.cpuMemory[cpu.index] || this.cpuMemory[0];
+        const scale = (0, cpuTactics_1.distanceScale)(tactics);
+        // Remember how our last attack ended: connected or blocked.
+        if (cpu.state === 'ATTACK' && attack?.hasHit) {
+            if (!memory.outcomeSeen) {
+                memory.outcomeSeen = true;
+                const blocked = player.state === 'BLOCK_STAND' || player.state === 'BLOCK_CROUCH';
+                const amount = (blocked ? tactics.afterBlock : tactics.afterHit) / 100;
+                memory.retreat = Math.round(amount * 40);
+            }
+        }
+        else if (cpu.state !== 'ATTACK') {
+            memory.outcomeSeen = false;
+        }
         const dist = Math.abs(player.x - cpu.x);
         const dirToPlayer = player.x >= cpu.x ? 1 : -1;
         const arch = cpu.profile.archetype;
+        // Retreat window after a hit/block: step back, then come in again.
+        if (memory.retreat > 0 && cpu.state !== 'ATTACK') {
+            memory.retreat--;
+            if (dirToPlayer === 1)
+                inp.left = true;
+            else
+                inp.right = true;
+            return inp;
+        }
         const reactionDelay = this.difficulty === 'EASY' ? 24 : this.difficulty === 'NORMAL' ? 13 : 6;
         // Smart High/Low blocking based on incoming attack height!
         if (player.state === 'ATTACK' &&
@@ -2069,10 +2099,10 @@ class FightEngine {
                 }
             }
             if (arch === 'ZONER_MAGE') {
-                if (dist > 250) {
+                if (dist > 250 * scale) {
                     inp.spNeutral = true;
                 }
-                else if (dist < 110) {
+                else if (dist < 110 * scale) {
                     inp.spUp = true;
                 }
                 else {
@@ -2087,7 +2117,7 @@ class FightEngine {
                     inp.spForward = Math.random() < 0.62;
                     inp.heavy = !inp.spForward;
                 }
-                else if (dist < 260 && Math.random() < 0.38) {
+                else if (dist < 260 * scale && Math.random() < 0.38) {
                     inp.spForward = true;
                 }
                 else {
@@ -2099,17 +2129,17 @@ class FightEngine {
             }
             else {
                 if (dist < 100) {
-                    const roll = Math.random();
-                    if (roll < 0.42)
+                    const roll = Math.random() * 100;
+                    if (roll < tactics.closeLight)
                         inp.light = true;
-                    else if (roll < 0.7)
+                    else if (roll < tactics.closeLight + tactics.closeHeavy)
                         inp.heavy = true;
-                    else if (roll < 0.86)
+                    else if (roll < tactics.closeLight + tactics.closeHeavy + tactics.closeTech * 16 / 30)
                         inp.spUp = true;
                     else
                         inp.spForward = true;
                 }
-                else if (dist < 270) {
+                else if (dist < 270 * scale) {
                     if (Math.random() < 0.44) {
                         inp.spForward = true;
                     }
@@ -2118,7 +2148,7 @@ class FightEngine {
                             inp.right = true;
                         else
                             inp.left = true;
-                        if (Math.random() < 0.22)
+                        if (Math.random() < tactics.jumpIn / 100)
                             inp.up = true;
                     }
                 }
@@ -2136,13 +2166,13 @@ class FightEngine {
             }
         }
         else {
-            if (arch === 'ZONER_MAGE' && dist < 220) {
+            if (arch === 'ZONER_MAGE' && dist < 220 * scale) {
                 if (dirToPlayer === 1)
                     inp.left = true;
                 else
                     inp.right = true;
             }
-            else if (dist > 105) {
+            else if (dist > 105 * scale) {
                 if (dirToPlayer === 1)
                     inp.right = true;
                 else
