@@ -20,6 +20,7 @@ import { FightArena } from './components/FightArena';
 import { GroupFightArena } from './components/GroupFightArena';
 import { LARGE_ARENA_IDS } from './data/stages';
 import type { CpuTactics } from './engine/cpuTactics';
+import type { TournamentReplayStart } from './components/TournamentScreen';
 import type { OnlineSession } from './network/OnlineSession';
 import type { OnlineStart } from './network/protocol';
 
@@ -67,7 +68,9 @@ export function App() {
     fighters?: FighterProfile[];
     rankTrophies?:number[];
     simulate?:boolean;
+    tournamentReplay?:boolean;
   } | null>(null);
+  const [backToTournament,setBackToTournament]=useState(false);
 
   // Keep automatic background backups for edits/imports, but the initial
   // launch MUST await both cloud steps before mounting any game screen.
@@ -182,6 +185,14 @@ export function App() {
     setScreen('FIGHT');
   };
 
+  // Ver un combate de torneo: mismos luchadores congelados, mismas tácticas congeladas, misma semilla = mismo combate.
+  const handleWatchTournament=(start:TournamentReplayStart)=>{
+    setMatchConfig({p1:start.p1,p2:start.p2,mode:'CPU_VS_CPU',stage:start.stage,difficulty:start.difficulty,tactics:start.tactics,simulate:false,tournamentReplay:true});
+    setCpuResume(null);setBackToTournament(true);
+    setFightKey(value=>value+1);
+    setScreen('FIGHT');
+  };
+
   const handleStartTutorial = (presetId: string) => {
     const presets = getPresetFighters();
     const selected = presets.find(f => f.id === presetId) ?? presets[0];
@@ -210,7 +221,7 @@ export function App() {
   };
   const handleWatch=()=>{setMatchConfig(old=>old?{...old,simulate:false}:old);setFightKey(v=>v+1);};
   const handleExit=()=>{
-    matchConfig?.online?.close();setMatchConfig(null);setScreen('SELECT');
+    matchConfig?.online?.close();if(!matchConfig?.tournamentReplay)setBackToTournament(false);setMatchConfig(null);setScreen('SELECT');
   };
 
   // Neither combat nor selection is available without a verified session.
@@ -246,7 +257,7 @@ export function App() {
         stage={matchConfig.stage}
         difficulty={matchConfig.difficulty} tactics={matchConfig.tactics}
         online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
-        tutorial={matchConfig.tutorial}
+        tutorial={matchConfig.tutorial} tournamentReplay={matchConfig.tournamentReplay}
         onExit={handleExit}
       />
     );
@@ -267,6 +278,8 @@ export function App() {
       onOnlineMatch={handleOnlineMatch}
       onStartTutorial={handleStartTutorial}
       resume={cpuResume||undefined}
+      openTournament={backToTournament}
+      onWatchTournament={handleWatchTournament}
     />
     {startup.warning&&<div className="pb-startup-warning" role="status">{startup.warning}</div>}
     </>

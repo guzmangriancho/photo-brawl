@@ -1,0 +1,221 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Clock3, Crown, Loader2, Play, Swords, Trophy, Users } from 'lucide-react';
+import type { CpuDifficulty, FighterProfile, StageId } from '../types/fighter';
+import type { CpuTactics } from '../engine/cpuTactics';
+import { SIM_VERSION } from '../engine/fightSeed';
+import { CpuTacticsPanel } from './CpuTacticsPanel';
+import {
+  fetchTournamentBracket, fetchTournamentMatch, fetchTournamentState, joinTournament, saveTournamentTactics, toFighterProfile,
+  type BracketMatch, type TournamentFighter, type TournamentMatchView, type TournamentState,
+} from '../services/tournamentService';
+import './tournament.css';
+
+export interface TournamentReplayStart { p1: FighterProfile; p2: FighterProfile; stage: StageId; difficulty: CpuDifficulty; tactics: { p1: CpuTactics; p2: CpuTactics } }
+interface Props { fighters: FighterProfile[]; onWatch: (start: TournamentReplayStart) => void }
+
+const STATS: [keyof FighterProfile['stats'], string][] = [['hp', 'HP'], ['speed', 'SPD'], ['power', 'PWR'], ['technique', 'TEC']];
+const ARCH: Record<string, string> = { RUSHDOWN: 'RUSHDOWN', GRAPPLER_TANK: 'TANQUE', ZONER_MAGE: 'ZONER', TRICKSTER: 'TRICKSTER', SHOTO_BALANCED: 'EQUILIBRADO' };
+
+export function formatCountdown(ms: number): string {
+  if (!(ms > 0)) return '00:00';
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  const two = (n: number) => String(n).padStart(2, '0');
+  return d > 0 ? `${d}d ${two(h)}h ${two(m)}m` : h > 0 ? `${h}h ${two(m)}m ${two(sec)}s` : `${two(m)}:${two(sec)}`;
+}
+function whenLabel(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase();
+}
+
+function Countdown({ to, offset, label }: { to: string | null; offset: number; label: string }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  if (!to) return null;
+  const left = new Date(to).getTime() - (now + offset);
+  return <div className="pb-trn-count" role="timer"><Clock3 size={15} /><small>{label}</small><b>{left > 0 ? formatCountdown(left) : 'AHORA…'}</b><i>{whenLabel(to)}</i></div>;
+}
+
+function FighterCard({ f, title, hint }: { f: TournamentFighter; title: string; hint?: string }) {
+  const p = f.fighter;
+  const moves = [p.moveset.lightNormal, p.moveset.heavyNormal, p.moveset.specialNeutral, p.moveset.specialForward, p.moveset.specialUp, p.moveset.ultimateSuper];
+  return <section className="pb-frame pb-trn-fighter" aria-label={`${title}: ${f.name}`}>
+    <img src={f.portraitUrl} alt="" draggable={false} />
+    <div className="pb-trn-fighter-body">
+      <small>{title}</small>
+      <strong>{f.name}</strong>
+      <span className="pb-trn-arch">{ARCH[p.archetype] || p.archetype}{f.instagram ? ` · @${f.instagram}` : ''}</span>
+      <div className="pb-trn-stats">{STATS.map(([k, l]) => <div key={k}><span>{l}</span><i><u style={{ width: `${Math.round(p.stats[k] / 35 * 100)}%` }} /></i><b>{p.stats[k]}</b></div>)}</div>
+      <ul className="pb-trn-moves">{moves.map((m, i) => <li key={i}>{m.name}</li>)}</ul>
+      {hint && <em>{hint}</em>}
+    </div>
+  </section>;
+}
+
+function resultOf(m: TournamentMatchView, myEntry: string) {
+  const won = m.winnerEntryId === myEntry;
+  const mine = m.youAre === 'a' ? m.scoreA : m.scoreB, theirs = m.youAre === 'a' ? m.scoreB : m.scoreA;
+  return { won, text: `${mine ?? 0}-${theirs ?? 0}` };
+}
+
+export function TournamentScreen({ fighters, onWatch }: Props) {
+  const [state, setState] = useState<TournamentState | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [pick, setPick] = useState(fighters[0]?.id || '');
+  const [insta, setInsta] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [tactics, setTactics] = useState<CpuTactics | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'dirty' | 'saving' | 'saved' | 'error'>('idle');
+  const [watching, setWatching] = useState('');
+  const [bracketRound, setBracketRound] = useState(0);
+  const [bracket, setBracket] = useState<{ total: number; matches: BracketMatch[]; offset: number } | null>(null);
+  const dirty = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+
+  const refresh = useCallback(async () => {
+    try {
+      const next = await fetchTournamentState();
+      if (!alive.current) return;
+      setOffset(new Date(next.now).getTime() - Date.now());
+      setState(next); setError('');
+      if (!dirty.current && next.me) setTactics(next.me.tactics);
+    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : 'No se pudo cargar el torneo.'); }
+    finally { if (alive.current) setLoading(false); }
+  }, []);
+
+  const t = state?.tournament || null;
+  const soon = useMemo(() => {
+    if (!t) return false;
+    if (t.status === 'simulating') return true;
+    const target = t.status === 'registration' ? t.registrationClosesAt : t.roundCutoff;
+    return !!target && new Date(target).getTime() - (Date.now() + offset) < 60_000;
+  }, [t, offset, state]);
+  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const id = window.setInterval(() => { if (!document.hidden) void refresh(); }, soon ? 4000 : 15000);
+    return () => clearInterval(id);
+  }, [refresh, soon]);
+
+  // Tácticas: se guardan solas tras un instante sin tocar; el servidor las congela en el corte de la ronda.
+  useEffect(() => {
+    if (!dirty.current || !tactics) return;
+    setSaveState('dirty');
+    const id = window.setTimeout(async () => {
+      setSaveState('saving');
+      try { await saveTournamentTactics(tactics); dirty.current = false; if (alive.current) setSaveState('saved'); }
+      catch { await new Promise(r => setTimeout(r, 1300)); try { await saveTournamentTactics(tactics); dirty.current = false; if (alive.current) setSaveState('saved'); } catch { if (alive.current) setSaveState('error'); } }
+    }, 1300);
+    return () => clearTimeout(id);
+  }, [tactics]);
+  const editTactics = (next: CpuTactics) => { dirty.current = true; setTactics(next); };
+
+  const join = async () => {
+    if (!pick || joining) return;
+    setJoining(true); setError('');
+    try { await joinTournament(pick, insta.trim(), consent && !!insta.trim()); setChanging(false); dirty.current = false; await refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo inscribir.'); }
+    finally { setJoining(false); }
+  };
+  const watch = async (matchId: string) => {
+    if (watching) return;
+    setWatching(matchId); setError('');
+    try {
+      const d = await fetchTournamentMatch(matchId);
+      if (d.simVersion !== SIM_VERSION) throw new Error('Este combate se jugó con una versión anterior del motor y no se puede recrear con esta versión del juego. El resultado es válido.');
+      const [p1, p2] = await Promise.all([toFighterProfile(d.a), toFighterProfile(d.b)]);
+      onWatch({ p1, p2, stage: d.stage, difficulty: d.difficulty, tactics: { p1: d.tacticsA, p2: d.tacticsB } });
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo cargar el combate.'); }
+    finally { setWatching(''); }
+  };
+  const loadBracket = async (round: number, off = 0) => {
+    if (!t) return;
+    try { const r = await fetchTournamentBracket(t.id, round, off); setBracketRound(round); setBracket({ total: r.total, matches: r.matches, offset: off }); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo cargar el cuadro.'); }
+  };
+
+  if (loading) return <div className="pb-subpage pb-trn-page"><section className="pb-frame pb-trn-card pb-trn-center"><Loader2 className="pb-trn-spin" size={26} /><p>CARGANDO TORNEO…</p><small>Si el servidor estaba dormido puede tardar unos 30 s.</small></section></div>;
+
+  const me = state?.me || null;
+  const alivePlayer = me && me.entry.status !== 'eliminated';
+  const status = t?.status;
+  const registered = !!me;
+  const picking = status === 'registration' && (!registered || changing);
+
+  return <div className="pb-subpage pb-trn-page">
+    <div className="pb-trn-scroll">
+      <div className="pb-panel-title"><span>TORNEO POR RONDAS</span><h2>{t ? `TORNEO #${t.id.slice(0, 4).toUpperCase()}` : 'TORNEO'}</h2></div>
+      {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
+
+      {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> CAMPEÓN ANTERIOR: <b>{state.previous.champion.name}</b></div>}
+
+      {!t && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={30} /><p>NO HAY TORNEO ABIERTO</p><small>Cuando termine uno, el siguiente se abre solo. Vuelve más tarde.</small></section>}
+
+      {t && status === 'registration' && <>
+        <section className="pb-frame pb-trn-card">
+          <Countdown to={t.registrationClosesAt} offset={offset} label={t.extended ? 'INSCRIPCIÓN AMPLIADA · CIERRA EN' : 'CIERRA LA INSCRIPCIÓN EN'} />
+          <div className="pb-trn-row"><Users size={15} /><b>{t.entrantCount}</b> INSCRITOS · SIN LÍMITE DE PLAZAS</div>
+          <small className="pb-trn-note">Ves a tu rival y sus ataques cuando se cierre; sus tácticas, solo después de la pelea. Tus tácticas se pueden cambiar hasta el final de cada cuenta atrás: se congela la versión guardada en ese instante y cuenta para esa ronda.</small>
+        </section>
+        {registered && !changing && me && <>
+          <FighterCard f={me.entry} title="INSCRITO" hint="Se guarda una copia ahora. Puedes cambiar de luchador hasta que cierre la inscripción; entonces queda congelado y lo que cambies en tu colección no afecta al torneo." />
+          <button type="button" className="pb-mini-button pb-trn-link" onClick={() => setChanging(true)}>CAMBIAR DE LUCHADOR</button>
+        </>}
+        {picking && <section className="pb-frame pb-trn-card" aria-label="Elegir luchador">
+          <div className="pb-trn-row"><Swords size={15} /> ELIGE TU LUCHADOR (UNO POR CUENTA)</div>
+          {fighters.length === 0 ? <small className="pb-trn-note">Crea un luchador para inscribirte.</small> :
+            <div className="pb-trn-pick">{fighters.map(f => <button type="button" key={f.id} aria-pressed={pick === f.id} className={pick === f.id ? 'is-selected' : ''} onClick={() => setPick(f.id)}>
+              <img src={f.portraitDataUrl} alt="" draggable={false} /><span>{f.fighterName}</span>{pick === f.id && <i><Check size={11} /></i>}</button>)}</div>}
+          <small className="pb-trn-note">El torneo usa la versión BASE del luchador (sin forma Ultimate). Se guarda al inscribirte; puedes volver a elegir hasta el cierre de inscripción.</small>
+          <label className="pb-trn-field">INSTAGRAM (OPCIONAL)<input value={insta} maxLength={31} inputMode="text" autoCapitalize="none" autoCorrect="off" placeholder="@tuusuario" onChange={e => setInsta(e.target.value)} /></label>
+          {insta.trim() && <label className="pb-trn-check"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /> Acepto salir en el vídeo del torneo con mi @</label>}
+          <div className="pb-trn-actions">
+            <button type="button" className="pb-arcade-button pb-gold" disabled={!pick || joining} onClick={() => void join()}>{joining ? <Loader2 className="pb-trn-spin" size={17} /> : <Trophy size={17} />} {registered ? 'GUARDAR CAMBIO' : 'INSCRIBIRME'}</button>
+            {changing && <button type="button" className="pb-mini-button" onClick={() => setChanging(false)}>CANCELAR</button>}
+          </div>
+        </section>}
+      </>}
+
+      {t && (status === 'round_open' || status === 'simulating') && <>
+        <section className="pb-frame pb-trn-card">
+          <div className="pb-trn-round">RONDA <b>{t.roundNo}</b> / {t.roundCount} · {state?.progress?.alive ?? '?'} VIVOS</div>
+          {status === 'round_open' ? <Countdown to={t.roundCutoff} offset={offset} label="CORTE DE LA RONDA EN" />
+            : <div className="pb-trn-count"><Loader2 className="pb-trn-spin" size={15} /><small>RESOLVIENDO LA RONDA</small><b>{state?.progress ? `${state.progress.resolved}/${state.progress.total}` : ''}</b></div>}
+          {alivePlayer && state?.myMatch && <small className="pb-trn-note">{status === 'round_open' ? 'Las tácticas se congelan al llegar a cero. Lo que cambies después cuenta para la siguiente ronda.' : 'Tus tácticas de esta ronda ya están congeladas. Lo que cambies ahora cuenta para la siguiente.'}</small>}
+        </section>
+        {alivePlayer && state?.myMatch?.opponent && <FighterCard f={state.myMatch.opponent} title="TU RIVAL" hint="Sus tácticas se ven al terminar la pelea." />}
+        {alivePlayer && !state?.myMatch && <section className="pb-frame pb-trn-card pb-trn-center"><Check size={24} /><p>{t.roundNo === 1 ? 'PASAS DIRECTO LA RONDA PREVIA' : 'ESPERANDO A TU RIVAL'}</p><small>Sigue en el torneo. Cuando se resuelva la ronda verás con quién te toca.</small></section>}
+        {me && me.entry.status === 'eliminated' && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={24} /><p>ELIMINADO EN LA RONDA {me.entry.eliminatedRound}</p><small>Puedes seguir viendo tus combates y el cuadro. El siguiente torneo se abre al terminar la final.</small></section>}
+        {!me && <section className="pb-frame pb-trn-card pb-trn-center"><Users size={24} /><p>TORNEO EN MARCHA</p><small>La inscripción ya cerró. Puedes mirar el cuadro; el siguiente torneo se abre al acabar la final.</small></section>}
+        {alivePlayer && me && tactics && <>
+          <CpuTacticsPanel label="TUS TÁCTICAS" name={me.entry.name} portrait={me.entry.portraitUrl} archetype={me.entry.fighter.archetype} tactics={tactics} onChange={editTactics} />
+          <div className={`pb-trn-save is-${saveState}`} role="status">{saveState === 'saving' ? 'GUARDANDO…' : saveState === 'saved' ? 'GUARDADO' : saveState === 'error' ? 'NO SE PUDO GUARDAR · TOCA UN CONTROL PARA REINTENTAR' : saveState === 'dirty' ? 'SIN GUARDAR…' : 'TÁCTICAS SINCRONIZADAS'}</div>
+        </>}
+      </>}
+
+      {t && status === 'finished' && <section className="pb-frame pb-trn-card pb-trn-center"><Crown size={30} /><p>CAMPEÓN: {state?.champion?.name}</p><small>El torneo ha terminado.</small></section>}
+
+      {state && state.history.length > 0 && me && <section className="pb-frame pb-trn-card" aria-label="Tus combates">
+        <div className="pb-trn-row"><Play size={15} /> TUS COMBATES</div>
+        <ul className="pb-trn-history">{state.history.map(m => { const r = resultOf(m, me.entry.id); return <li key={m.id} className={r.won ? 'is-win' : 'is-loss'}>
+          <span>R{m.round}</span><b>{r.won ? 'VICTORIA' : 'DERROTA'} {r.text}</b><em>VS {m.opponent?.name || '?'}</em>
+          <button type="button" className="pb-mini-button" disabled={!!watching} onClick={() => void watch(m.id)}>{watching === m.id ? <Loader2 className="pb-trn-spin" size={13} /> : <Play size={13} />} VER</button></li>; })}</ul>
+        {state.history.some(m => m.decidedBy === 'cap') && <small className="pb-trn-note">Un combate se cerró por el desempate del torneo (mucho tiempo sin KO). Su recreación puede variar al final.</small>}
+      </section>}
+
+      {t && t.revealedRound > 0 && <section className="pb-frame pb-trn-card" aria-label="Cuadro">
+        <div className="pb-trn-row"><Trophy size={15} /> CUADRO · RONDA
+          <div className="pb-trn-rounds">{Array.from({ length: t.revealedRound }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
+        {bracket && <>
+          <ul className="pb-trn-bracket">{bracket.matches.map(m => <li key={m.id}><span className={m.winnerEntryId === m.entryA ? 'win' : ''}>{m.a}</span><i>{m.scoreA}-{m.scoreB}</i><span className={m.winnerEntryId === m.entryB ? 'win' : ''}>{m.b}</span></li>)}</ul>
+          {bracket.total > 40 && <div className="pb-pagination"><button type="button" disabled={bracket.offset === 0} onClick={() => void loadBracket(bracketRound, Math.max(0, bracket.offset - 40))} aria-label="Anterior"><ChevronLeft size={16} /></button>
+            <span>{bracket.offset + 1}-{Math.min(bracket.total, bracket.offset + 40)} / {bracket.total}</span>
+            <button type="button" disabled={bracket.offset + 40 >= bracket.total} onClick={() => void loadBracket(bracketRound, bracket.offset + 40)} aria-label="Siguiente"><ChevronRight size={16} /></button></div>}
+        </>}
+      </section>}
+    </div>
+  </div>;
+}

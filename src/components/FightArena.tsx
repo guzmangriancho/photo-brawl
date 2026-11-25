@@ -38,6 +38,8 @@ interface FightArenaProps {
   online?: OnlineSession;
   rankTrophies?:number[];
   tutorial?: boolean;
+  /** Recreating a tournament fight: no rematch / tactics buttons, back goes to the tournament. */
+  tournamentReplay?: boolean;
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   /** CPU vs CPU: play the whole fight instantly and show the result. */
@@ -108,7 +110,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
+  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, tournamentReplay = false, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
 }) => {
   const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
@@ -626,9 +628,9 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 <small>Mismas tácticas, mismo combate.</small>
                 <div className="arena-cpu-result-buttons">
                   {simulate && onWatch && <button type="button" className="arena-primary-button" onClick={onWatch}><Play size={17} fill="currentColor" /> VER COMBATE</button>}
-                  <button type="button" className="arena-primary-button" onClick={() => onRematch([p1Profile, p2Profile])}><Repeat2 size={17} /> REPETIR</button>
-                  <button type="button" className="arena-primary-button" onClick={() => (onChangeTactics ?? onExit)()}><SlidersHorizontal size={17} /> CAMBIAR TÁCTICAS</button>
-                  <button type="button" className="arena-pause-exit" onClick={onExit}><ArrowLeft size={16} /> SELECCIÓN</button>
+                  {!tournamentReplay && <button type="button" className="arena-primary-button" onClick={() => onRematch([p1Profile, p2Profile])}><Repeat2 size={17} /> REPETIR</button>}
+                  {!tournamentReplay && <button type="button" className="arena-primary-button" onClick={() => (onChangeTactics ?? onExit)()}><SlidersHorizontal size={17} /> CAMBIAR TÁCTICAS</button>}
+                  <button type="button" className={tournamentReplay ? 'arena-primary-button' : 'arena-pause-exit'} onClick={onExit}><ArrowLeft size={16} /> {tournamentReplay ? 'VOLVER AL TORNEO' : 'SELECCIÓN'}</button>
                 </div>
               </section>
             </div>
