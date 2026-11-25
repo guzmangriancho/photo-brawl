@@ -41,7 +41,7 @@ export function TournamentVideoPanel({ tournamentId }: { tournamentId: string })
       <label className="pb-trn-day">TORNEO · DÍA <input type="number" min={1} max={999} inputMode="numeric" value={day} onChange={e => setDay(e.target.value)} aria-label="Número de día" /></label>
       <button type="button" className="pb-mini-button" disabled={busy || !dayOk} onClick={() => { void ask(status === 'failed'); }}>{busy ? 'PIDIENDO…' : 'GENERAR VÍDEO'}</button>
     </>}
-    {status === 'queued' && <small role="status"><Loader2 className="pb-trn-spin" size={14} /> GENERANDO… TORNEO · DÍA {v.dayNo}. Puedes salir de esta pantalla.</small>}
+    {status === 'queued' && <small role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Loader2 className="pb-trn-spin" size={14} /> GENERANDO… TORNEO · DÍA {v.dayNo}. Puedes salir de esta pantalla.</small>}
     {status === 'ready' && <>
       <small>TORNEO · DÍA {v.dayNo}. El enlace caduca en 5 minutos; vuelve a abrir esta pantalla para otro.</small>
       {v.url && <a className="pb-mini-button" href={v.url} download target="_blank" rel="noopener noreferrer"><Download size={14} /> DESCARGAR VÍDEO</a>}
