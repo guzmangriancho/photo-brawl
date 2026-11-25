@@ -2053,7 +2053,10 @@ export class FightEngine {
         attacker.vy = -15.5;
         attacker.y -= 6;
       }
-    } else if (atk.knockdown) {
+    } else if (atk.knockdown && !(this.simVersion >= 3 && atk.multiHitInterval && atk.mechanic === 'SPINNING_ADVANCE' &&
+      attacker.stateFrame + atk.multiHitInterval < atk.startup + atk.active)) {
+      // v3: the spinning advance is a multi-hit move (each hit is 1/5 of the move's damage). Before, the first hit knocked
+      // the rival down and the other hits could never land, so they only dealt a fifth of their damage. Now only the last hit knocks down.
       defender.state = 'KNOCKDOWN';
       defender.stateFrame = 0;
       defender.vy = atk.launchY !== 0 ? atk.launchY : -8.5;

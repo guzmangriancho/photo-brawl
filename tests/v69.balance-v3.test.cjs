@@ -43,6 +43,18 @@ test('v3 counter: a grab does not connect on a defender who is in the air', () =
   for (let i = 0; i < 20; i++) e.step();
   assert.equal(e.p2.grabbedBy, null);
 });
+const SPIN = prof('s', 'SHOTO_BALANCED', 25, mv('SPINNING_ADVANCE', 'INVINCIBLE_UPPERCUT', 'MULTI_HIT_RUSH_COMBO'));
+test('v3 fixes the spinning advance: all its hits can land, v2 keeps the old behaviour', () => {
+  const dmg = (sv) => {
+    const e = new live.FightEngine(SPIN, DUMMY, '1P_VS_2P', 'SKI_RESORT', 'NORMAL'); e.simVersion = sv;
+    e.p2.x = e.p1.x + 60; e.startMove(e.p1, e.p2, 'SP_FORWARD');
+    const hp = e.p2.hp;
+    for (let i = 0; i < 40; i++) e.step();
+    return hp - e.p2.hp;
+  };
+  const o = dmg(2), n = dmg(3);
+  assert.ok(n >= o * 2.5, `v3 ${n} vs v2 ${o}`);
+});
 test('replays of older versions keep playing exactly like the frozen archived engines', () => {
   const pairs = [[GRAB, DUMMY], [DUMMY, GRAB], [TELE, GRAB], [GRAB, TELE], [TELE, DUMMY]];
   for (const [a, b] of pairs) for (const seed of [1, 99, 4242]) {

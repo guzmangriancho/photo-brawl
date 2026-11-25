@@ -30,4 +30,11 @@ Medido con 4368 combates CPU contra CPU (14 luchadores publicados, todos contra 
 
 ## Metodologia y limites
 
-Es una simulacion CPU contra CPU, no una prueba con jugadores humanos. 4368 combates = 14x13 parejas x 2 lados x 6 escenarios x 4 estilos tacticos (por defecto, cerca, a distancia, tecnica), semilla fija por combate. Margen de error de cada porcentaje por luchador: aprox. +-3.8 puntos (95%). Todos los luchadores publicados suman 100 puntos de estadisticas, asi que las diferencias vienen de movimientos y pasivas. Prueba de causa en Ruina Rex: cambiar su super METEORO por RAYO LASER baja su porcentaje de 72 a 55 (antes de este ultimo ajuste del meteoro). Siguen flojos Rayo, Los Simpson y Don Farol, sin tocar: no se ha buscado forzar un 50% para todos.
+Es una simulacion CPU contra CPU, no una prueba con jugadores humanos. 4368 combates = 182 parejas ordenadas (14x13, ya incluyen quien juega de p1 y de p2) x 6 escenarios x 4 estilos tacticos (equivale a 91 parejas x 2 lados x 24), 624 combates por luchador (por defecto, cerca, a distancia, tecnica), semilla fija por combate. El +-3.8 puntos (95%) es el margen binomial ingenuo con n=624: es optimista porque los combates de una misma pareja no son independientes, usalo solo como orden de magnitud. Todos los luchadores publicados suman 100 puntos de estadisticas, asi que las diferencias vienen de movimientos y pasivas. Prueba de causa en Ruina Rex: cambiar su super METEORO por RAYO LASER baja su porcentaje de 72 a 55 (antes de este ultimo ajuste del meteoro). Siguen flojos Rayo, Los Simpson y Don Farol, sin tocar: no se ha buscado forzar un 50% para todos.
+
+
+## Segunda pasada: ataque giratorio (SPINNING_ADVANCE)
+
+Cambiando solo el avance especial de un luchador neutro (Gotita), el giratorio daba 27% frente a 50% de base, 59% del deslizamiento y 50% del teletransporte. La causa era un fallo: cada golpe del giro hace 1/5 del dano, pero el primer golpe derribaba al rival y los demas no podian conectar, asi que hacia solo un 20% del dano nominal. En v3 solo el ultimo golpe derriba. Efecto medido: Rayo pasa de 25% a 42% (Don Diamante sin cambio relevante). El tornado vertical tiene el mismo patron, pero corregirlo hace que los magos dominen (Madurito 84%, magos 94% contra agarradores), asi que NO se toca y queda documentado.
+
+La pasivas no explican a Rex: dar a Rex la pasiva FAST_METER_GAIN en lugar de DASH AEREO lo sube de 67% a 75%. Tampoco la estadistica de tecnica: subir su efecto no cambio los porcentajes.
