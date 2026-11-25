@@ -19,6 +19,7 @@ import { CharacterSelect } from './components/CharacterSelect';
 import { FightArena } from './components/FightArena';
 import { GroupFightArena } from './components/GroupFightArena';
 import { LARGE_ARENA_IDS } from './data/stages';
+import type { CpuTactics } from './engine/cpuTactics';
 import type { OnlineSession } from './network/OnlineSession';
 import type { OnlineStart } from './network/protocol';
 
@@ -58,6 +59,7 @@ export function App() {
     mode: GameMode;
     stage: StageId;
     difficulty: CpuDifficulty;
+    tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> };
     online?: OnlineSession;
     tutorial?: boolean;
     battleMode?: GroupBattleMode;
@@ -161,7 +163,8 @@ export function App() {
     mode: GameMode,
     stage: StageId,
     difficulty: CpuDifficulty,
-    extra?: [FighterProfile,FighterProfile]
+    extra?: [FighterProfile,FighterProfile],
+    tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }
   ) => {
     // Preset fighters are only playable inside the guided tutorial.
     if (p1.isPreset || p2.isPreset) return;
@@ -169,7 +172,7 @@ export function App() {
     const arena=group && !LARGE_ARENA_IDS.includes(stage)?LARGE_ARENA_IDS[0]:stage;
     const groupRoster=[p1,p2,extra?.[0]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p1,
       extra?.[1]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p2];
-    setMatchConfig({p1,p2,mode,stage:arena,difficulty,battleMode:group?mode:undefined,
+    setMatchConfig({p1,p2,mode,stage:arena,difficulty,tactics:mode==='CPU_VS_CPU'?tactics:undefined,battleMode:group?mode:undefined,
       fighters:group?groupRoster:undefined});
     setFightKey(value=>value+1);
     setScreen('FIGHT');
@@ -229,7 +232,7 @@ export function App() {
         p2Profile={matchConfig.p2}
         mode={matchConfig.mode}
         stage={matchConfig.stage}
-        difficulty={matchConfig.difficulty}
+        difficulty={matchConfig.difficulty} tactics={matchConfig.tactics}
         online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
         tutorial={matchConfig.tutorial}
         onExit={handleExit}

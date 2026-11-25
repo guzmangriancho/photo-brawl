@@ -36,6 +36,7 @@ import { SlotShop } from './SlotShop';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
 import { requestAutomaticMigration } from '../services/automaticFighterMigration';
+import type { CpuTactics } from '../engine/cpuTactics';
 import { soundFX } from '../engine/SoundFX';
 import { STAGE_ART, STAGE_IDS, LARGE_ARENA_IDS } from '../data/stages';
 import './arcadeMenus.css';
@@ -54,7 +55,7 @@ interface CharacterSelectProps {
   onFighterCreated: (fighter: FighterProfile) => void;
   onFighterDeleted: (id: string) => void;
   onFighterRenamed: (fighter: FighterProfile) => void;
-  onStartMatch: (p1: FighterProfile, p2: FighterProfile, mode: GameMode, stage: StageId, difficulty: CpuDifficulty, extra?: [FighterProfile,FighterProfile]) => void;
+  onStartMatch: (p1: FighterProfile, p2: FighterProfile, mode: GameMode, stage: StageId, difficulty: CpuDifficulty, extra?: [FighterProfile,FighterProfile], tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }) => void;
   onOnlineMatch: (match: OnlineStart, session: OnlineSession) => void;
   onStartTutorial: (presetId: string) => void;
 }

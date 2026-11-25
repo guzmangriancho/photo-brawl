@@ -13,6 +13,7 @@ import {
   STAGE_WIDTH,
 } from '../engine/FightEngine';
 import { soundFX } from '../engine/SoundFX';
+import type { CpuTactics } from '../engine/cpuTactics';
 import { STAGE_ART } from '../data/stages';
 import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
@@ -31,6 +32,8 @@ interface FightArenaProps {
   mode: GameMode;
   stage: StageId;
   difficulty: CpuDifficulty;
+  /** Style of each CPU side; only used when a side is CPU-controlled. */
+  tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> };
   online?: OnlineSession;
   rankTrophies?:number[];
   tutorial?: boolean;
@@ -98,7 +101,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
+  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
 }) => {
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
@@ -212,7 +215,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
   useEffect(() => {
     soundFX.setCrowdedCombat(false);
-    const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty);
+    const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty, tactics);
     engine.beginVersusIntro();
     engine.showHitboxes = false;
     engine.trainingFreePlay = mode === 'TRAINING' && !tutorial;
@@ -461,7 +464,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
       window.removeEventListener('blur', handleBlur);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [p1Profile, p2Profile, mode, stage, difficulty, online]);
+  }, [p1Profile, p2Profile, mode, stage, difficulty, tactics, online]);
 
   const toggleArenaCollisions = () => {
     if (mode !== 'TRAINING' || tutorial) return;
