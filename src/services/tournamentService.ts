@@ -8,7 +8,7 @@ export interface TournamentFighter {
   fighter: Omit<FighterProfile, 'spriteSheetDataUrl' | 'portraitDataUrl'>; portraitUrl: string; sheetUrl: string;
 }
 export interface TournamentInfo {
-  id: string; status: 'registration' | 'round_open' | 'simulating' | 'finished' | 'cancelled'; stage: StageId; difficulty: CpuDifficulty;
+  id: string; kind?: 'real' | 'exhibition'; label?: string | null; status: 'registration' | 'round_open' | 'simulating' | 'finished' | 'cancelled'; stage: StageId; difficulty: CpuDifficulty;
   roundNo: number; roundCount: number | null; revealedRound: number; roundCutoff: string | null; registrationOpensAt: string;
   registrationClosesAt: string; extended: boolean; entrantCount: number; windowMinutes: number | null; schedule: string[] | null; finishedAt: string | null;
   champion?: TournamentFighter | null;
@@ -28,7 +28,7 @@ export interface TournamentReplay {
   a: TournamentFighter; b: TournamentFighter; tacticsA: CpuTactics; tacticsB: CpuTactics;
   winner: 'a' | 'b'; scoreA: number; scoreB: number; decidedBy: 'ko' | 'cap'; frames: number;
 }
-export interface BracketMatch { id: string; round: number; slot: number; revealed: boolean; a?: string; b?: string; winnerEntryId?: string; entryA: string; entryB: string; scoreA?: number; scoreB?: number }
+export interface BracketMatch { id: string; round: number; slot: number; revealed: boolean; a?: string; b?: string; aPortrait?: string; bPortrait?: string; winnerEntryId?: string; entryA: string; entryB: string; scoreA?: number; scoreB?: number }
 
 /** https://host desde wss://host/ws (el servidor online sirve también la API de torneos). */
 function apiBase(): string {

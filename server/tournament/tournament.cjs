@@ -48,7 +48,7 @@ async function entriesByIds(ids){
   return new Map(rows.map(r=>[r.id,r]));
 }
 function tournamentView(t,extra){
-  return {id:t.id,status:t.status,stage:t.stage,difficulty:t.difficulty,roundNo:t.round_no,roundCount:t.round_count,revealedRound:t.revealed_round,
+  return {id:t.id,kind:t.kind||'real',label:t.label||null,status:t.status,stage:t.stage,difficulty:t.difficulty,roundNo:t.round_no,roundCount:t.round_count,revealedRound:t.revealed_round,
     roundCutoff:t.round_cutoff,registrationOpensAt:t.registration_opens_at,registrationClosesAt:t.registration_closes_at,extended:t.extended,
     entrantCount:t.entrant_count,windowMinutes:t.window_minutes,schedule:t.schedule,finishedAt:t.finished_at,...extra};
 }
@@ -116,7 +116,7 @@ async function bracket(tid,round,offset){
   if(!(round>=1)||round>t.revealed_round)return {round,matches:[],total:0};
   const r=await rest(`tournament_matches?select=${MATCH_PUBLIC}&tournament_id=eq.${tid}&round_no=eq.${round}&order=slot.asc&limit=40&offset=${offset|0}`,{prefer:'count=exact'});
   const ents=await entriesByIds([...new Set(r.rows.flatMap(m=>[m.entry_a,m.entry_b]))]);
-  return {round,total:r.count,matches:r.rows.map(m=>({...matchResult(m,null,t.revealed_round),a:publicEntry(ents.get(m.entry_a))?.name,b:publicEntry(ents.get(m.entry_b))?.name}))};
+  return {round,total:r.count,matches:r.rows.map(m=>({...matchResult(m,null,t.revealed_round),a:publicEntry(ents.get(m.entry_a))?.name,b:publicEntry(ents.get(m.entry_b))?.name,aPortrait:publicEntry(ents.get(m.entry_a))?.portraitUrl,bPortrait:publicEntry(ents.get(m.entry_b))?.portraitUrl}))};
 }
 
 /** Combate destapado con todo lo necesario para recrearlo (luchadores congelados + tácticas congeladas + semilla). */
@@ -172,7 +172,7 @@ async function join(accountId,{fighterLocalId,instagram,videoConsent}){
   if(typeof fighterLocalId!=='string'||!fighterLocalId||fighterLocalId.length>100)throw new Error('Elige un luchador.');
   const insta=typeof instagram==='string'?instagram.trim().replace(/^@/,''):'';
   if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))throw new Error('Instagram no válido.');
-  const [t]=await rest(`tournaments?select=*&status=eq.registration&limit=1`);
+  const [t]=await rest(`tournaments?select=*&status=eq.registration&kind=eq.real&limit=1`);
   if(!t||new Date(t.registration_closes_at)<=new Date())throw new Error('La inscripción no está abierta.');
   const params=new URLSearchParams({select:'id,fighter_name,fighter_data,private_portrait_path,private_sheet_path',owner_id:`eq.${accountId}`,local_id:`eq.${fighterLocalId}`,limit:'1'});
   const [row]=await rest(`fighters?${params}`);
@@ -190,6 +190,34 @@ async function join(accountId,{fighterLocalId,instagram,videoConsent}){
     p_name:String(row.fighter_name||valid.fighterName).slice(0,40),p_instagram:insta||'',p_consent:Boolean(insta&&videoConsent===true),
     p_tactics:normalizeCpuTactics(prev?.tactics)});
   return {entryId};
+}
+
+/** Exhibición interna (solo admin): copias congeladas de los luchadores públicos, tácticas por defecto iguales para todos. No inscribe cuentas. */
+async function createExhibition(accountId,{expected,windowMinutes,label}){
+  if(!(await rpc('pb_tournament_is_admin',{p_user:accountId})))throw new Error('No autorizado.');
+  const rows=await rest('fighters?select=id,local_id,fighter_name,fighter_data,private_portrait_path,private_sheet_path&is_public=eq.true&order=created_at.asc&limit=100');
+  if(Number.isInteger(expected)&&rows.length!==expected)throw new Error(`no válido: hay ${rows.length} luchadores públicos, no ${expected}.`);
+  const w=Math.min(1440,Math.max(5,Number(windowMinutes)||15));
+  const tid=await rpc('pb_tournament_create_exhibition',{p_label:String(label||'Exhibición automática').slice(0,80),p_window_minutes:w,p_stage:'SPIRIT_FOREST'});
+  let added=0;
+  try{
+    for(const row of rows){
+      const valid=validateProfile({...row.fighter_data,id:row.local_id,fighterName:row.fighter_name,spriteSheetDataUrl:FAKE_ART,portraitDataUrl:FAKE_ART,isPreset:false,ultimateForm:false});
+      if(!valid)throw new Error('no válido: un luchador público no supera la validación.');
+      const {spriteSheetDataUrl:_s,portraitDataUrl:_p,...frozen}=valid;
+      if(row.fighter_data.spriteSheetKeyVersion===3)frozen.spriteSheetKeyVersion=3;
+      const folder=`${tid}/${randomUUID()}`;
+      await copyArt(row.private_portrait_path,`${folder}/portrait.png`);
+      await copyArt(row.private_sheet_path,`${folder}/sheet.png`);
+      await rpc('pb_tournament_add_exhibition_entry',{p_tournament:tid,p_local:row.local_id,p_data:frozen,p_portrait:`${folder}/portrait.png`,p_sheet:`${folder}/sheet.png`,
+        p_name:String(row.fighter_name).slice(0,40),p_tactics:normalizeCpuTactics({})});
+      added++;
+    }
+  }catch(e){
+    await rest(`tournaments?id=eq.${tid}&status=eq.registration`,{method:'DELETE'}).catch(()=>{}); // nada a medias
+    throw e;
+  }
+  return {tournament:tid,entrants:added,windowMinutes:w};
 }
 async function saveTactics(accountId,tactics){
   if(!tactics||typeof tactics!=='object'||Array.isArray(tactics))throw new Error('Tácticas no válidas.');
@@ -319,6 +347,10 @@ async function handleHttp(req,res,{corsOrigin}){
       return send(200,await stateFor(accountId)),true;
     }
     if(url.pathname==='/tournament/join'&&req.method==='POST')return send(200,await join(accountId,await readBody(req))),true;
+    if(url.pathname==='/tournament/exhibition'&&req.method==='POST'){
+      if(limited('exh:'+accountId,3,60000))throw new Error('Demasiado rápido. Espera un segundo.');
+      return send(200,await createExhibition(accountId,await readBody(req))),true;
+    }
     if(url.pathname==='/tournament/tactics'&&req.method==='POST')return send(200,await saveTactics(accountId,(await readBody(req)).tactics)),true;
     if(url.pathname==='/tournament/match'&&req.method==='GET')return send(200,await matchDetail(url.searchParams.get('id')||'')),true;
     if(url.pathname==='/tournament/bracket'&&req.method==='GET'){
@@ -328,10 +360,10 @@ async function handleHttp(req,res,{corsOrigin}){
     send(404,{error:'No encontrado.'});
   }catch(e){
     const msg=String(e.message||e);
-    const client=/Inicia sesión|sesión ha caducado|No se pudo verificar la cuenta|no está abierta|aún no|No estás|Ya no puedes|Demasiado|no válid|no es válido|Elige|no encontrado|No hay torneo|sincronizado|inscripción|cuerpo|JSON|demasiado|El día debe/i.test(msg);
+    const client=/Inicia sesión|sesión ha caducado|No se pudo verificar la cuenta|no está abierta|aún no|No estás|Ya no puedes|Demasiado|no válid|no es válido|Elige|No autorizado|no encontrado|No hay torneo|sincronizado|inscripción|cuerpo|JSON|demasiado|El día debe/i.test(msg);
     console.warn('[tournament]',url.pathname,msg.slice(0,200));
     send(client?400:500,{error:client?msg:'Error interno del servidor.'});
   }
   return true;
 }
-module.exports={configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};
+module.exports={createExhibition,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};

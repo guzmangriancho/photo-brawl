@@ -179,9 +179,10 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   return <div className="pb-subpage pb-trn-page">
     <div className="pb-trn-scroll">
       <div className="pb-panel-title"><span>TORNEO POR RONDAS</span><h2>{t ? `TORNEO #${t.id.slice(0, 4).toUpperCase()}` : 'TORNEO'}</h2></div>
+      {t?.kind === 'exhibition' && <div className="pb-trn-exhibit" role="note"><b>EXHIBICIÓN AUTOMÁTICA</b><span>{t.label || 'Copias de luchadores públicos con tácticas por defecto.'} Nadie se ha inscrito ni ha elegido tácticas, y no cuenta para ranking ni historial.</span></div>}
       {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
 
-      {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> CAMPEÓN ANTERIOR: <b>{state.previous.champion.name}</b>
+      {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{state.previous.champion.name}</b>
         {prev && prev.revealedRound > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>VER CUADRO</button>}</div>}
 
       {!t && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={30} /><p>NO HAY TORNEO ABIERTO</p><small>Cuando termine uno, el siguiente se abre solo. Vuelve más tarde.</small></section>}
@@ -246,7 +247,11 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
         <div className="pb-trn-row"><Trophy size={15} /> CUADRO · RONDA
           <div className="pb-trn-rounds">{Array.from({ length: bt.revealedRound }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
         {bracket && <>
-          <ul className="pb-trn-bracket">{bracket.matches.map(m => <li key={m.id}><span className={m.winnerEntryId === m.entryA ? 'win' : ''}>{m.a}</span><i>{m.scoreA}-{m.scoreB}</i><span className={m.winnerEntryId === m.entryB ? 'win' : ''}>{m.b}</span>{m.revealed && <button type="button" className="pb-mini-button" disabled={!!watching} onClick={() => void watch(m.id)} aria-label={`Ver combate ${m.a} contra ${m.b}`}>{watching === m.id ? <Loader2 className="pb-trn-spin" size={13} /> : <Play size={13} />}</button>}</li>)}</ul>
+          <ul className="pb-trn-bracket">{bracket.matches.map(m => { const aw = m.winnerEntryId === m.entryA, bw = m.winnerEntryId === m.entryB; return <li key={m.id}>
+            <span className={`pb-trn-slot ${aw ? 'win' : m.revealed ? 'out' : ''}`}>{m.aPortrait && <img src={m.aPortrait} alt="" draggable={false} />}<em>{m.a}</em>{aw && <Crown size={11} aria-label="pasa" />}</span>
+            <i>{m.scoreA}-{m.scoreB}</i>
+            <span className={`pb-trn-slot ${bw ? 'win' : m.revealed ? 'out' : ''}`}>{m.bPortrait && <img src={m.bPortrait} alt="" draggable={false} />}<em>{m.b}</em>{bw && <Crown size={11} aria-label="pasa" />}</span>
+            {m.revealed && <button type="button" className="pb-mini-button" disabled={!!watching} onClick={() => void watch(m.id)} aria-label={`Ver combate ${m.a} contra ${m.b}`}>{watching === m.id ? <Loader2 className="pb-trn-spin" size={13} /> : <Play size={13} />}</button>}</li>; })}</ul>
           {bracket.total > 40 && <div className="pb-pagination"><button type="button" disabled={bracket.offset === 0} onClick={() => void loadBracket(bracketRound, Math.max(0, bracket.offset - 40))} aria-label="Anterior"><ChevronLeft size={16} /></button>
             <span>{bracket.offset + 1}-{Math.min(bracket.total, bracket.offset + 40)} / {bracket.total}</span>
             <button type="button" disabled={bracket.offset + 40 >= bracket.total} onClick={() => void loadBracket(bracketRound, bracket.offset + 40)} aria-label="Siguiente"><ChevronRight size={16} /></button></div>}
