@@ -2395,7 +2395,7 @@ export class FightEngine {
           else if (roll < tactics.closeLight + tactics.closeHeavy + tactics.closeTech * 16 / 30) inp.spUp = true;
           else inp.spForward = true;
         } else if (dist < 270 * scale) {
-          if (Math.random() < 0.44) {
+          if (Math.random() < tactics.midTech / 100) {
             inp.spForward = true;
           } else {
             if (dirToPlayer === 1) inp.right = true;
@@ -2403,7 +2403,7 @@ export class FightEngine {
             if (Math.random() < tactics.jumpIn / 100) inp.up = true;
           }
         } else {
-          if (Math.random() < 0.42) {
+          if (Math.random() < tactics.farTech / 100) {
             inp.spNeutral = true;
           } else {
             if (dirToPlayer === 1) inp.right = true;

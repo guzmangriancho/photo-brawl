@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.distanceScale = exports.DEFAULT_CPU_TACTICS = void 0;
+exports.distanceScale = exports.usesAttackMix = exports.DEFAULT_CPU_TACTICS = void 0;
 exports.normalizeCpuTactics = normalizeCpuTactics;
 exports.setCloseMix = setCloseMix;
 exports.DEFAULT_CPU_TACTICS = {
-    distance: 50, closeLight: 42, closeHeavy: 28, closeTech: 30,
+    distance: 50, closeLight: 42, closeHeavy: 28, closeTech: 30, midTech: 44, farTech: 42,
     afterHit: 0, afterBlock: 0, jumpIn: 22,
 };
 const clamp = (v, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
@@ -23,8 +23,11 @@ function normalizeCpuTactics(input) {
         t = t * 100 / sum;
     }
     return { distance: clamp(base.distance), closeLight: l, closeHeavy: h, closeTech: t,
-        afterHit: clamp(base.afterHit), afterBlock: clamp(base.afterBlock), jumpIn: clamp(base.jumpIn) };
+        midTech: clamp(base.midTech), farTech: clamp(base.farTech), afterHit: clamp(base.afterHit), afterBlock: clamp(base.afterBlock), jumpIn: clamp(base.jumpIn) };
 }
+/** Zoner and grappler keep their own attack tables: the attack-mix controls only apply to the other archetypes. */
+const usesAttackMix = (archetype) => archetype !== 'ZONER_MAGE' && archetype !== 'GRAPPLER_TANK';
+exports.usesAttackMix = usesAttackMix;
 /** Multiplier for every hardcoded distance threshold. 50 -> 1 (unchanged). */
 const distanceScale = (t) => 0.7 + t.distance / 100 * 0.6;
 exports.distanceScale = distanceScale;

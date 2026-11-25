@@ -51,3 +51,12 @@ test('default tactics reproduce the classic AI exactly (same seed, same result)'
   const a = run(7, undefined), b = run(7, { p1: tactics.DEFAULT_CPU_TACTICS, p2: tactics.DEFAULT_CPU_TACTICS });
   assert.deepEqual(a, b);
 });
+test('medium and far technique controls steer the CPU away from only walking', () => {
+  const tech = (mid, far) => { let n = 0; for (let s = 1; s <= 8; s++) { const r = run(s, { p1: { midTech: mid, farTech: far } }); n += (r.slots.SP_FORWARD || 0) + (r.slots.SP_NEUTRAL || 0); } return n; };
+  assert.ok(tech(100, 100) > 1.3 * tech(0, 0), 'more technique attacks when both sliders are high');
+});
+test('attack mix only applies to styles that use it', () => {
+  assert.equal(tactics.usesAttackMix('SHOTO_BALANCED'), true);
+  assert.equal(tactics.usesAttackMix('ZONER_MAGE'), false);
+  assert.equal(tactics.usesAttackMix('GRAPPLER_TANK'), false);
+});

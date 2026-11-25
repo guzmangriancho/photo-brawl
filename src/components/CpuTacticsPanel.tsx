@@ -1,10 +1,11 @@
 import React from 'react';
-import { CpuTactics, DEFAULT_CPU_TACTICS, setCloseMix } from '../engine/cpuTactics';
+import { CpuTactics, DEFAULT_CPU_TACTICS, setCloseMix, usesAttackMix } from '../engine/cpuTactics';
 
 interface Props {
   label: string;
   name: string;
   portrait?: string;
+  archetype?: string;
   tactics: CpuTactics;
   onChange: (next: CpuTactics) => void;
 }
@@ -20,7 +21,8 @@ const MIX: { key: 'closeLight' | 'closeHeavy' | 'closeTech'; label: string }[] =
   { key: 'closeLight', label: 'RÁPIDO' }, { key: 'closeHeavy', label: 'FUERTE' }, { key: 'closeTech', label: 'TÉCNICA' },
 ];
 
-export function CpuTacticsPanel({ label, name, portrait, tactics, onChange }: Props) {
+export function CpuTacticsPanel({ label, name, portrait, archetype = '', tactics, onChange }: Props) {
+  const mix = usesAttackMix(archetype);
   const uid = label.replace(/\W/g, '');
   const set = (patch: Partial<CpuTactics>) => onChange({ ...tactics, ...patch });
   return <section className="pb-frame pb-tactics-panel" aria-label={`Tácticas de ${name}`}>
@@ -30,6 +32,7 @@ export function CpuTacticsPanel({ label, name, portrait, tactics, onChange }: Pr
       <button type="button" className="pb-mini-button" onClick={() => onChange({ ...DEFAULT_CPU_TACTICS })}>RESTABLECER</button>
     </div>
     <Slider id={`${uid}-dist`} left="CERCA" right="LEJOS" value={tactics.distance} onChange={v => set({ distance: v })}/>
+    {mix ? <>
     <div className="pb-tactic-mix" role="group" aria-label="Reparto de ataques a corta distancia">
       <span className="pb-tactic-mix-title">ATAQUES DE CERCA</span>
       {MIX.map(m => <div className="pb-tactic-mix-row" key={m.key}>
@@ -38,6 +41,9 @@ export function CpuTacticsPanel({ label, name, portrait, tactics, onChange }: Pr
         <b>{Math.round(tactics[m.key])}%</b>
       </div>)}
     </div>
+    <Slider id={`${uid}-mid`} left="MEDIA: SOLO ACERCARSE" right="TÉCNICA DE AVANCE" value={tactics.midTech} onChange={v => set({ midTech: v })}/>
+    <Slider id={`${uid}-far`} left="LEJOS: SOLO ACERCARSE" right="TÉCNICA A DISTANCIA" value={tactics.farTech} onChange={v => set({ farTech: v })}/>
+    </> : <small className="pb-tactic-note">ESTILO PROPIO: este luchador usa sus propios ataques por distancia. Aquí solo afectan la distancia y las reacciones.</small>}
     <Slider id={`${uid}-hit`} left="SEGUIR ENCIMA TRAS ACERTAR" right="APARTARSE" value={tactics.afterHit} onChange={v => set({ afterHit: v })}/>
     <Slider id={`${uid}-block`} left="INSISTIR SI BLOQUEAN" right="RETIRARSE" value={tactics.afterBlock} onChange={v => set({ afterBlock: v })}/>
     <Slider id={`${uid}-jump`} left="ENTRAR POR SUELO" right="ENTRAR SALTANDO" value={tactics.jumpIn} onChange={v => set({ jumpIn: v })}/>
