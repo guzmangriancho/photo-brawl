@@ -126,7 +126,7 @@ async function matchDetail(id){
   const [t]=await rest(`tournaments?select=*&id=eq.${m.tournament_id}&limit=1`);
   if(m.status!=='resolved'||m.round_no>t.revealed_round)throw new Error('Este combate aún no se ha destapado.');
   const ents=await entriesByIds([m.entry_a,m.entry_b]);
-  return {id:m.id,round:m.round_no,slot:m.slot,stage:t.stage,difficulty:t.difficulty,simVersion:m.sim_version,engineVersion:m.engine_version,seed:Number(m.seed),
+  return {id:m.id,round:m.round_no,slot:m.slot,stage:t.stage,difficulty:t.difficulty,simVersion:m.sim_version,engineVersion:m.engine_version,roundsToWin:m.rounds_to_win||2,seed:Number(m.seed),
     a:publicEntry(ents.get(m.entry_a)),b:publicEntry(ents.get(m.entry_b)),tacticsA:normalizeCpuTactics(m.tactics_a),tacticsB:normalizeCpuTactics(m.tactics_b),
     winner:m.winner_entry===m.entry_a?'a':'b',scoreA:m.score_a,scoreB:m.score_b,decidedBy:m.decided_by,frames:m.frames};
 }
@@ -183,6 +183,8 @@ async function saveTactics(accountId,tactics){
 // ---------- Programador ----------
 let ticking=false,lastRun=0,lastResult={ok:true,idle:true};
 const MIN_GAP_MS=Number(process.env.TOURNAMENT_MIN_GAP_MS||5000);
+/** e1: siempre al mejor de 3. e2: al mejor de 1 hasta cuartos; semifinales y final al mejor de 3 (propuesta provisional). */
+function roundsToWinFor(t,roundNo){return t.engine_version==='e1'?2:(roundNo>=t.round_count-1?2:1);}
 const yieldLoop=()=>new Promise(r=>setImmediate(r));
 async function simulateBatch(t,matches){
   const ents=await entriesByIds([...new Set(matches.flatMap(m=>[m.entry_a,m.entry_b]))]);
@@ -190,8 +192,9 @@ async function simulateBatch(t,matches){
   for(const m of matches){
     const a=ents.get(m.entry_a),b=ents.get(m.entry_b);
     const pa={...a.fighter_data,id:'a',spriteSheetDataUrl:'',portraitDataUrl:''},pb={...b.fighter_data,id:'b',spriteSheetDataUrl:'',portraitDataUrl:''};
-    const r=sim.simulate(t.engine_version,pa,pb,m.tactics_a,m.tactics_b,t.stage,t.difficulty);
-    rows.push({id:m.id,w:r.winner,sa:r.scoreA,sb:r.scoreB,f:r.frames,d:r.decidedBy,seed:r.seed,sv:t.sim_version,ev:t.engine_version});
+    const rtw=roundsToWinFor(t,m.round_no);
+    const r=sim.simulate(t.engine_version,pa,pb,m.tactics_a,m.tactics_b,t.stage,t.difficulty,{roundsToWin:rtw});
+    rows.push({id:m.id,w:r.winner,sa:r.scoreA,sb:r.scoreB,f:r.frames,d:r.decidedBy,seed:r.seed,sv:t.sim_version,ev:t.engine_version,rtw:r.roundsToWin});
     await yieldLoop(); // no bloquear las salas online
   }
   await rpc('pb_tournament_store_results',{p_tid:t.id,p_rows:rows});

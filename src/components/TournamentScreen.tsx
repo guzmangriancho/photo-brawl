@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Clock3, Crown, Loader2, Play, Swords, Trophy, Users } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, StageId } from '../types/fighter';
 import type { CpuTactics } from '../engine/cpuTactics';
-import { SIM_VERSION } from '../engine/fightSeed';
+import { REPLAYABLE_SIM_VERSIONS } from '../engine/fightSeed';
 import { CpuTacticsPanel } from './CpuTacticsPanel';
 import {
   fetchTournamentBracket, fetchTournamentMatch, fetchTournamentState, joinTournament, saveTournamentTactics, toFighterProfile,
@@ -10,7 +10,7 @@ import {
 } from '../services/tournamentService';
 import './tournament.css';
 
-export interface TournamentReplayStart { p1: FighterProfile; p2: FighterProfile; stage: StageId; difficulty: CpuDifficulty; tactics: { p1: CpuTactics; p2: CpuTactics } }
+export interface TournamentReplayStart { p1: FighterProfile; p2: FighterProfile; stage: StageId; difficulty: CpuDifficulty; tactics: { p1: CpuTactics; p2: CpuTactics }; simVersion: number; roundsToWin: number }
 interface Props { fighters: FighterProfile[]; onWatch: (start: TournamentReplayStart) => void }
 
 const BRACKET_KEY = 'pb-tournament-bracket';
@@ -127,9 +127,9 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     setWatching(matchId); setError('');
     try {
       const d = await fetchTournamentMatch(matchId);
-      if (d.simVersion !== SIM_VERSION) throw new Error('Este combate se jugó con una versión anterior del motor y no se puede recrear con esta versión del juego. El resultado es válido.');
+      if (!REPLAYABLE_SIM_VERSIONS.includes(d.simVersion)) throw new Error('Este combate se jugó con una versión anterior del motor y no se puede recrear con esta versión del juego. El resultado es válido.');
       const [p1, p2] = await Promise.all([toFighterProfile(d.a), toFighterProfile(d.b)]);
-      onWatch({ p1, p2, stage: d.stage, difficulty: d.difficulty, tactics: { p1: d.tacticsA, p2: d.tacticsB } });
+      onWatch({ p1, p2, stage: d.stage, difficulty: d.difficulty, tactics: { p1: d.tacticsA, p2: d.tacticsB }, simVersion: d.simVersion, roundsToWin: d.roundsToWin ?? 2 });
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo cargar el combate.'); }
     finally { setWatching(''); }
   };

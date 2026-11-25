@@ -24,7 +24,7 @@ export interface TournamentState {
   progress: { total: number; resolved: number; alive: number } | null; champion: TournamentFighter | null;
 }
 export interface TournamentReplay {
-  id: string; round: number; stage: StageId; difficulty: CpuDifficulty; simVersion: number; engineVersion: string; seed: number;
+  id: string; round: number; stage: StageId; difficulty: CpuDifficulty; simVersion: number; engineVersion: string; roundsToWin?: number; seed: number;
   a: TournamentFighter; b: TournamentFighter; tacticsA: CpuTactics; tacticsB: CpuTactics;
   winner: 'a' | 'b'; scoreA: number; scoreB: number; decidedBy: 'ko' | 'cap'; frames: number;
 }

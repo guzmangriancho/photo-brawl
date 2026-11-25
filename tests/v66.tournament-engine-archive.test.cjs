@@ -42,8 +42,25 @@ test('server seed equals the client seed (fightSeed.ts) so a replay recreates th
   const T = { p1: { distance: 80, midTech: 70 }, p2: { distance: 20, closeHeavy: 60 } };
   const norm = tactics.normalizeCpuTactics;
   for (const [x, y] of [[A, B], [B, A]]) {
-    assert.equal(sim.fightSeed(1, x, y, 'SKI_RESORT', 'NORMAL', T.p1, T.p2, norm), seedMod.cpuFightSeed(x, y, 'SKI_RESORT', 'NORMAL', T));
+    assert.equal(sim.fightSeed(seedMod.SIM_VERSION, x, y, 'SKI_RESORT', 'NORMAL', T.p1, T.p2, norm), seedMod.cpuFightSeed(x, y, 'SKI_RESORT', 'NORMAL', T));
+    // e1 matches keep their stored seed: the client replays them with simVersion 1
+    assert.equal(sim.fightSeed(1, x, y, 'SKI_RESORT', 'NORMAL', T.p1, T.p2, norm), seedMod.cpuFightSeed(x, y, 'SKI_RESORT', 'NORMAL', T, { simVersion: 1 }));
+    // best of 1 changes the seed on both sides; best of 3 (the default) never does
+    assert.equal(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 1), seedMod.cpuFightSeed(x, y, 'SPIRIT_FOREST', 'NORMAL', T, { roundsToWin: 1 }));
+    assert.equal(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 2), sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm));
+    assert.notEqual(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 1), sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 2));
   }
+});
+test('e2 at best of 3 plays exactly like frozen e1 (so e1 tournaments still replay), and best of 1 ends after one round', () => {
+  const ta = { distance: 80 }, tb = { distance: 20, closeHeavy: 60 };
+  const e1 = sim.engine('e1'), e2 = sim.engine('e2');
+  const run = (E, rtw) => { const e = new E.FightEngine(A, B, 'CPU_VS_CPU', 'SPIRIT_FOREST', 'NORMAL', { p1: E.tactics.normalizeCpuTactics(ta), p2: E.tactics.normalizeCpuTactics(tb) }, 12345); if (rtw) e.roundsToWin = rtw; e.beginVersusIntro(); let f = 0; while (!e.roundOver && f < 36000) { e.step(); f++; } return { f, a: e.p1RoundWins, b: e.p2RoundWins }; };
+  assert.deepEqual(run(e2, 2), run(e1));
+  const one = run(e2, 1);
+  assert.equal(one.a + one.b, 1);
+  const r = sim.simulate('e2', A, B, ta, tb, 'SPIRIT_FOREST', 'NORMAL', { roundsToWin: 1 });
+  assert.equal(r.roundsToWin, 1); assert.equal(r.scoreA + r.scoreB, 1);
+  assert.equal(sim.simulate('e1', A, B, ta, tb, 'SKI_RESORT', 'NORMAL', { roundsToWin: 1 }).roundsToWin, 2, 'e1 ignores roundsToWin');
 });
 test('tournament fights are deterministic and the winner matches the client-side replay stepping', () => {
   const r1 = sim.simulate('e1', A, B, { distance: 80 }, { distance: 20, closeHeavy: 60 }, 'SKI_RESORT', 'NORMAL');

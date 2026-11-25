@@ -316,6 +316,8 @@ export class FightEngine {
     return true;
   }
   public winnerName: string | null = null;
+  /** Round wins needed to take the match. 2 = best of 3 (every fight before tournaments e2). */
+  public roundsToWin = 2;
   public announceText: string | null = 'ROUND 1 - FIGHT!';
   public announceTimer: number = 75;
 
@@ -488,7 +490,7 @@ export class FightEngine {
     if(winner===0)this.p1RoundWins++;
     if(winner===1)this.p2RoundWins++;
     const roundWinner=winner===null?'EMPATE':winner===0?this.p1.profile.fighterName:this.p2.profile.fighterName;
-    const matchWinner=this.p1RoundWins===2?this.p1.profile.fighterName:this.p2RoundWins===2?this.p2.profile.fighterName:null;
+    const matchWinner=this.p1RoundWins===this.roundsToWin?this.p1.profile.fighterName:this.p2RoundWins===this.roundsToWin?this.p2.profile.fighterName:null;
     if(matchWinner){
       this.roundOver=true;
       this.endPresentationFrames=96;

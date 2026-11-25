@@ -40,6 +40,8 @@ interface FightArenaProps {
   tutorial?: boolean;
   /** Recreating a tournament fight: no rematch / tactics buttons, back goes to the tournament. */
   tournamentReplay?: boolean;
+  replaySimVersion?: number;
+  roundsToWin?: number;
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   /** CPU vs CPU: play the whole fight instantly and show the result. */
@@ -110,7 +112,7 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, tournamentReplay = false, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
+  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, tournamentReplay = false, replaySimVersion, roundsToWin = 2, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
 }) => {
   const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
@@ -229,8 +231,9 @@ export const FightArena: React.FC<FightArenaProps> = ({
   useEffect(() => {
     soundFX.setCrowdedCombat(false);
     // CPU vs CPU: the same fighters, stage, difficulty and tactics always give the same fight.
-    const seed = mode === 'CPU_VS_CPU' ? cpuFightSeed(p1Profile, p2Profile, stage, difficulty, tactics) : undefined;
+    const seed = mode === 'CPU_VS_CPU' ? cpuFightSeed(p1Profile, p2Profile, stage, difficulty, tactics, { simVersion: replaySimVersion, roundsToWin }) : undefined;
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty, tactics, seed);
+    engine.roundsToWin = roundsToWin;
     engine.beginVersusIntro();
     engine.showHitboxes = false;
     engine.trainingFreePlay = mode === 'TRAINING' && !tutorial;
@@ -583,11 +586,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
               </div>
             </div>
             <div className="arena-time">
-              <span className="arena-round-label">RONDA {snapshot.roundNumber} · MEJOR DE 3</span>
+              <span className="arena-round-label">RONDA {snapshot.roundNumber} · MEJOR DE {roundsToWin * 2 - 1}</span>
               <div className="arena-round-score" aria-label={`Rondas: ${snapshot.p1RoundWins} a ${snapshot.p2RoundWins}`}>
-                <span className="arena-round-pips">{[0,1].map(i=><i key={i} className={i<snapshot.p1RoundWins?'is-won':''}/>)}</span>
+                <span className="arena-round-pips">{Array.from({length:roundsToWin},(_,i)=>i).map(i=><i key={i} className={i<snapshot.p1RoundWins?'is-won':''}/>)}</span>
                 <b>{snapshot.p1RoundWins} - {snapshot.p2RoundWins}</b>
-                <span className="arena-round-pips">{[0,1].map(i=><i key={i} className={i<snapshot.p2RoundWins?'is-won':''}/>)}</span>
+                <span className="arena-round-pips">{Array.from({length:roundsToWin},(_,i)=>i).map(i=><i key={i} className={i<snapshot.p2RoundWins?'is-won':''}/>)}</span>
               </div>
               <div className={`arena-time-number ${snapshot.timer <= 10 && mode !== 'TRAINING' ? 'is-urgent' : ''}`} aria-label={`Tiempo restante: ${snapshot.timer}`}>
                 {mode === 'TRAINING' ? '∞' : String(snapshot.timer).padStart(2, '0')}

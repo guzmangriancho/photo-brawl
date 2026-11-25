@@ -7,7 +7,10 @@ import { normalizeCpuTactics, type CpuTactics } from './cpuTactics';
  * only recreate the same fight while this number and the fighters' gameplay data match.
  * tests/v65.reproducible-cpu-fights.test.cjs fails when the engine changes without a bump.
  */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
+/** Versions whose fights replay identically with this engine when roundsToWin is 2 (e2 only adds the roundsToWin option). */
+export const REPLAYABLE_SIM_VERSIONS = [1, 2];
+export const DEFAULT_ROUNDS_TO_WIN = 2;
 
 function stable(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
@@ -33,16 +36,19 @@ export interface FightRecipe {
   p1: string; p2: string;
   stage: string; difficulty: string;
   tactics: { p1: CpuTactics; p2: CpuTactics };
+  /** Only present when it is not the default 2, so every seed made before e2 stays the same. */
+  rtw?: number;
 }
 
 export function fightRecipe(p1: FighterProfile, p2: FighterProfile, stage: string, difficulty: string,
-  tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }): FightRecipe {
-  return { v: SIM_VERSION, p1: fighterFingerprint(p1), p2: fighterFingerprint(p2), stage, difficulty,
+  tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }, opts?: { simVersion?: number; roundsToWin?: number }): FightRecipe {
+  const rtw = opts?.roundsToWin;
+  return { v: opts?.simVersion ?? SIM_VERSION, ...(rtw && rtw !== DEFAULT_ROUNDS_TO_WIN ? { rtw } : {}), p1: fighterFingerprint(p1), p2: fighterFingerprint(p2), stage, difficulty,
     tactics: { p1: normalizeCpuTactics(tactics?.p1), p2: normalizeCpuTactics(tactics?.p2) } };
 }
 
 /** The same matchup with the same tactics always gets the same seed, hence the same fight. */
 export function cpuFightSeed(p1: FighterProfile, p2: FighterProfile, stage: string, difficulty: string,
-  tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }): number {
-  return hash32(stable(fightRecipe(p1, p2, stage, difficulty, tactics)));
+  tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }, opts?: { simVersion?: number; roundsToWin?: number }): number {
+  return hash32(stable(fightRecipe(p1, p2, stage, difficulty, tactics, opts)));
 }

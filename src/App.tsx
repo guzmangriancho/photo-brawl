@@ -69,6 +69,8 @@ export function App() {
     rankTrophies?:number[];
     simulate?:boolean;
     tournamentReplay?:boolean;
+    replaySimVersion?:number;
+    roundsToWin?:number;
   } | null>(null);
   const [backToTournament,setBackToTournament]=useState(false);
 
@@ -187,7 +189,7 @@ export function App() {
 
   // Ver un combate de torneo: mismos luchadores congelados, mismas tácticas congeladas, misma semilla = mismo combate.
   const handleWatchTournament=(start:TournamentReplayStart)=>{
-    setMatchConfig({p1:start.p1,p2:start.p2,mode:'CPU_VS_CPU',stage:start.stage,difficulty:start.difficulty,tactics:start.tactics,simulate:false,tournamentReplay:true});
+    setMatchConfig({p1:start.p1,p2:start.p2,mode:'CPU_VS_CPU',stage:start.stage,difficulty:start.difficulty,tactics:start.tactics,simulate:false,tournamentReplay:true,replaySimVersion:start.simVersion,roundsToWin:start.roundsToWin});
     setCpuResume(null);setBackToTournament(true);
     setFightKey(value=>value+1);
     setScreen('FIGHT');
@@ -257,7 +259,7 @@ export function App() {
         stage={matchConfig.stage}
         difficulty={matchConfig.difficulty} tactics={matchConfig.tactics}
         online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
-        tutorial={matchConfig.tutorial} tournamentReplay={matchConfig.tournamentReplay}
+        tutorial={matchConfig.tutorial} tournamentReplay={matchConfig.tournamentReplay} replaySimVersion={matchConfig.replaySimVersion} roundsToWin={matchConfig.roundsToWin}
         onExit={handleExit}
       />
     );
