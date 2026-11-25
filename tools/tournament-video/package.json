@@ -1,0 +1,3 @@
+{ "name": "photo-brawl-tournament-video", "private": true, "version": "1.0.0",
+  "description": "Genera el vídeo vertical de un torneo (intro, combates, campeón, audio). Ver README.md.",
+  "dependencies": { "@napi-rs/canvas": "1.2.1" } }
