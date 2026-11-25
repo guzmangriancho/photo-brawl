@@ -12,9 +12,9 @@ const SIGN_SECONDS=300;
 const cfg=()=>({
   secret:process.env.VIDEO_EXPORT_SECRET||'',
   ghToken:process.env.GITHUB_DISPATCH_TOKEN||'',
-  repo:(process.env.GITHUB_REPO||'guzmangriancho/photo-brawl').trim(),
-  workflow:(process.env.GITHUB_WORKFLOW||'tournament-video.yml').trim(),
-  ref:(process.env.GITHUB_REF_NAME||'main').trim(),
+  repo:(process.env.VIDEO_GITHUB_REPO||'guzmangriancho/photo-brawl').trim(),
+  workflow:(process.env.VIDEO_WORKFLOW_FILE||'tournament-video.yml').trim(),
+  ref:(process.env.VIDEO_WORKFLOW_REF||'main').trim(),
   api:(process.env.GITHUB_API_BASE||'https://api.github.com').replace(/\/+$/,''),
   pub:(process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY||'').trim(),
 });

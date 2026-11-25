@@ -33,7 +33,7 @@ Publicar en redes exige además el consentimiento de los creadores de los luchad
 ## Despliegue (preparado, nada activo)
 Flujo: el admin pulsa GENERAR VÍDEO en la pantalla del torneo terminado, el servidor de Render lanza `.github/workflows/tournament-video.yml` (workflow_dispatch, solo id y día), el workflow exporta (`/tournament/export`), valida, renderiza y sube la copia ligera a `PUT /tournament/video-upload`; el servidor la guarda en el bucket privado `tournament-videos` y la app ofrece una URL firmada de 5 min.
 - Servidor (`server/tournament/video.cjs`): `GET/POST /tournament/video` (solo propietario, vía `pb_is_admin`), `PUT /tournament/video-upload` y `POST /tournament/video-failed` (secreto compartido, solo con petición abierta). Todo da 404 si faltan `VIDEO_EXPORT_SECRET` y `GITHUB_DISPATCH_TOKEN`.
-- Variables en Render: `VIDEO_EXPORT_SECRET` (24+ caracteres aleatorios), `GITHUB_DISPATCH_TOKEN` (fine-grained, solo este repo, permiso "Actions: write"). Opcionales: `GITHUB_REPO`, `GITHUB_WORKFLOW`, `GITHUB_REF_NAME`.
+- Variables en Render: `VIDEO_EXPORT_SECRET` (24+ caracteres aleatorios), `GITHUB_DISPATCH_TOKEN` (fine-grained, solo este repo, permiso "Actions: write"). Opcionales: `VIDEO_GITHUB_REPO`, `VIDEO_WORKFLOW_FILE`, `VIDEO_WORKFLOW_REF`.
 - Secretos en GitHub: `PB_API_BASE` y `PB_EXPORT_SECRET` (el mismo valor que `VIDEO_EXPORT_SECRET`). Ninguna clave de Supabase en GitHub, sin artefactos, sin datos de torneo en logs.
 - Migración `202611250004`: bucket privado `tournament-videos` (20 MB, mp4) y tabla `tournament_videos` (solo servidor).
 - Límite: el vídeo crece con el número de combates (6 combates superpuestos por tramo); el workflow corta a los 30 min.
