@@ -234,6 +234,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const seed = mode === 'CPU_VS_CPU' ? cpuFightSeed(p1Profile, p2Profile, stage, difficulty, tactics, { simVersion: replaySimVersion, roundsToWin }) : undefined;
     const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty, tactics, seed);
     engine.roundsToWin = roundsToWin;
+    if (replaySimVersion) engine.simVersion = replaySimVersion;
     engine.beginVersusIntro();
     engine.showHitboxes = false;
     engine.trainingFreePlay = mode === 'TRAINING' && !tutorial;

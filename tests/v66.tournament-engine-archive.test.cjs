@@ -46,7 +46,7 @@ test('server seed equals the client seed (fightSeed.ts) so a replay recreates th
     // e1 matches keep their stored seed: the client replays them with simVersion 1
     assert.equal(sim.fightSeed(1, x, y, 'SKI_RESORT', 'NORMAL', T.p1, T.p2, norm), seedMod.cpuFightSeed(x, y, 'SKI_RESORT', 'NORMAL', T, { simVersion: 1 }));
     // best of 1 changes the seed on both sides; best of 3 (the default) never does
-    assert.equal(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 1), seedMod.cpuFightSeed(x, y, 'SPIRIT_FOREST', 'NORMAL', T, { roundsToWin: 1 }));
+    assert.equal(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 1), seedMod.cpuFightSeed(x, y, 'SPIRIT_FOREST', 'NORMAL', T, { simVersion: 2, roundsToWin: 1 }));
     assert.equal(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 2), sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm));
     assert.notEqual(sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 1), sim.fightSeed(2, x, y, 'SPIRIT_FOREST', 'NORMAL', T.p1, T.p2, norm, 2));
   }

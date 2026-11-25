@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FightEngine = exports.FLOOR_Y = exports.STAGE_HEIGHT = exports.GUARD_MAX = exports.STAGE_WIDTH = void 0;
+exports.FightEngine = exports.FLOOR_Y = exports.STAGE_HEIGHT = exports.GUARD_MAX = exports.STAGE_WIDTH = exports.ENGINE_SIM_VERSION = void 0;
 const SpriteProcessor_1 = require("./SpriteProcessor");
 const stages_1 = require("../data/stages");
 const SoundFX_1 = require("./SoundFX");
 const ArcadeVFX_1 = require("./ArcadeVFX");
 const cpuTactics_1 = require("./cpuTactics");
+/** Current rules version (same number as SIM_VERSION in fightSeed.ts; tests keep them equal). */
+exports.ENGINE_SIM_VERSION = 3;
 // Visual assets are loaded only in browsers. The authoritative Node combat server
 // never needs Image/DOM APIs. Frames render the old procedural background until ready.
 const stageImageCache = new Map();
@@ -105,6 +107,11 @@ class FightEngine {
     winnerName = null;
     /** Round wins needed to take the match. 2 = best of 3 (every fight before tournaments e2). */
     roundsToWin = 2;
+    /**
+     * Rules version of this engine. Fights recorded with an older version (tournaments e1/e2) replay with
+     * the old numbers when this is set to that version. Every balance change is gated with `simVersion >= N`.
+     */
+    simVersion = exports.ENGINE_SIM_VERSION;
     announceText = 'ROUND 1 - FIGHT!';
     announceTimer = 75;
     projectiles = [];
@@ -1247,7 +1254,8 @@ class FightEngine {
         else if (slot === 'SP_FORWARD') {
             const mech = f.profile.moveset.specialForward.mechanic;
             const isGrab = mech === 'COMMAND_GRAB_SLAM';
-            const isArmored = mech === 'ARMORED_SHOULDER_DASH' || hasHeavyArmorPassive;
+            // v3: the command grab no longer comes with the heavy-armor passive (armor + unblockable grab was unbeatable).
+            const isArmored = mech === 'ARMORED_SHOULDER_DASH' || (hasHeavyArmorPassive && !(this.simVersion >= 3 && isGrab));
             const isSpin = mech === 'SPINNING_ADVANCE';
             const isTeleport = mech === 'TELEPORT_BEHIND';
             f.hasArmorActive = isArmored;
@@ -1263,10 +1271,10 @@ class FightEngine {
                 slot: 'SP_FORWARD',
                 name: f.profile.moveset.specialForward.name,
                 mechanic: mech,
-                startup: isGrab ? 7 : isTeleport ? 6 : 8,
+                startup: isGrab ? (this.simVersion >= 3 ? 9 : 7) : isTeleport ? (this.simVersion >= 3 ? 12 : 6) : 8,
                 active: isGrab ? 6 : isSpin ? 16 : 12,
-                recovery: Math.max(12, 18 - techBonus),
-                damage: Math.round((isGrab ? 132 : isSpin ? 105 : 90) * pwr),
+                recovery: Math.max(12, 18 - techBonus) + (this.simVersion >= 3 ? (isGrab || isTeleport ? 6 : mech === 'ARMORED_SHOULDER_DASH' ? 4 : 0) : 0),
+                damage: Math.round((isGrab ? (this.simVersion >= 3 ? 105 : 132) : isSpin ? 105 : isTeleport && this.simVersion >= 3 ? 74 : mech === 'ARMORED_SHOULDER_DASH' && this.simVersion >= 3 ? 78 : 90) * pwr),
                 hitstun: 22,
                 blockstun: 15,
                 pushback: isGrab ? 12 : 9,
@@ -1294,7 +1302,7 @@ class FightEngine {
             const isTornado = mech === 'VERTICAL_TORNADO';
             const isStomp = mech === 'HIGH_LEAP_STOMP';
             if (isInvincible)
-                f.invincibleFrames = 15;
+                f.invincibleFrames = this.simVersion >= 3 ? 9 : 15;
             f.hasArmorActive = hasHeavyArmorPassive;
             f.currentAttack = {
                 slot: 'SP_UP',
@@ -1302,8 +1310,8 @@ class FightEngine {
                 mechanic: mech,
                 startup: isDive ? 4 : 5,
                 active: isDive ? 18 : 14,
-                recovery: Math.max(13, 19 - techBonus),
-                damage: Math.round((isStomp ? 112 : 98) * pwr),
+                recovery: Math.max(13, 19 - techBonus) + (this.simVersion >= 3 && isInvincible ? 4 : 0),
+                damage: Math.round((isStomp ? 112 : this.simVersion >= 3 && isInvincible ? 90 : 98) * pwr),
                 hitstun: 24,
                 blockstun: 15,
                 pushback: 7,
@@ -1377,7 +1385,7 @@ class FightEngine {
                 startup: 4,
                 active: 32,
                 recovery: 16,
-                damage: Math.round(265 * pwr),
+                damage: Math.round((this.simVersion >= 3 && mech === 'OMEGA_SUPLEX' ? 215 : this.simVersion >= 3 && mech === 'METEOR_SCREEN_DROP' ? 205 : 265) * pwr),
                 hitstun: 32,
                 blockstun: 22,
                 pushback: 15,
@@ -1390,7 +1398,7 @@ class FightEngine {
                 hitbox: mech === 'GIANT_BEAM_LASER'
                     ? { offsetX: 24, offsetY: -145, width: 660, height: 120 }
                     : mech === 'METEOR_SCREEN_DROP'
-                        ? { offsetX: -130, offsetY: -180, width: 260, height: 195 }
+                        ? { offsetX: this.simVersion >= 3 ? -105 : -130, offsetY: -180, width: this.simVersion >= 3 ? 210 : 260, height: 195 }
                         : { offsetX: 16, offsetY: -145, width: 175, height: 135 },
                 hasHit: false,
                 multiHitInterval: mech === 'MULTI_HIT_RUSH_COMBO' || mech === 'GIANT_BEAM_LASER' ? 4 : undefined,
@@ -1633,6 +1641,36 @@ class FightEngine {
         const hitY = (Math.max(hbY, defY) + Math.min(hbY + hbH, defY + defH)) / 2;
         const defInput = this.getInputFor(defender.index);
         const validGuard = !atk.isGrab && this.canGuardAttack(defender, defInput, atk.height);
+        // v3 counters to grabs: they cannot catch someone who is in the air (jump over or away from them),
+        // and a well-timed GUARD press just before contact breaks the command grab (grab tech).
+        if (this.simVersion >= 3 && atk.isGrab) {
+            if (!this.isGrounded(defender)) {
+                atk.hasHit = false;
+                return;
+            }
+            if (atk.slot === 'SP_FORWARD' && defender.state !== 'ATTACK' && defender.state !== 'HURT' &&
+                defInput.guard && this.frameCount - defender.blockPressFrame <= 5) {
+                SoundFX_1.soundFX.parry();
+                this.hitstopFrames = PARRY_HITSTOP;
+                this.shakeIntensity = Math.max(this.shakeIntensity, 6);
+                defender.guardMeter = exports.GUARD_MAX;
+                defender.invincibleFrames = 12;
+                defender.state = defInput.down ? 'BLOCK_CROUCH' : 'BLOCK_STAND';
+                defender.stateFrame = 0;
+                defender.blockstunFrames = 0;
+                attacker.currentAttack = null;
+                attacker.bufferedActions = [];
+                attacker.lightChainCount = 0;
+                attacker.state = 'HURT';
+                attacker.stateFrame = 0;
+                attacker.hitstunFrames = 22;
+                attacker.vx = -attacker.facing * 9;
+                this.addMeter(defender, 16);
+                this.parryBursts.push({ x: hitX, y: hitY, life: PARRY_BURST_LIFE, facing: defender.facing });
+                this.addCallout(defender.x, defender.y - 155, 'GRAB TECH!', '#befaff');
+                return;
+            }
+        }
         // Parry de jab: pulsar GUARDIA justo antes del contacto (5 fotogramas).
         // Interrumpe el jab y deja espacio para que el defensor pueda responder.
         if (atk.slot === 'LIGHT' && validGuard && this.frameCount - defender.blockPressFrame <= 4) {
@@ -1675,7 +1713,7 @@ class FightEngine {
         // 3. Check Super Armor on Defender
         if (defender.hasArmorActive && !atk.isGrab && atk.slot !== 'SUPER') {
             defender.hasArmorActive = false;
-            const armorDmg = Math.round(atk.damage * 0.65);
+            const armorDmg = Math.round(atk.damage * (this.simVersion >= 3 ? 0.85 : 0.65));
             defender.hp = Math.max(1, defender.hp - armorDmg);
             this.hitstopFrames = 4;
             SoundFX_1.soundFX.armorAbsorb();

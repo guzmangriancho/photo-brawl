@@ -7,9 +7,9 @@ import { normalizeCpuTactics, type CpuTactics } from './cpuTactics';
  * only recreate the same fight while this number and the fighters' gameplay data match.
  * tests/v65.reproducible-cpu-fights.test.cjs fails when the engine changes without a bump.
  */
-export const SIM_VERSION = 2;
-/** Versions whose fights replay identically with this engine when roundsToWin is 2 (e2 only adds the roundsToWin option). */
-export const REPLAYABLE_SIM_VERSIONS = [1, 2];
+export const SIM_VERSION = 3;
+/** Versions whose fights replay identically with this engine when roundsToWin is 2 (e2 only adds the roundsToWin option; v3 balance changes are gated by FightEngine.simVersion, so older fights keep their old numbers). */
+export const REPLAYABLE_SIM_VERSIONS = [1, 2, 3];
 export const DEFAULT_ROUNDS_TO_WIN = 2;
 
 function stable(value: unknown): string {

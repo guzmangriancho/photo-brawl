@@ -1,8 +1,8 @@
 'use strict';
 /** Simulación de un combate de torneo. Versionada: el torneo guarda engine_version y sim_version.
  * El motor se carga SIEMPRE desde su copia inmutable en archive/eN, nunca desde server/runtime. */
-const ENGINES={e1:{simVersion:1,dir:'./archive/e1'},e2:{simVersion:2,dir:'./archive/e2'}};
-const CURRENT_ENGINE='e2';
+const ENGINES={e1:{simVersion:1,dir:'./archive/e1'},e2:{simVersion:2,dir:'./archive/e2'},e3:{simVersion:3,dir:'./archive/e3'}};
+const CURRENT_ENGINE='e3';
 const cache={};
 function engine(version){
   const spec=ENGINES[version];
