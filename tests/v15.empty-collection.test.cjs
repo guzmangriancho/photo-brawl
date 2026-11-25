@@ -56,7 +56,7 @@ function harness(initialFighters){
     './LeagueEmblem':{LeagueFrame:stubComponent('LeagueFrame'),LeagueBadge:stubComponent('LeagueBadge')},
     '../services/progressionService':{ownFighterRanks:async()=>({}),leagueFor:()=>({key:'BRONCE'})},
     './arcadeMenus.css':{},
-    '../engine/cpuTactics':require('./helpers/cpuTactics.cjs'),'./CpuTacticsPanel':{CpuTacticsPanel:stubComponent('CpuTacticsPanel')}
+    '../engine/cpuTactics':require('./helpers/cpuTactics.cjs'),'./CpuTacticsPanel':{CpuTacticsPanel:stubComponent('CpuTacticsPanel')},'./TournamentScreen':{TournamentScreen:stubComponent('TournamentScreen')}
   };
   const ctx={exports:{},require:name=>{if(!(name in modules))throw Error(`Unexpected import: ${name}`);return modules[name];},URLSearchParams,location:{search:''},localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},console};
   vm.runInNewContext(output.outputText,ctx,{filename:'CharacterSelect.js'});

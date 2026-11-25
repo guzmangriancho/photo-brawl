@@ -49,7 +49,7 @@
 .pb-trn-rounds button{min-width:28px;height:26px;background:#172f51;border:2px solid #577fa5;color:#daefff;border-radius:4px;font-size:12px}
 .pb-trn-rounds button.is-selected{background:#ed9a24;border-color:#ffd665;color:#fff}
 .pb-trn-bracket{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-.pb-trn-bracket li{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;font-size:11px;background:#0f2144;border-radius:4px;padding:4px 6px;min-width:0}
+.pb-trn-bracket li{display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center;font-size:11px;background:#0f2144;border-radius:4px;padding:4px 6px;min-width:0}
 .pb-trn-bracket li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aecce4}.pb-trn-bracket li span:last-child{text-align:right}
 .pb-trn-bracket li span.win{color:#ffe08b}.pb-trn-bracket li i{font-style:normal;color:#79e5ff}
 .pb-trn-spin{animation:pb-trn-spin 1s linear infinite}@keyframes pb-trn-spin{to{transform:rotate(360deg)}}
@@ -70,3 +70,4 @@
 /* Tactics sliders must never be clipped or trapped in a nested scroller: the page scroll owns them. */
 .pb-trn-scroll .pb-tactics-panel{flex:none;height:auto;max-height:none;overflow:visible}
 .pb-trn-scroll .pb-trn-card,.pb-trn-scroll .pb-frame{flex:none;height:auto;max-height:none;overflow:visible}
+.pb-trn-rounds.pb-trn-tabs button{font-size:12px!important;padding:3px 10px!important;min-height:0!important}
