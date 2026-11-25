@@ -25,3 +25,9 @@ La fuente Press Start 2P (assets/) es SIL Open Font License 1.1 (la misma que ya
 Funciona por línea de comandos en una máquina con node, ffmpeg y python. Para botón de descarga en la app haría falta: un job en el servidor
 online que ejecute `run.sh` al terminar un torneo, guardar el mp4 (p. ej. en storage) y un endpoint/botón que lo sirva. Eso no está hecho ni desplegado.
 Publicar en redes exige además el consentimiento de los creadores de los luchadores.
+
+## Validación antes de renderizar
+`validate.cjs` vuelve a simular cada combate de la exportación con el motor archivado de su versión y exige el mismo ganador, marcador, frames y semilla. `spec-from-export.cjs` lo ejecuta primero y no genera nada si falla, para que el vídeo nunca reescriba la historia. Cada combate debe traer `roundsToWin` (e1 siempre 2; si falta en e2 se rechaza). Solo imprime contadores, nunca tácticas ni cuentas.
+
+## Despliegue
+`github-workflow.example.yml` es un borrador sin activar (ver notas en el propio archivo).

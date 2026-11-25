@@ -50,8 +50,10 @@ function drawTxt(ctx,txt,x,y,font,fill,lw){
   ctx.fillStyle=fill;ctx.fillText(plain,x,y);
   const m=Math.max(2,Math.round(size/8));
   for(const i of marks){const cx=left+i*size+size*0.5;const my=y-size*1.0-m*2;
-    if(lw){ctx.fillStyle='#050816';ctx.fillRect(cx-m*1.5-lw/3,my-m-lw/3,m*3+lw*2/3,m*2+lw*2/3);}
-    ctx.fillStyle=fill;ctx.fillRect(cx-m*1.5+m,my-m,m*2,m*2);}
+    // acento agudo: escalera diagonal de tres bloques (abajo-izquierda a arriba-derecha)
+    const bl=[[-m*1.5,m*0.5],[-m*0.5,-m*0.5],[m*0.5,-m*1.5]];
+    if(lw){ctx.fillStyle='#050816';for(const [dx,dy] of bl)ctx.fillRect(cx+dx-lw/3,my+dy-lw/3,m*1.4+lw*2/3,m*1.4+lw*2/3);}
+    ctx.fillStyle=fill;for(const [dx,dy] of bl)ctx.fillRect(cx+dx,my+dy,m*1.4,m*1.4);}
 }
 function outlined(txt,x,y,font,fill,lw=8){drawTxt(c,txt,x,y,font,fill,lw);}
 function gradText(txt,x,y,size,top,bot){const g=c.createLinearGradient(0,y-size,0,y);g.addColorStop(0,top);g.addColorStop(1,bot);outlined(txt,x,y,size+'px "Press Start 2P"',g,Math.round(size/7));}

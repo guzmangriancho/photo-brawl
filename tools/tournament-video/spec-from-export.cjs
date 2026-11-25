@@ -7,6 +7,8 @@ const fs=require('fs'),path=require('path');
 const [,,inp,outp,...rest]=process.argv;
 const dayArg=rest.indexOf('--day')>=0?Number(rest[rest.indexOf('--day')+1]):null; // numero de dia: lo fija quien lanza el video
 const repo=path.resolve(rest[rest.indexOf('--repo')+1]||path.join(__dirname,'..','..'));
+// Antes de nada: el torneo guardado debe poder reproducirse tal cual (validate.cjs); si no, no se genera video.
+require('child_process').execFileSync(process.execPath,[path.join(__dirname,'validate.cjs'),inp,'--repo',repo],{stdio:'inherit'});
 const ex=JSON.parse(fs.readFileSync(inp,'utf8'));
 const dir=path.dirname(path.resolve(outp)),artDir=path.join(dir,'art');fs.mkdirSync(artDir,{recursive:true});
 const STAGE_IMG={SUNKEN_ATLANTIS:'atlantis',SPIRIT_FOREST:'forest',CELESTIAL_TEMPLE:'celestial',VOLCANIC_FORTRESS:'volcan',SKI_RESORT:'snow'};
@@ -29,7 +31,9 @@ async function dl(url,file){if(fs.existsSync(file))return;const r=await fetch(ur
   const stages={};const rounds=[];
   for(const r of roundNos){
     const fs_=ms.filter(m=>m.round===r);const stage=fs_[0].stage;stages[stage]=path.join(repo,'public/backgrounds',(STAGE_IMG[stage]||'snow')+'.jpg');
-    const rtw=fs_[0].roundsToWin||2;
+    const rts=[...new Set(fs_.map(m=>m.roundsToWin??(m.engineVersion==='e1'?2:undefined)))];
+    if(rts.length!==1||rts[0]==null)throw new Error('Ronda '+r+': roundsToWin ausente o mezclado ('+rts+'). La exportación de un torneo e2 debe incluir roundsToWin por combate.');
+    const rtw=rts[0];
     for(let i=0;i<fs_.length;i+=6){ // como mucho 6 combates superpuestos por tramo
       const chunk=fs_.slice(i,i+6);
       rounds.push({id:'R'+r+'_'+i,label:labelOf(r),stage,rtw,spf:chunk.length>=4?6:chunk.length>=2?4:3,noFadeOut:r===last,
