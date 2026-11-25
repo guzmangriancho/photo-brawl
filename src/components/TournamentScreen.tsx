@@ -4,6 +4,7 @@ import type { CpuDifficulty, FighterProfile, StageId } from '../types/fighter';
 import type { CpuTactics } from '../engine/cpuTactics';
 import { REPLAYABLE_SIM_VERSIONS } from '../engine/fightSeed';
 import { CpuTacticsPanel } from './CpuTacticsPanel';
+import { TournamentVideoPanel } from './TournamentVideoPanel';
 import {
   fetchTournamentBracket, fetchTournamentMatch, fetchTournamentState, joinTournament, saveTournamentTactics, toFighterProfile,
   type BracketMatch, type TournamentFighter, type TournamentMatchView, type TournamentState,
@@ -228,6 +229,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
       </>}
 
       {t && status === 'finished' && <section className="pb-frame pb-trn-card pb-trn-center"><Crown size={30} /><p>CAMPEÓN: {state?.champion?.name}</p><small>El torneo ha terminado. Abre el cuadro y pulsa ▶ en cualquier combate para volver a verlo.</small></section>}
+      {bt && bt.status === 'finished' && <TournamentVideoPanel tournamentId={bt.id} />}
 
       {state && state.history.length > 0 && me && <section className="pb-frame pb-trn-card" aria-label="Tus combates">
         <div className="pb-trn-row"><Play size={15} /> TUS COMBATES</div>

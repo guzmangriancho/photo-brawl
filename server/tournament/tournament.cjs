@@ -5,6 +5,7 @@
  * - Las tácticas del rival no salen de aquí hasta que la ronda está completa y destapada. */
 const {randomUUID}=require('node:crypto');
 const sim=require('./sim.cjs');
+const video=require('./video.cjs');
 const rankedApi=require('../ranked.cjs');
 const {validateProfile}=require('../validation.cjs');
 const {normalizeCpuTactics}=require('../runtime/engine/cpuTactics.js');
@@ -298,6 +299,8 @@ async function handleHttp(req,res,{corsOrigin}){
       if(limited('tick:'+ip,Number(process.env.TOURNAMENT_TICK_LIMIT||20),60000))return send(429,{ok:false,error:'Demasiadas llamadas.'}),true;
       const r=await tick();return send(200,r),true;
     }
+    const vctx={URL_ROOT,rest,headers,uuid,limited,readBody,ip,configured:()=>configured&&rankedApi.available()};
+    if(await video.handleSecret(req,res,url,vctx,send))return true;
     if(url.pathname==='/tournament/export'&&req.method==='GET'){
       if(!process.env.VIDEO_EXPORT_SECRET)return send(404,{error:'No encontrado.'}),true;
       if(limited('export:'+ip,Number(process.env.TOURNAMENT_EXPORT_LIMIT||10),60000))return send(429,{error:'Demasiadas peticiones.'}),true;
@@ -310,6 +313,7 @@ async function handleHttp(req,res,{corsOrigin}){
     const auth=String(req.headers.authorization||'');
     const accountId=await rankedApi.verifyUser(auth.startsWith('Bearer ')?auth.slice(7):'');
     if(limited('acct:'+accountId,60,60000))return send(429,{error:'Demasiadas peticiones.'}),true;
+    if(await video.handleUser(req,res,url,vctx,send,accountId,auth.startsWith('Bearer ')?auth.slice(7):''))return true;
     if(url.pathname==='/tournament/state'&&req.method==='GET'){
       void tick(); // red de seguridad: si el programador falló, una visita también avanza lo vencido (con los mismos límites)
       return send(200,await stateFor(accountId)),true;
@@ -324,7 +328,7 @@ async function handleHttp(req,res,{corsOrigin}){
     send(404,{error:'No encontrado.'});
   }catch(e){
     const msg=String(e.message||e);
-    const client=/Inicia sesión|sesión ha caducado|No se pudo verificar la cuenta|no está abierta|aún no|No estás|Ya no puedes|Demasiado|no válid|no es válido|Elige|no encontrado|No hay torneo|sincronizado|inscripción|cuerpo|JSON|demasiado/i.test(msg);
+    const client=/Inicia sesión|sesión ha caducado|No se pudo verificar la cuenta|no está abierta|aún no|No estás|Ya no puedes|Demasiado|no válid|no es válido|Elige|no encontrado|No hay torneo|sincronizado|inscripción|cuerpo|JSON|demasiado|El día debe/i.test(msg);
     console.warn('[tournament]',url.pathname,msg.slice(0,200));
     send(client?400:500,{error:client?msg:'Error interno del servidor.'});
   }

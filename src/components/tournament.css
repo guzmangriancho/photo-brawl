@@ -71,3 +71,5 @@
 .pb-trn-scroll .pb-tactics-panel{flex:none;height:auto;max-height:none;overflow:visible}
 .pb-trn-scroll .pb-trn-card,.pb-trn-scroll .pb-frame{flex:none;height:auto;max-height:none;overflow:visible}
 .pb-trn-rounds.pb-trn-tabs button{font-size:12px!important;padding:3px 10px!important;min-height:0!important}
+.pb-trn-day{display:flex;align-items:center;gap:8px;font-size:12px}
+.pb-trn-day input{width:64px;padding:6px;border:2px solid #719cc8;border-radius:6px;background:#0a1330;color:#fff;font:inherit;text-align:center}

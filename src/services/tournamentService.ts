@@ -60,6 +60,12 @@ export const fetchTournamentMatch = (id: string) => call<TournamentReplay>('/tou
 export const fetchTournamentBracket = (tournament: string, round: number, offset = 0) =>
   call<{ round: number; total: number; matches: BracketMatch[] }>(`/tournament/bracket?tournament=${tournament}&round=${round}&offset=${offset}`);
 
+export interface TournamentVideoState { enabled: boolean; status?: 'none' | 'queued' | 'ready' | 'failed'; dayNo?: number; requestedAt?: string; url?: string }
+/** Solo el propietario ve la función (enabled:false para el resto). La URL del vídeo es firmada y caduca en 5 min. */
+export const fetchTournamentVideo = (tournament: string) => call<TournamentVideoState>('/tournament/video?tournament=' + encodeURIComponent(tournament));
+export const requestTournamentVideo = (tournament: string, day: number, force = false) =>
+  call<TournamentVideoState>('/tournament/video', { method: 'POST', body: { tournament, day, ...(force ? { force: true } : {}) } });
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error('Imagen no legible.')); r.readAsDataURL(blob); });
 }

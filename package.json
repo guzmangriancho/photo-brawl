@@ -58,7 +58,7 @@
     "test:v64": "node --test tests/v64.cpu-tactics.test.cjs",
     "test:v65": "node --test tests/v65.reproducible-cpu-fights.test.cjs",
     "test:v66": "node --test tests/v66.tournament-engine-archive.test.cjs",
-    "test:v67": "node --test tests/v67.tournament-export-endpoint.test.cjs"
+    "test:v67": "node --test tests/v67.tournament-export-endpoint.test.cjs tests/v67.tournament-video-flow.test.cjs tests/v67.tournament-video-ui.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

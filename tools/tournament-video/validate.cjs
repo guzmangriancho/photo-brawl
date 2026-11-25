@@ -6,7 +6,7 @@
  * Solo imprime contadores y errores; no escribe tacticas ni datos de cuentas. */
 const fs=require('fs'),path=require('path');
 const [,,inp,...rest]=process.argv;
-const repo=path.resolve(rest[rest.indexOf('--repo')+1]||path.join(__dirname,'..','..'));
+const repo=path.resolve((rest.indexOf('--repo')>=0?rest[rest.indexOf('--repo')+1]:null)||path.join(__dirname,'..','..'));
 const sim=require(path.join(repo,'server/tournament/sim.cjs'));
 const ex=JSON.parse(fs.readFileSync(inp,'utf8'));
 let ok=0,bad=0,e1=0,e2=0;

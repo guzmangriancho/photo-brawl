@@ -1,0 +1,50 @@
+# Genera el vídeo vertical de un torneo terminado. Solo se ejecuta por workflow_dispatch (lo lanza el servidor de la app a petición del admin).
+# Repo público: no se suben artefactos, no se imprimen datos de torneo (nombres, tácticas, cuentas) y el render va a un archivo, no al log.
+# GitHub solo guarda PB_API_BASE y PB_EXPORT_SECRET. No hay claves de Supabase aquí: el mp4 se sube al servidor de la app, que lo guarda en un bucket privado.
+name: tournament-video
+on:
+  workflow_dispatch:
+    inputs:
+      tournament_id: { description: 'UUID del torneo terminado', required: true, type: string }
+      day:           { description: 'Número de día del rótulo (1-999)', required: true, type: string }
+permissions: {}
+concurrency: { group: tournament-video, cancel-in-progress: false }
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: { contents: read }
+    env:
+      TID: ${{ inputs.tournament_id }}
+      DAY: ${{ inputs.day }}
+      PB_API_BASE: ${{ secrets.PB_API_BASE }}
+      PB_EXPORT_SECRET: ${{ secrets.PB_EXPORT_SECRET }}
+    steps:
+      - name: Validar entradas
+        run: |
+          [[ "$TID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "tournament_id no válido"; exit 1; }
+          [[ "$DAY" =~ ^[0-9]{1,3}$ ]] || { echo "day no válido"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-numpy
+          npm ci --prefix tools/tournament-video
+      - name: Exportar, validar y renderizar (sin imprimir datos del torneo)
+        run: |
+          set +x
+          mkdir -p "$RUNNER_TEMP/v"
+          node tools/tournament-video/export-tournament.cjs "$TID" "$RUNNER_TEMP/v/export.json"
+          node tools/tournament-video/spec-from-export.cjs "$RUNNER_TEMP/v/export.json" "$RUNNER_TEMP/v/spec.json" --day "$DAY" > /dev/null
+          NODE_PATH="$PWD/tools/tournament-video/node_modules" tools/tournament-video/run.sh "$RUNNER_TEMP/v/spec.json" "$RUNNER_TEMP/v/out" > "$RUNNER_TEMP/v/render.log" 2>&1 || { echo "falló el render"; exit 1; }
+          ls -l "$RUNNER_TEMP/v/out.whatsapp.mp4" | awk '{print "copia ligera:", $5, "bytes"}'
+      - name: Subir al servidor (bucket privado)
+        run: |
+          curl -sS --fail-with-body --max-time 120 -X PUT -H "X-Export-Secret: $PB_EXPORT_SECRET" -H "Content-Type: video/mp4" \
+            --data-binary @"$RUNNER_TEMP/v/out.whatsapp.mp4" "$PB_API_BASE/tournament/video-upload?tournament=$TID"
+      - name: Marcar fallo
+        if: failure()
+        run: |
+          curl -sS --max-time 30 -X POST -H "X-Export-Secret: $PB_EXPORT_SECRET" "$PB_API_BASE/tournament/video-failed?tournament=$TID" > /dev/null || true

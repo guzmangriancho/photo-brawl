@@ -30,13 +30,10 @@ Publicar en redes exige además el consentimiento de los creadores de los luchad
 ## Validación antes de renderizar
 `validate.cjs` vuelve a simular cada combate de la exportación con el motor archivado de su versión y exige el mismo ganador, marcador, frames y semilla. `spec-from-export.cjs` lo ejecuta primero y no genera nada si falla, para que el vídeo nunca reescriba la historia. Cada combate debe traer `roundsToWin` (e1 siempre 2; si falta en e2 se rechaza). Solo imprime contadores, nunca tácticas ni cuentas.
 
-## Despliegue
-`github-workflow.example.yml` es un borrador sin activar (ver notas en el propio archivo).
-
-### Exportar por id
-`export-tournament.cjs ID out.json` usa solo `/tournament/bracket` y `/tournament/match` (la API existente). Exige sesión: `PB_TOKEN` es el access token de una cuenta de la app (caduca; para automatizar hace falta una cuenta de servicio que renueve el token, o un endpoint de servidor, que sería despliegue). Se espacia a ~1,1 s por petición por el límite de 60/min por cuenta. Rechaza torneos no terminados (la última ronda destapada debe tener 1 combate).
-Permiso del token de GitHub para lanzar el workflow: fine-grained, solo este repo, permiso de repositorio "Actions: write" (la tabla oficial lo da para `POST .../workflows/{id}/dispatches`, sin permisos adicionales).
-
-### Endpoint de servidor (preparado, sin desplegar)
-`GET /tournament/export?tournament=ID` en `server/tournament/tournament.cjs`. Solo existe si el servidor tiene la variable `VIDEO_EXPORT_SECRET` (24+ caracteres); sin ella responde 404. Con ella exige la cabecera `X-Export-Secret` (comparación en tiempo constante, 429 por IP, 401 si falla) y solo exporta torneos con estado `finished`. Devuelve lo mismo que `/tournament/match` ya sirve a cualquier jugador con sesión (luchadores congelados, tácticas, semilla, resultado, `roundsToWin`). `export-tournament.cjs` lo usa si hay `PB_EXPORT_SECRET`.
-Migración `202611250004_v67_tournament_videos_bucket.sql` (sin aplicar): bucket privado `tournament-videos`, 20 MB, solo mp4.
+## Despliegue (preparado, nada activo)
+Flujo: el admin pulsa GENERAR VÍDEO en la pantalla del torneo terminado, el servidor de Render lanza `.github/workflows/tournament-video.yml` (workflow_dispatch, solo id y día), el workflow exporta (`/tournament/export`), valida, renderiza y sube la copia ligera a `PUT /tournament/video-upload`; el servidor la guarda en el bucket privado `tournament-videos` y la app ofrece una URL firmada de 5 min.
+- Servidor (`server/tournament/video.cjs`): `GET/POST /tournament/video` (solo propietario, vía `pb_is_admin`), `PUT /tournament/video-upload` y `POST /tournament/video-failed` (secreto compartido, solo con petición abierta). Todo da 404 si faltan `VIDEO_EXPORT_SECRET` y `GITHUB_DISPATCH_TOKEN`.
+- Variables en Render: `VIDEO_EXPORT_SECRET` (24+ caracteres aleatorios), `GITHUB_DISPATCH_TOKEN` (fine-grained, solo este repo, permiso "Actions: write"). Opcionales: `GITHUB_REPO`, `GITHUB_WORKFLOW`, `GITHUB_REF_NAME`.
+- Secretos en GitHub: `PB_API_BASE` y `PB_EXPORT_SECRET` (el mismo valor que `VIDEO_EXPORT_SECRET`). Ninguna clave de Supabase en GitHub, sin artefactos, sin datos de torneo en logs.
+- Migración `202611250004`: bucket privado `tournament-videos` (20 MB, mp4) y tabla `tournament_videos` (solo servidor).
+- Límite: el vídeo crece con el número de combates (6 combates superpuestos por tramo); el workflow corta a los 30 min.

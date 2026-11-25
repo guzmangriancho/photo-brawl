@@ -6,7 +6,7 @@
 const fs=require('fs'),path=require('path');
 const [,,inp,outp,...rest]=process.argv;
 const dayArg=rest.indexOf('--day')>=0?Number(rest[rest.indexOf('--day')+1]):null; // numero de dia: lo fija quien lanza el video
-const repo=path.resolve(rest[rest.indexOf('--repo')+1]||path.join(__dirname,'..','..'));
+const repo=path.resolve((rest.indexOf('--repo')>=0?rest[rest.indexOf('--repo')+1]:null)||path.join(__dirname,'..','..'));
 // Antes de nada: el torneo guardado debe poder reproducirse tal cual (validate.cjs); si no, no se genera video.
 require('child_process').execFileSync(process.execPath,[path.join(__dirname,'validate.cjs'),inp,'--repo',repo],{stdio:'inherit'});
 const ex=JSON.parse(fs.readFileSync(inp,'utf8'));
