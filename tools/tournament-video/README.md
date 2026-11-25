@@ -8,6 +8,7 @@ así que el vídeo reproduce exactamente los combates guardados (semilla, tácti
 ## Uso
 ```
 cd tools/tournament-video && npm install            # solo @napi-rs/canvas; necesita ffmpeg y python3+numpy
+PB_API_BASE=https://servidor PB_TOKEN=... node export-tournament.cjs ID_TORNEO export.json   # usa la API existente
 node spec-from-export.cjs export.json spec.json --day 1     # export.json = JSON del torneo (tournament, rounds, matches)
 ./run.sh spec.json salida [MB]                      # => salida.master.mp4 y salida.whatsapp.mp4 (<= 15.5 MB por defecto)
 ```
@@ -31,3 +32,7 @@ Publicar en redes exige además el consentimiento de los creadores de los luchad
 
 ## Despliegue
 `github-workflow.example.yml` es un borrador sin activar (ver notas en el propio archivo).
+
+### Exportar por id
+`export-tournament.cjs ID out.json` usa solo `/tournament/bracket` y `/tournament/match` (la API existente). Exige sesión: `PB_TOKEN` es el access token de una cuenta de la app (caduca; para automatizar hace falta una cuenta de servicio que renueve el token, o un endpoint de servidor, que sería despliegue). Se espacia a ~1,1 s por petición por el límite de 60/min por cuenta. Rechaza torneos no terminados (la última ronda destapada debe tener 1 combate).
+Permiso del token de GitHub para lanzar el workflow: fine-grained, solo este repo, permiso de repositorio "Actions: write" (la tabla oficial lo da para `POST .../workflows/{id}/dispatches`, sin permisos adicionales).
