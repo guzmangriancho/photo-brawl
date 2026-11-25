@@ -771,3 +771,7 @@
 .pb-tactics-panel{padding:clamp(6px,1.2vh,12px) clamp(9px,1.4vw,16px)}
 .pb-tactics-head .pb-mini-button{font-size:clamp(9px,1.1vw,12px);padding:4px 8px;min-height:0}
 .pb-tactic-note{font:700 clamp(8px,.95vw,11px) Oxanium,system-ui;color:#ffdf91;line-height:1.25}
+
+.pb-tactics-layout .pb-tactics-actions{grid-column:1 / -1;display:flex;gap:10px}
+.pb-tactics-actions .pb-tactics-start{flex:2}
+.pb-tactics-actions .pb-tactics-simulate{flex:1}

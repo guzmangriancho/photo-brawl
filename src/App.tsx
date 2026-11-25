@@ -53,6 +53,7 @@ export function App() {
   const [fightKey,setFightKey]=useState(0);
   const [screen, setScreen] = useState<'SELECT' | 'FIGHT'>('SELECT');
 
+  const [cpuResume, setCpuResume] = useState<{p1Id:string;p2Id:string;stage:StageId;difficulty:CpuDifficulty}|null>(null);
   const [matchConfig, setMatchConfig] = useState<{
     p1: FighterProfile;
     p2: FighterProfile;
@@ -65,6 +66,7 @@ export function App() {
     battleMode?: GroupBattleMode;
     fighters?: FighterProfile[];
     rankTrophies?:number[];
+    simulate?:boolean;
   } | null>(null);
 
   // Keep automatic background backups for edits/imports, but the initial
@@ -164,7 +166,8 @@ export function App() {
     stage: StageId,
     difficulty: CpuDifficulty,
     extra?: [FighterProfile,FighterProfile],
-    tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }
+    tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> },
+    simulate?: boolean
   ) => {
     // Preset fighters are only playable inside the guided tutorial.
     if (p1.isPreset || p2.isPreset) return;
@@ -172,8 +175,9 @@ export function App() {
     const arena=group && !LARGE_ARENA_IDS.includes(stage)?LARGE_ARENA_IDS[0]:stage;
     const groupRoster=[p1,p2,extra?.[0]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p1,
       extra?.[1]||fighters.find(f=>f.id!==p1.id&&f.id!==p2.id)||p2];
-    setMatchConfig({p1,p2,mode,stage:arena,difficulty,tactics:mode==='CPU_VS_CPU'?tactics:undefined,battleMode:group?mode:undefined,
+    setMatchConfig({p1,p2,mode,stage:arena,difficulty,tactics:mode==='CPU_VS_CPU'?tactics:undefined,simulate:mode==='CPU_VS_CPU'&&simulate===true,battleMode:group?mode:undefined,
       fighters:group?groupRoster:undefined});
+    setCpuResume(null);
     setFightKey(value=>value+1);
     setScreen('FIGHT');
   };
@@ -198,6 +202,13 @@ export function App() {
       fighters:old.battleMode?profiles:undefined,stage:stage||old.stage,rankTrophies:old.online?.match?.rankTrophies||old.rankTrophies}:old);
     setFightKey(v=>v+1);
   };
+  // CPU vs CPU result > CAMBIAR TÁCTICAS: back to the tactics screen with the same fighters, stage and difficulty.
+  const handleChangeTactics=()=>{
+    if(matchConfig&&matchConfig.mode==='CPU_VS_CPU')
+      setCpuResume({p1Id:matchConfig.p1.id,p2Id:matchConfig.p2.id,stage:matchConfig.stage,difficulty:matchConfig.difficulty});
+    setMatchConfig(null);setScreen('SELECT');
+  };
+  const handleWatch=()=>{setMatchConfig(old=>old?{...old,simulate:false}:old);setFightKey(v=>v+1);};
   const handleExit=()=>{
     matchConfig?.online?.close();setMatchConfig(null);setScreen('SELECT');
   };
@@ -227,7 +238,8 @@ export function App() {
         onRematch={handleRematch} onExit={handleExit}/>;
     }
     return (
-      <FightArena key={fightKey} roster={fighters} onRematch={handleRematch}
+      <FightArena key={fightKey} roster={fighters} onRematch={handleRematch} simulate={matchConfig.simulate}
+        onChangeTactics={handleChangeTactics} onWatch={handleWatch}
         p1Profile={matchConfig.p1}
         p2Profile={matchConfig.p2}
         mode={matchConfig.mode}
@@ -254,6 +266,7 @@ export function App() {
       onStartMatch={handleStartMatch}
       onOnlineMatch={handleOnlineMatch}
       onStartTutorial={handleStartTutorial}
+      resume={cpuResume||undefined}
     />
     {startup.warning&&<div className="pb-startup-warning" role="status">{startup.warning}</div>}
     </>

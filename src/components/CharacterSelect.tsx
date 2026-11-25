@@ -3,7 +3,7 @@ import {
   ArrowLeft, Bot, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
-  UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Coins, Upload, ClipboardPaste, UserPlus,
+  FastForward, UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Coins, Upload, ClipboardPaste, UserPlus,
 } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
@@ -36,7 +36,7 @@ import { SlotShop } from './SlotShop';
 import {listFighterTransfers} from '../services/fighterTransferService';
 import {supabase} from '../services/supabaseClient';
 import { requestAutomaticMigration } from '../services/automaticFighterMigration';
-import { CpuTactics, DEFAULT_CPU_TACTICS } from '../engine/cpuTactics';
+import { CpuTactics, DEFAULT_CPU_TACTICS, normalizeCpuTactics } from '../engine/cpuTactics';
 import { CpuTacticsPanel } from './CpuTacticsPanel';
 import { soundFX } from '../engine/SoundFX';
 import { STAGE_ART, STAGE_IDS, LARGE_ARENA_IDS } from '../data/stages';
@@ -56,10 +56,21 @@ interface CharacterSelectProps {
   onFighterCreated: (fighter: FighterProfile) => void;
   onFighterDeleted: (id: string) => void;
   onFighterRenamed: (fighter: FighterProfile) => void;
-  onStartMatch: (p1: FighterProfile, p2: FighterProfile, mode: GameMode, stage: StageId, difficulty: CpuDifficulty, extra?: [FighterProfile,FighterProfile], tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }) => void;
+  onStartMatch: (p1: FighterProfile, p2: FighterProfile, mode: GameMode, stage: StageId, difficulty: CpuDifficulty, extra?: [FighterProfile,FighterProfile], tactics?: { p1?: Partial<CpuTactics>; p2?: Partial<CpuTactics> }, simulate?: boolean) => void;
+  /** Coming back from a CPU vs CPU result: reopen the tactics screen with the same fighters. */
+  resume?: { p1Id: string; p2Id: string; stage: StageId; difficulty: CpuDifficulty };
   onOnlineMatch: (match: OnlineStart, session: OnlineSession) => void;
   onStartTutorial: (presetId: string) => void;
 }
+const TACTICS_KEY='pb-cpu-tactics';
+function loadSavedTactics():{p1:CpuTactics;p2:CpuTactics}{
+  try{
+    const raw=JSON.parse(localStorage.getItem(TACTICS_KEY)||'null');
+    if(raw&&typeof raw==='object')return {p1:normalizeCpuTactics(raw.p1),p2:normalizeCpuTactics(raw.p2)};
+  }catch{/* unreadable: use the defaults */}
+  return {p1:{...DEFAULT_CPU_TACTICS},p2:{...DEFAULT_CPU_TACTICS}};
+}
+function saveTactics(p1:CpuTactics,p2:CpuTactics){try{localStorage.setItem(TACTICS_KEY,JSON.stringify({p1,p2}));}catch{/* storage full or blocked */}}
 const ARCHETYPES: Record<string, string> = {
   RUSHDOWN: 'RÁPIDO / OFENSIVO', GRAPPLER_TANK: 'POTENCIA / AGARRES',
   ZONER_MAGE: 'ZONER / TÉCNICO', TRICKSTER: 'MOVILIDAD / ENGAÑOS', SHOTO_BALANCED: 'EQUILIBRADO',
@@ -104,10 +115,10 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
   return <div className="pb-panel-title"><span>{label}</span><h2>{children}</h2></div>;
 }
 
-export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
-  const [page, setPage] = useState<MenuPage>('HOME');
+export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial, resume }) => {
+  const [page, setPage] = useState<MenuPage>(resume?'TACTICS':'HOME');
   // Main menu has two levels: SINGLE PLAYER / ONLINE, then the single player modes.
-  const [homeLevel,setHomeLevel]=useState<'ROOT'|'SINGLE'>('ROOT');
+  const [homeLevel,setHomeLevel]=useState<'ROOT'|'SINGLE'>(resume?'SINGLE':'ROOT');
   const {user:accountUser}=usePlayerAccount();
   const {wallet,refresh:refreshWallet}=useWallet(accountUser?.id);
   const [showSlotShop,setShowSlotShop]=useState(false);
@@ -135,8 +146,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [verifiedAdminId,setVerifiedAdminId]=useState<string|null>(null);
   const adminAllowed=Boolean(accountUser?.id && accountUser.id===verifiedAdminId);
   const [showAllFighters,setShowAllFighters]=useState(false);
-  const [p1Id, setP1Id] = useState(() => { try { return localStorage.getItem('pb-menu-fighter') || ''; } catch { return ''; } });
-  const [p2Id, setP2Id] = useState('');
+  const [p1Id, setP1Id] = useState(() => { if (resume) return resume.p1Id; try { return localStorage.getItem('pb-menu-fighter') || ''; } catch { return ''; } });
+  const [p2Id, setP2Id] = useState(resume?.p2Id||'');
   const [p3Id,setP3Id] = useState('');
   const [p4Id,setP4Id] = useState('');
   const [activeGroupSeat,setActiveGroupSeat] = useState(0);
@@ -145,19 +156,22 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [transferring,setTransferring]=useState<FighterProfile|null>(null);
   const [giftCount,setGiftCount]=useState(0);
   const [tutorialId, setTutorialId] = useState(TUTORIAL_FIGHTERS[0].id);
-  const [mode, setMode] = useState<GameMode>(()=>new URLSearchParams(location.search).has('room')?'ONLINE':'1P_VS_CPU');
+  const [mode, setMode] = useState<GameMode>(()=>resume?'CPU_VS_CPU':new URLSearchParams(location.search).has('room')?'ONLINE':'1P_VS_CPU');
   const [onlineSession,setOnlineSession]=useState<OnlineSession|null>(null);
   const [onlineFighter,setOnlineFighter]=useState<FighterProfile|null>(null);
   const [onlineRoom,setOnlineRoom]=useState<RoomView|null>(null);
   const [showOnlineLobby,setShowOnlineLobby]=useState(()=>new URLSearchParams(location.search).has('room')); 
   const [onlineError,setOnlineError]=useState('');
-  const [stage, setStage] = useState<StageId>('SKI_RESORT');
+  const [stage, setStage] = useState<StageId>(resume?.stage||'SKI_RESORT');
   const [stagePage,setStagePage] = useState(0);
   const stagePageSize = 4;
   const stagePageCount = Math.ceil(((mode==='2V2'||mode==='FREE_FOR_ALL')?LARGE_ARENA_IDS.length:STAGES.length) / stagePageSize);
-  const [difficulty, setDifficulty] = useState<CpuDifficulty>('NORMAL');
-  const [tacticsP1,setTacticsP1]=useState<CpuTactics>({...DEFAULT_CPU_TACTICS});
-  const [tacticsP2,setTacticsP2]=useState<CpuTactics>({...DEFAULT_CPU_TACTICS});
+  const [difficulty, setDifficulty] = useState<CpuDifficulty>(resume?.difficulty||'NORMAL');
+  const savedTactics=useState(()=>loadSavedTactics())[0];
+  const [tacticsP1,setTacticsP1]=useState<CpuTactics>(savedTactics.p1);
+  const [tacticsP2,setTacticsP2]=useState<CpuTactics>(savedTactics.p2);
+  // The last tactics used are kept, so the next CPU vs CPU starts from them.
+  useEffect(()=>{saveTactics(tacticsP1,tacticsP2);},[tacticsP1,tacticsP2]);
   const [rosterPage, setRosterPage] = useState(0);
   const [rivalPage, setRivalPage] = useState(0);
   const [showCreator, setShowCreator] = useState(wasCreatorOpen);
@@ -356,8 +370,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   // Online follows the same flow: mode > settings (fighter, stage) > open room.
   const openOnline=()=>{
     selectMode('ONLINE');
-    if(featured)go('PLAY');
-    else setShowOnlineLobby(true);
+    setShowOnlineLobby(true);
   };
   const go = (next: MenuPage) => {
     // Never enter a fighter-dependent screen with an empty collection.
@@ -385,13 +398,13 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showUltimate,ultimateLoading, showApiKey, showTutorial, showAccount, transferring, showFriends, showSlotShop]);
-  const startMatch = () => {
+  const startMatch = (simulate=false) => {
     if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
     if (!featured) { openCreator(); return; }
     if (!rival) return;
     soundFX.confirmBeep();
     onStartMatch(featured,rival,mode,stage,difficulty,isGroupMode&&extraP3&&extraP4?[extraP3,extraP4]:undefined,
-      mode==='CPU_VS_CPU'?{p1:tacticsP1,p2:tacticsP2}:undefined);
+      mode==='CPU_VS_CPU'?{p1:tacticsP1,p2:tacticsP2}:undefined,simulate===true);
   };
   const toggleFavorite=async(fighter:FighterProfile)=>{
     if(favoriteBusy||!accountUser)return;
@@ -545,7 +558,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           </div>
           {!featured&&<div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
         </>}
-        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button></div>
+        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
       </section>
     </div>}
 
@@ -575,14 +588,14 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       </div>}
       <div className="pb-mini-label">{isGroupMode?`ELIGE LUCHADOR PARA P${activeGroupSeat+1}`:mode==='ONLINE'?'ELIGE TU LUCHADOR':mode==='CPU_VS_CPU'?'ELIGE LA CPU 2':'SELECCIONAR RIVAL'}</div>
       <div className="pb-rival-grid" aria-label={isGroupMode?`Luchadores disponibles para P${activeGroupSeat+1}`:'Seleccionar rival'}>{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => {if(isGroupMode)selectGroupFighter(f);else if(mode==='ONLINE'){setP1Id(f.id);setOnlineFighter(null);soundFX.selectBeep();}else {setP2Id(f.id);soundFX.selectBeep();}}} className={(isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:mode==='ONLINE'?f.id===featured.id:f.id===rival.id)?'is-selected':''} aria-pressed={isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:mode==='ONLINE'?f.id===featured.id:f.id===rival.id}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
-      <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === 'CPU_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><button type="button" className="pb-options-app-settings" onClick={() => go('SETTINGS')}><Settings2 size={12}/> AJUSTES DE LA APP</button></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={mode==='CPU_VS_CPU'?()=>go('TACTICS'):startMatch}>{mode==='CPU_VS_CPU'?<><SlidersHorizontal size={17}/> SIGUIENTE: TÁCTICAS</>:<><Swords size={17}/> {mode==='TRAINING'?'EMPEZAR TRAINING':mode==='ONLINE'?(onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):'¡JUGAR!'}</>}</button></section></div>}
+      <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === 'CPU_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={mode==='CPU_VS_CPU'?()=>go('TACTICS'):()=>startMatch()}>{mode==='CPU_VS_CPU'?<><SlidersHorizontal size={17}/> SIGUIENTE: TÁCTICAS</>:<><Swords size={17}/> {mode==='TRAINING'?'EMPEZAR TRAINING':mode==='ONLINE'?(onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):'¡JUGAR!'}</>}</button></section></div>}
 
     {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)} onAddFriend={async username=>{const result=await sendFriendRequest(username);void refreshSocial();return result;}}/> }
 
     {page === 'TACTICS' && featured && rival && <div className="pb-subpage pb-tactics-layout pb-page-anim">
       <CpuTacticsPanel label="CPU 1" name={featured.fighterName} portrait={featured.portraitDataUrl} archetype={featured.archetype} tactics={tacticsP1} onChange={setTacticsP1}/>
       <CpuTacticsPanel label="CPU 2" name={rival.fighterName} portrait={rival.portraitDataUrl} archetype={rival.archetype} tactics={tacticsP2} onChange={setTacticsP2}/>
-      <button type="button" className="pb-arcade-button pb-gold pb-confirm-options pb-tactics-start" onClick={startMatch}><Swords size={17}/> ¡JUGAR!</button>
+      <div className="pb-tactics-actions"><button type="button" className="pb-arcade-button pb-gold pb-confirm-options pb-tactics-start" onClick={()=>startMatch()}><Swords size={17}/> ¡JUGAR!</button><button type="button" className="pb-arcade-button pb-confirm-options pb-tactics-simulate" onClick={()=>startMatch(true)}><FastForward size={17}/> SIMULAR</button></div>
     </div>}
 
     {page === 'SETTINGS' && <div className="pb-subpage pb-settings-layout pb-page-anim"><section className="pb-frame pb-settings-controls"><PanelTitle label="PERSONALIZA LA EXPERIENCIA">AJUSTES</PanelTitle>

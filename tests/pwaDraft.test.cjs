@@ -27,7 +27,7 @@ test('Draft serializes concurrent operations and supports clear', () => {
  for(const name of ['pendingOperation','enqueue(','saveCreatorDraft','getCreatorDraft','clearCreatorDraft'])assert.ok(draft.includes(name),name);
 });
 test('Resume marker reopens the creator directly over the main menu',()=>{
- assert.match(menu,/const \[page, setPage\] = useState<MenuPage>\('HOME'\)/);
+ assert.match(menu,/const \[page, setPage\] = useState<MenuPage>\(resume\?'TACTICS':'HOME'\)/);
  assert.match(menu,/useState\(wasCreatorOpen\)/);
  assert.match(menu,/markCreatorOpen\(true\)/);
  assert.match(menu,/markCreatorOpen\(false\)/);

@@ -118,9 +118,22 @@ class FightEngine {
     cpuTactics = [{ ...cpuTactics_1.DEFAULT_CPU_TACTICS }, { ...cpuTactics_1.DEFAULT_CPU_TACTICS }];
     /** Per-side memory for "after hit / after block" repositioning. */
     cpuMemory = [{ retreat: 0, outcomeSeen: false }, { retreat: 0, outcomeSeen: false }];
+    /** Seed of the CPU decision stream. Same seed + same fighters + same tactics = same fight. */
+    simSeed = 0;
+    simRngState = 0;
+    /** mulberry32. Only gameplay decisions use it; particles and screen shake keep Math.random. */
+    simRandom() {
+        this.simRngState = (this.simRngState + 0x6D2B79F5) | 0;
+        let t = Math.imul(this.simRngState ^ (this.simRngState >>> 15), 1 | this.simRngState);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
     p1Input = createEmptyInput();
     p2Input = createEmptyInput();
-    constructor(p1Profile, p2Profile, mode, stage, difficulty = 'NORMAL', tactics) {
+    constructor(p1Profile, p2Profile, mode, stage, difficulty = 'NORMAL', tactics, seed) {
+        // The CPU decisions use their own seeded stream. Without a seed each fight is different, as before.
+        this.simSeed = (seed === undefined ? Math.floor(Math.random() * 4294967296) : seed) >>> 0;
+        this.simRngState = this.simSeed;
         this.cpuTactics = [(0, cpuTactics_1.normalizeCpuTactics)(tactics?.p1), (0, cpuTactics_1.normalizeCpuTactics)(tactics?.p2)];
         this.mode = mode;
         this.stage = stage;
@@ -2031,12 +2044,12 @@ class FightEngine {
             cpu.stateFrame >= attack.startup &&
             cpu.stateFrame <= attack.startup + attack.active + 2) {
             const chance = this.difficulty === 'HARD' ? 0.74 : this.difficulty === 'NORMAL' ? 0.46 : 0.2;
-            if (Math.random() < chance) {
+            if (this.simRandom() < chance) {
                 let followUp = null;
                 if (attack.slot === 'LIGHT') {
                     followUp = cpu.lightChainCount === 1 ? 'LIGHT' : 'HEAVY';
                 }
-                else if (attack.slot === 'HEAVY' && Math.random() < 0.55) {
+                else if (attack.slot === 'HEAVY' && this.simRandom() < 0.55) {
                     followUp = 'SP_FORWARD';
                 }
                 if (followUp)
@@ -2101,14 +2114,14 @@ class FightEngine {
         // Smart High/Low blocking based on incoming attack height!
         if (player.state === 'ATTACK' &&
             dist < 175 &&
-            Math.random() < (this.difficulty === 'HARD' ? 0.68 : 0.34)) {
+            this.simRandom() < (this.difficulty === 'HARD' ? 0.68 : 0.34)) {
             inp.guard = true;
             if (player.currentAttack?.height === 'LOW')
                 inp.down = true;
             return inp;
         }
         if (cpu.aiCooldown === 0) {
-            cpu.aiCooldown = reactionDelay + Math.floor(Math.random() * 10);
+            cpu.aiCooldown = reactionDelay + Math.floor(this.simRandom() * 10);
             // Navigate toward the rival across tiers instead of staying below them.
             if ((0, stages_1.getLargeArena)(this.stage) && player.y < cpu.y - 70 && this.isGrounded(cpu)) {
                 inp.up = true;
@@ -2121,7 +2134,7 @@ class FightEngine {
             // A range-keeper pinned against the wall by a close rival tries to escape by
             // jumping over it, so it can get back to range instead of only trading blows.
             if (tactics.distance > 50 && wallBehind < 90 && dist < 200 && this.isGrounded(cpu) &&
-                Math.random() < (tactics.distance - 50) / 50 * 0.45) {
+                this.simRandom() < (tactics.distance - 50) / 50 * 0.45) {
                 inp.up = true;
                 if (dirToPlayer === 1)
                     inp.right = true;
@@ -2155,10 +2168,10 @@ class FightEngine {
             }
             else if (arch === 'GRAPPLER_TANK') {
                 if (dist < 100) {
-                    inp.spForward = Math.random() < 0.62;
+                    inp.spForward = this.simRandom() < 0.62;
                     inp.heavy = !inp.spForward;
                 }
-                else if (keep === 0 && dist < 260 * scale && Math.random() < 0.38) {
+                else if (keep === 0 && dist < 260 * scale && this.simRandom() < 0.38) {
                     inp.spForward = true;
                 }
                 else {
@@ -2167,7 +2180,7 @@ class FightEngine {
             }
             else {
                 if (dist < 100) {
-                    const roll = Math.random() * 100;
+                    const roll = this.simRandom() * 100;
                     if (roll < tactics.closeLight)
                         inp.light = true;
                     else if (roll < tactics.closeLight + tactics.closeHeavy)
@@ -2179,23 +2192,23 @@ class FightEngine {
                 }
                 else if (dist < 270 * scale) {
                     // The advance technique is a way of approaching: only when the rival is out of range (or classic mode).
-                    if ((keep === 0 || dist > keep + 40) && Math.random() < tactics.midTech / 100) {
+                    if ((keep === 0 || dist > keep + 40) && this.simRandom() < tactics.midTech / 100) {
                         inp.spForward = true;
                     }
                     else {
                         closeIn(inp);
-                        if ((keep === 0 || dist > keep + 40) && Math.random() < tactics.jumpIn / 100)
+                        if ((keep === 0 || dist > keep + 40) && this.simRandom() < tactics.jumpIn / 100)
                             inp.up = true;
                     }
                 }
                 else {
-                    if (Math.random() < tactics.farTech / 100) {
+                    if (this.simRandom() < tactics.farTech / 100) {
                         inp.spNeutral = true;
                     }
                     else {
                         closeIn(inp);
                         // Range-keepers also jump in from far away when approaching.
-                        if (keep > 0 && dist > keep + 40 && Math.random() < tactics.jumpIn / 100)
+                        if (keep > 0 && dist > keep + 40 && this.simRandom() < tactics.jumpIn / 100)
                             inp.up = true;
                     }
                 }

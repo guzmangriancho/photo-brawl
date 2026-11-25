@@ -14,6 +14,7 @@ import {
 } from '../engine/FightEngine';
 import { soundFX } from '../engine/SoundFX';
 import type { CpuTactics } from '../engine/cpuTactics';
+import { cpuFightSeed } from '../engine/fightSeed';
 import { STAGE_ART } from '../data/stages';
 import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
@@ -21,7 +22,7 @@ import { MobileControls } from './MobileControls';
 import { RematchRoster } from './RematchRoster';
 import { VersusIntro } from './VersusIntro';
 import { TUTORIAL_LESSONS, prepareTutorialLesson, tutorialLessonCompleted } from './tutorialLessons';
-import { ArrowLeft, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
+import { ArrowLeft, FastForward, Repeat2, SlidersHorizontal, Eye, RotateCcw, Volume2, VolumeX, Pause, Play, X, FlaskConical, Keyboard, Swords, Smartphone, Move } from 'lucide-react';
 import './fightArena.css';
 import './economy.css';
 import type { EconomyResult } from '../network/protocol';
@@ -39,6 +40,12 @@ interface FightArenaProps {
   tutorial?: boolean;
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
+  /** CPU vs CPU: play the whole fight instantly and show the result. */
+  simulate?: boolean;
+  /** CPU vs CPU result screen: go back to the tactics screen with the same fighters. */
+  onChangeTactics?: () => void;
+  /** After a simulated fight: play the same fight on screen. */
+  onWatch?: () => void;
   onExit: () => void;
 }
 
@@ -101,8 +108,12 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, onExit, roster, onRematch,
+  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
 }) => {
+  const speedRef = useRef(1);
+  const [speed, setSpeed] = useState(1);
+  const changeSpeed = (value: number) => { speedRef.current = value; setSpeed(value); };
+  const simulateRef = useRef<() => void>(() => {});
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
   const [tutorialHelp,setTutorialHelp]=useState(false);
@@ -215,7 +226,9 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
   useEffect(() => {
     soundFX.setCrowdedCombat(false);
-    const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty, tactics);
+    // CPU vs CPU: the same fighters, stage, difficulty and tactics always give the same fight.
+    const seed = mode === 'CPU_VS_CPU' ? cpuFightSeed(p1Profile, p2Profile, stage, difficulty, tactics) : undefined;
+    const engine = new FightEngine(p1Profile, p2Profile, onlineMode?'1P_VS_2P':mode, stage, difficulty, tactics, seed);
     engine.beginVersusIntro();
     engine.showHitboxes = false;
     engine.trainingFreePlay = mode === 'TRAINING' && !tutorial;
@@ -223,6 +236,17 @@ export const FightArena: React.FC<FightArenaProps> = ({
     if(tutorial)prepareTutorialLesson(engine,TUTORIAL_LESSONS[0]);
     engineRef.current = engine;
     engine.loadAssets();
+    // Runs the real engine without drawing until the match ends. Same steps as watching it.
+    simulateRef.current = () => {
+      if (mode !== 'CPU_VS_CPU' || engine.roundOver) return;
+      const wasMuted = soundFX.muted;
+      soundFX.muted = true;
+      try {
+        for (let i = 0; i < 60 * 60 * 12 && !engine.roundOver; i++) engine.step();
+      } finally { soundFX.muted = wasMuted; }
+      setSnapshot(engine.getSnapshot());
+    };
+    if (simulate) simulateRef.current();
     const lastNetSnapshot={current:engine.getSnapshot()};
     const lastOnlineStateAt={current:0};
     const unsubscribeOnline = online ? [
@@ -389,7 +413,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     let accumulator = 0;
     let uiSyncCounter = 0;
     const loop = (now: number) => {
-      accumulator += Math.min(100, now - lastTime);
+      accumulator += Math.min(100, now - lastTime) * speedRef.current;
       lastTime = now;
       while (accumulator >= FIXED_TIMESTEP) {
         if (!pausedRef.current) {
@@ -588,13 +612,28 @@ export const FightArena: React.FC<FightArenaProps> = ({
           {snapshot.p2Combo >= 2 && <div className="arena-combo arena-combo-two"><strong>{snapshot.p2Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p2ComboDamage}</span></div>}
           {snapshot.announceText && !snapshot.versusIntroFrames && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
 
-          {snapshot.roundOver && !paused && !resultVisible &&
+          {snapshot.roundOver && !paused && !resultVisible && !simulate &&
             <div className="arena-victory-moment" role="status" aria-live="polite">
               {(snapshot.p1Hp<=0||snapshot.p2Hp<=0)&&<em className="arena-ko-first">K.O.!</em>}
               <strong className="arena-win-second">{snapshot.winnerName?`¡GANA ${snapshot.winnerName}!`:'¡EMPATE!'}</strong>
               <span>{snapshot.winnerName?'¡VICTORIA!':'FIN DEL COMBATE'}</span>
             </div>}
-          {snapshot.roundOver && !paused && resultVisible && (
+          {snapshot.roundOver && !paused && (resultVisible || simulate) && mode === 'CPU_VS_CPU' && (
+            <div className="arena-result-overlay arena-cpu-result">
+              <section className="pb-frame arena-cpu-result-card" role="dialog" aria-label="Resultado CPU vs CPU">
+                <h2>{snapshot.winnerName ? `¡GANA ${snapshot.winnerName}!` : '¡EMPATE!'}</h2>
+                <span>RONDA {snapshot.roundNumber} · {snapshot.p1RoundWins} - {snapshot.p2RoundWins} · {stageLabel}</span>
+                <small>Mismas tácticas, mismo combate.</small>
+                <div className="arena-cpu-result-buttons">
+                  {simulate && onWatch && <button type="button" className="arena-primary-button" onClick={onWatch}><Play size={17} fill="currentColor" /> VER COMBATE</button>}
+                  <button type="button" className="arena-primary-button" onClick={() => onRematch([p1Profile, p2Profile])}><Repeat2 size={17} /> REPETIR</button>
+                  <button type="button" className="arena-primary-button" onClick={() => (onChangeTactics ?? onExit)()}><SlidersHorizontal size={17} /> CAMBIAR TÁCTICAS</button>
+                  <button type="button" className="arena-pause-exit" onClick={onExit}><ArrowLeft size={16} /> SELECCIÓN</button>
+                </div>
+              </section>
+            </div>
+          )}
+          {snapshot.roundOver && !paused && resultVisible && mode !== 'CPU_VS_CPU' && (
             <div className="arena-result-overlay pb-v35-rematch-overlay">
               <RematchRoster players={[p1Profile,p2Profile]} roster={roster} allowCommunity={onlineMode&&!rankedOnline}
                 selectableSeats={onlineMode?[online?.slot??0]:[0,1]}
@@ -626,6 +665,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 </div>}/>
             </div>
           )}
+          {mode === 'CPU_VS_CPU' && !paused && !snapshot.roundOver && (
+            <div className="arena-cpu-tools" role="group" aria-label="Velocidad y simulación">
+              {[1, 2, 4].map(v => <button type="button" key={v} aria-pressed={speed === v} className={speed === v ? 'is-selected' : ''} onClick={() => changeSpeed(v)}>x{v}</button>)}
+              <button type="button" className="arena-cpu-skip" onClick={() => simulateRef.current()}><FastForward size={14} /> SIMULAR</button>
+            </div>)}
           {paused && (
             <div className="arena-pause-overlay">
               <section className="arena-pause-card" role="dialog" aria-modal="true" aria-label="Menú de pausa">

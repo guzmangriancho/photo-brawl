@@ -44,7 +44,7 @@ test('V35 menu preserves original play modes and reserves presets for tutorial o
   assert.deepEqual(modes,['1P_VS_CPU','2V2','FREE_FOR_ALL','TRAINING','CPU_VS_CPU','ONLINE']);
   assert.ok(menu.includes('const TUTORIAL_FIGHTERS = getPresetFighters()'));
   assert.ok(menu.includes('onStartTutorial(tutorialFighter.id)'));
-  assert.ok(menu.includes('const startMatch = () =>'));
+  assert.ok(menu.includes('const startMatch = (simulate=false) =>'));
   assert.ok(menu.includes("if (!featured) { openCreator(); return; }"));
   assert.ok(app.includes('setFighters(customs.filter'));
   assert.ok(app.includes('if (p1.isPreset || p2.isPreset) return'));

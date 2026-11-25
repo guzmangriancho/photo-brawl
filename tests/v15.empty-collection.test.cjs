@@ -79,7 +79,7 @@ test('New player sees one create button and no unavailable match/options actions
   // Main menu is two levels: single player modes appear after choosing SINGLE PLAYER.
   assert.equal(buttons(tree,'SINGLE PLAYER').length,1);
   assert.equal(buttons(tree,'ONLINE').length,1);
-  assert.equal(buttons(tree,'AJUSTES').length,0);
+  assert.equal(buttons(tree,'AJUSTES').length,1,'settings back in the main menu footer');
   buttons(tree,'SINGLE PLAYER')[0].props.onClick();
   tree=h.render();
   assert.equal(css(tree,'pb-play-unavailable').length,1);
