@@ -43,6 +43,15 @@ export const usesAttackMix=(archetype:string)=>archetype!=='ZONER_MAGE'&&archety
 /** Multiplier for every hardcoded distance threshold. 50 -> 1 (unchanged). */
 export const distanceScale=(t:CpuTactics)=>0.7+t.distance/100*0.6;
 
+/**
+ * Range the CPU tries to hold. Below 50 (or at the classic 50) it keeps the
+ * classic approach behaviour (returns 0). Above 50 it walks back when the
+ * rival is closer than this and waits when it is already at range: 111 px at 51
+ * up to 405 px at 100.
+ */
+export const keepRange=(t:CpuTactics)=>t.distance>50?105+(t.distance-50)*6:0;
+
+
 /** Changing one share keeps the three summing to 100 by taking from the others. */
 export function setCloseMix(t:CpuTactics,key:'closeLight'|'closeHeavy'|'closeTech',value:number):CpuTactics{
   const v=Math.round(clamp(value));

@@ -42,10 +42,10 @@ test('close attack mix steers which normal the CPU chooses', () => {
   assert.ok((jab.LIGHT || 0) > 3 * (heavy.LIGHT || 0), 'jab-heavy mix throws many more jabs');
   assert.ok((heavy.HEAVY || 0) > 1.5 * (jab.HEAVY || 0), 'heavy mix throws many more heavies');
 });
-test('each side follows its own distance tactic', () => {
-  let near = 0, far = 0;
-  for (let s = 1; s <= 8; s++) { near += run(s, { p1: { distance: 0 }, p2: { distance: 100 } }).dist; far += run(s, { p1: { distance: 100 }, p2: { distance: 0 } }).dist; }
-  assert.ok(near < far, 'a near-fighting P1 closes distance more than a far-keeping P1');
+test('each side follows its own distance tactic (mirror setups behave alike, not as one shared value)', () => {
+  let a = 0, b = 0;
+  for (let s = 1; s <= 8; s++) { a += run(s, { p1: { distance: 0 }, p2: { distance: 100 } }).dist; b += run(s, { p1: { distance: 100 }, p2: { distance: 0 } }).dist; }
+  assert.ok(Math.abs(a - b) / ((a + b) / 2) < 0.25, 'swapping which side keeps range gives comparable fights');
 });
 test('default tactics reproduce the classic AI exactly (same seed, same result)', () => {
   const a = run(7, undefined), b = run(7, { p1: tactics.DEFAULT_CPU_TACTICS, p2: tactics.DEFAULT_CPU_TACTICS });
@@ -59,4 +59,57 @@ test('attack mix only applies to styles that use it', () => {
   assert.equal(tactics.usesAttackMix('SHOTO_BALANCED'), true);
   assert.equal(tactics.usesAttackMix('ZONER_MAGE'), false);
   assert.equal(tactics.usesAttackMix('GRAPPLER_TANK'), false);
+});
+test('maximum distance actually keeps range against a stationary rival, for every archetype', () => {
+  const still = (arch, d) => {
+    let sum = 0, n = 0, close = 0;
+    for (let s = 1; s <= 4; s++) {
+      rnd = seeded(s);
+      const p1 = { ...prof('a'), archetype: arch };
+      const e = new FightEngine(p1, prof('b'), 'CPU_VS_CPU', 'SKI_RESORT', 'NORMAL', { p1: { distance: d } }); e.announceTimer = 0;
+      const orig = e.computeCpuInput.bind(e);
+      e.computeCpuInput = (c, p) => { const i = orig(c, p); if (c.index === 1) for (const k of Object.keys(i)) i[k] = false; return i; };
+      for (let f = 0; f < 1800 && !e.roundOver; f++) { e.step(); if (f < 200) continue; const g = Math.abs(e.p1.x - e.p2.x); sum += g; n++; if (g < 150) close++; }
+    }
+    return { avg: sum / n, close: close / n };
+  };
+  for (const arch of ['SHOTO_BALANCED', 'ZONER_MAGE', 'GRAPPLER_TANK']) {
+    const far = still(arch, 100), mid = still(arch, 90), classic = still(arch, 50);
+    assert.ok(far.avg > 300 && far.close < 0.02, arch + ': max distance holds a long range (avg ' + Math.round(far.avg) + ')');
+    assert.ok(mid.avg > classic.avg + 60, arch + ': 75 keeps more range than 50');
+    assert.ok(far.avg > mid.avg, arch + ': 100 keeps more range than 75');
+  }
+});
+test('the panel explains what MEDIA does while keeping range and archetype limits', () => {
+  const panel = fs.readFileSync(path.join(__dirname, '../src/components/CpuTacticsPanel.tsx'), 'utf8');
+  assert.ok(panel.includes('AVANCE: SOLO AL ACERCARSE'), 'MEDIA slider explains its reduced weight');
+  assert.ok(panel.includes('ESTILO PROPIO (tanque)') && panel.includes('ESTILO PROPIO (zoner)'), 'archetype limits are visible');
+});
+test('a range-keeper pinned against the wall fights instead of standing still', () => {
+  for (const arch of ['SHOTO_BALANCED', 'GRAPPLER_TANK']) {
+    let attacks = 0;
+    for (let s = 1; s <= 4; s++) {
+      rnd = seeded(s);
+      const e = new FightEngine({ ...prof('a'), archetype: arch }, prof('b'), 'CPU_VS_CPU', 'SKI_RESORT', 'NORMAL', { p1: { distance: 100 } }); e.announceTimer = 0;
+      e.p1.x = 70; e.p2.x = 150;
+      for (let f = 0; f < 150 && !e.roundOver; f++) { e.step(); if (e.p1.state === 'ATTACK' && e.p1.stateFrame === 1) attacks++; }
+    }
+    assert.ok(attacks > 0, arch + ': cornered keeper attacks');
+  }
+});
+test('a range-keeper approaching from far away jumps in only when jump-in is high', () => {
+  const jumps = (j) => {
+    let n = 0;
+    for (let s = 1; s <= 6; s++) {
+      rnd = seeded(s);
+      const e = new FightEngine(prof('a'), prof('b'), 'CPU_VS_CPU', 'SKI_RESORT', 'NORMAL', { p1: { distance: 100, jumpIn: j } }); e.announceTimer = 0;
+      e.p1.x = 70; e.p2.x = 890;
+      const orig = e.computeCpuInput.bind(e);
+      e.computeCpuInput = (c, p) => { const i = orig(c, p); if (c.index === 1) for (const k of Object.keys(i)) i[k] = false; return i; };
+      let prev = false;
+      for (let f = 0; f < 200; f++) { e.step(); const air = e.p1.state === 'JUMP'; if (air && !prev) n++; prev = air; }
+    }
+    return n;
+  };
+  assert.ok(jumps(100) > jumps(0), 'jump-in slider changes behaviour while approaching at max distance');
 });

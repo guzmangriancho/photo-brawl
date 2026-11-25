@@ -752,7 +752,7 @@
 /* CPU vs CPU tactics page */
 .pb-tactics-layout{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) auto}
 .pb-tactics-layout .pb-tactics-start{grid-column:1 / -1}
-.pb-tactics-panel{display:flex;flex-direction:column;gap:clamp(3px,.9vh,9px);min-height:0;overflow:hidden}
+.pb-tactics-panel{display:flex;flex-direction:column;gap:clamp(3px,.9vh,9px);min-height:0;overflow-x:hidden;overflow-y:auto}
 .pb-tactics-head{display:flex;align-items:center;gap:8px;min-width:0}
 .pb-tactics-head img{width:clamp(28px,6vh,44px);height:clamp(28px,6vh,44px);image-rendering:pixelated;border:2px solid #54739d;flex-shrink:0}
 .pb-tactics-head>div{display:flex;flex-direction:column;min-width:0;flex:1}

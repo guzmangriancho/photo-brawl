@@ -41,11 +41,13 @@ export function CpuTacticsPanel({ label, name, portrait, archetype = '', tactics
         <b>{Math.round(tactics[m.key])}%</b>
       </div>)}
     </div>
-    <Slider id={`${uid}-mid`} left="MEDIA: SOLO ACERCARSE" right="TÉCNICA DE AVANCE" value={tactics.midTech} onChange={v => set({ midTech: v })}/>
+    <Slider id={`${uid}-mid`} left="MEDIA: SOLO ACERCARSE" right={tactics.distance > 50 ? 'AVANCE: SOLO AL ACERCARSE' : 'TÉCNICA DE AVANCE'} value={tactics.midTech} onChange={v => set({ midTech: v })}/>
     <Slider id={`${uid}-far`} left="LEJOS: SOLO ACERCARSE" right="TÉCNICA A DISTANCIA" value={tactics.farTech} onChange={v => set({ farTech: v })}/>
-    </> : <small className="pb-tactic-note">ESTILO PROPIO: este luchador usa sus propios ataques por distancia. Aquí solo afectan la distancia y las reacciones.</small>}
+    </> : <small className="pb-tactic-note">{archetype === 'ZONER_MAGE'
+      ? 'ESTILO PROPIO (zoner): con distancia alta se aleja y lanza proyectiles; de cerca usa su ascendente. Ataques y técnicas siguen su tabla.'
+      : 'ESTILO PROPIO (tanque): no tiene ataque a larga distancia. Con distancia alta se aleja y espera; solo pelea si el rival entra o lo acorrala.'}</small>}
     <Slider id={`${uid}-hit`} left="SEGUIR ENCIMA TRAS ACERTAR" right="APARTARSE" value={tactics.afterHit} onChange={v => set({ afterHit: v })}/>
     <Slider id={`${uid}-block`} left="INSISTIR SI BLOQUEAN" right="RETIRARSE" value={tactics.afterBlock} onChange={v => set({ afterBlock: v })}/>
-    <Slider id={`${uid}-jump`} left="ENTRAR POR SUELO" right="ENTRAR SALTANDO" value={tactics.jumpIn} onChange={v => set({ jumpIn: v })}/>
+    {mix && <Slider id={`${uid}-jump`} left="ENTRAR POR SUELO" right="ENTRAR SALTANDO" value={tactics.jumpIn} onChange={v => set({ jumpIn: v })}/>}
   </section>;
 }

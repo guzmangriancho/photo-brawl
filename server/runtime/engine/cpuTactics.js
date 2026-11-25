@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.distanceScale = exports.usesAttackMix = exports.DEFAULT_CPU_TACTICS = void 0;
+exports.keepRange = exports.distanceScale = exports.usesAttackMix = exports.DEFAULT_CPU_TACTICS = void 0;
 exports.normalizeCpuTactics = normalizeCpuTactics;
 exports.setCloseMix = setCloseMix;
 exports.DEFAULT_CPU_TACTICS = {
@@ -31,6 +31,14 @@ exports.usesAttackMix = usesAttackMix;
 /** Multiplier for every hardcoded distance threshold. 50 -> 1 (unchanged). */
 const distanceScale = (t) => 0.7 + t.distance / 100 * 0.6;
 exports.distanceScale = distanceScale;
+/**
+ * Range the CPU tries to hold. Below 50 (or at the classic 50) it keeps the
+ * classic approach behaviour (returns 0). Above 50 it walks back when the
+ * rival is closer than this and waits when it is already at range: 111 px at 51
+ * up to 405 px at 100.
+ */
+const keepRange = (t) => t.distance > 50 ? 105 + (t.distance - 50) * 6 : 0;
+exports.keepRange = keepRange;
 /** Changing one share keeps the three summing to 100 by taking from the others. */
 function setCloseMix(t, key, value) {
     const v = Math.round(clamp(value));

@@ -10,7 +10,7 @@ import { STAGE_ART, getLargeArena } from '../data/stages';
 import { soundFX } from './SoundFX';
 import { drawAttackFX, drawNormalAttackFX, drawGuardMeterFX, drawGuardFX, drawSuperFlashFX, drawShockwaveFX, drawCrossSlashFX, drawParticlesFX, drawSuperMeteorsFX, drawProjectileFX, drawHitstopSparkFX, drawParryBurstFX } from './ArcadeVFX';
 import type { NetworkState, NetworkFighter } from '../network/protocol';
-import { CpuTactics, DEFAULT_CPU_TACTICS, distanceScale, normalizeCpuTactics } from './cpuTactics';
+import { CpuTactics, DEFAULT_CPU_TACTICS, distanceScale, keepRange, normalizeCpuTactics } from './cpuTactics';
 
 // Visual assets are loaded only in browsers. The authoritative Node combat server
 // never needs Image/DOM APIs. Frames render the old procedural background until ready.
@@ -2327,6 +2327,20 @@ export class FightEngine {
     const dist = Math.abs(player.x - cpu.x);
     const dirToPlayer = player.x >= cpu.x ? 1 : -1;
     const arch = cpu.profile.archetype;
+    // Cornered against the wall behind it, a range-keeper can no longer back off:
+    // it fights with the classic behaviour until it gets room again.
+    const wallBehind = dirToPlayer === 1 ? cpu.x - WALL_MARGIN : STAGE_WIDTH - WALL_MARGIN - cpu.x;
+    const keep = wallBehind < 90 ? 0 : keepRange(tactics);
+    // Move toward the rival, or (distance above 50) hold the preferred range:
+    // step away when too close, wait when at range, approach only when too far.
+    const closeIn = (i: InputState) => {
+      if (keep > 0) {
+        if (dist > keep + 40) { if (dirToPlayer === 1) i.right = true; else i.left = true; }
+        else if (dist < keep - 40) { if (dirToPlayer === 1) i.left = true; else i.right = true; }
+        return;
+      }
+      if (dirToPlayer === 1) i.right = true; else i.left = true;
+    };
 
     // Retreat window after a hit/block: step back, then come in again.
     if (memory.retreat > 0 && cpu.state !== 'ATTACK') {
@@ -2360,6 +2374,16 @@ export class FightEngine {
         return inp;
       }
 
+      // A range-keeper pinned against the wall by a close rival tries to escape by
+      // jumping over it, so it can get back to range instead of only trading blows.
+      if (tactics.distance > 50 && wallBehind < 90 && dist < 200 && this.isGrounded(cpu) &&
+          Math.random() < (tactics.distance - 50) / 50 * 0.45) {
+        inp.up = true;
+        if (dirToPlayer === 1) inp.right = true;
+        else inp.left = true;
+        return inp;
+      }
+
       if (cpu.meter >= 100) {
         const isBeam = cpu.profile.moveset.ultimateSuper.mechanic === 'GIANT_BEAM_LASER';
         if (isBeam || dist < 290) {
@@ -2369,7 +2393,9 @@ export class FightEngine {
       }
 
       if (arch === 'ZONER_MAGE') {
-        if (dist > 250 * scale) {
+        if (keep > 0 && dist >= keep - 40) {
+          inp.spNeutral = true;
+        } else if (dist > 250 * scale) {
           inp.spNeutral = true;
         } else if (dist < 110 * scale) {
           inp.spUp = true;
@@ -2381,11 +2407,10 @@ export class FightEngine {
         if (dist < 100) {
           inp.spForward = Math.random() < 0.62;
           inp.heavy = !inp.spForward;
-        } else if (dist < 260 * scale && Math.random() < 0.38) {
+        } else if (keep === 0 && dist < 260 * scale && Math.random() < 0.38) {
           inp.spForward = true;
         } else {
-          if (dirToPlayer === 1) inp.right = true;
-          else inp.left = true;
+          closeIn(inp);
         }
       } else {
         if (dist < 100) {
@@ -2395,24 +2420,27 @@ export class FightEngine {
           else if (roll < tactics.closeLight + tactics.closeHeavy + tactics.closeTech * 16 / 30) inp.spUp = true;
           else inp.spForward = true;
         } else if (dist < 270 * scale) {
-          if (Math.random() < tactics.midTech / 100) {
+          // The advance technique is a way of approaching: only when the rival is out of range (or classic mode).
+          if ((keep === 0 || dist > keep + 40) && Math.random() < tactics.midTech / 100) {
             inp.spForward = true;
           } else {
-            if (dirToPlayer === 1) inp.right = true;
-            else inp.left = true;
-            if (Math.random() < tactics.jumpIn / 100) inp.up = true;
+            closeIn(inp);
+            if ((keep === 0 || dist > keep + 40) && Math.random() < tactics.jumpIn / 100) inp.up = true;
           }
         } else {
           if (Math.random() < tactics.farTech / 100) {
             inp.spNeutral = true;
           } else {
-            if (dirToPlayer === 1) inp.right = true;
-            else inp.left = true;
+            closeIn(inp);
+            // Range-keepers also jump in from far away when approaching.
+            if (keep > 0 && dist > keep + 40 && Math.random() < tactics.jumpIn / 100) inp.up = true;
           }
         }
       }
     } else {
-      if (arch === 'ZONER_MAGE' && dist < 220 * scale) {
+      if (keep > 0) {
+        closeIn(inp);
+      } else if (arch === 'ZONER_MAGE' && dist < 220 * scale) {
         if (dirToPlayer === 1) inp.left = true;
         else inp.right = true;
       } else if (dist > 105 * scale) {
