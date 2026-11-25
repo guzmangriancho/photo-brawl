@@ -224,7 +224,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   return <div className="pb-subpage pb-trn-page">
     <div className="pb-trn-scroll">
       <div className="pb-panel-title"><span>TORNEO POR RONDAS</span><h2>{t ? `TORNEO #${t.id.slice(0, 4).toUpperCase()}` : 'TORNEO'}</h2></div>
-      {t?.kind === 'exhibition' && <div className="pb-trn-exhibit" role="note"><b>EXHIBICIÓN AUTOMÁTICA</b><span>{t.label || 'Copias de luchadores públicos con tácticas por defecto.'} Nadie se ha inscrito ni ha elegido tácticas, y no cuenta para ranking ni historial.</span></div>}
+      {t && (status === 'round_open' || status === 'simulating') && <div className="pb-trn-exhibit" role="note"><b>TORNEO EN MARCHA</b><span>La inscripción ya cerró. Mira el cuadro; el siguiente torneo se abre al acabar la final.</span></div>}
       {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
 
       {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{state.previous.champion.name}</b>
@@ -267,7 +267,6 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
         {alivePlayer && state?.myMatch?.opponent && <FighterCard f={state.myMatch.opponent} title="TU RIVAL" hint="Sus tácticas se ven al terminar la pelea." />}
         {alivePlayer && !state?.myMatch && <section className="pb-frame pb-trn-card pb-trn-center"><Check size={24} /><p>{t.roundNo === 1 ? 'PASAS DIRECTO LA RONDA PREVIA' : 'ESPERANDO A TU RIVAL'}</p><small>Sigue en el torneo. Cuando se resuelva la ronda verás con quién te toca.</small></section>}
         {me && me.entry.status === 'eliminated' && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={24} /><p>ELIMINADO EN LA RONDA {me.entry.eliminatedRound}</p><small>Puedes seguir viendo tus combates y el cuadro. El siguiente torneo se abre al terminar la final.</small></section>}
-        {!me && <section className="pb-frame pb-trn-card pb-trn-center"><Users size={24} /><p>TORNEO EN MARCHA</p><small>La inscripción ya cerró. Puedes mirar el cuadro; el siguiente torneo se abre al acabar la final.</small></section>}
         {alivePlayer && me && tactics && <>
           <CpuTacticsPanel label="TUS TÁCTICAS" name={me.entry.name} portrait={me.entry.portraitUrl} archetype={me.entry.fighter.archetype} tactics={tactics} onChange={editTactics} />
           <div className={`pb-trn-save is-${saveState}`} role="status">{saveState === 'saving' ? 'GUARDANDO…' : saveState === 'saved' ? 'GUARDADO' : saveState === 'error' ? 'NO SE PUDO GUARDAR · TOCA UN CONTROL PARA REINTENTAR' : saveState === 'dirty' ? 'SIN GUARDAR…' : 'TÁCTICAS SINCRONIZADAS'}</div>
