@@ -131,6 +131,30 @@ async function matchDetail(id){
     winner:m.winner_entry===m.entry_a?'a':'b',scoreA:m.score_a,scoreB:m.score_b,decidedBy:m.decided_by,frames:m.frames};
 }
 
+
+/** Exportación completa de un torneo TERMINADO (mismo contenido que ya sirve matchDetail a cualquier jugador con sesión). */
+async function exportTournament(tid){
+  if(!uuid.test(tid))throw new Error('Torneo no válido.');
+  const [t]=await rest(`tournaments?select=*&id=eq.${tid}&limit=1`);
+  if(!t)throw new Error('Torneo no encontrado.');
+  if(t.status!=='finished')throw new Error('El torneo aún no ha terminado.');
+  const ids=[];
+  for(let off=0;;off+=1000){
+    const r=await rest(`tournament_matches?select=id,round_no,slot&tournament_id=eq.${tid}&order=round_no.asc,slot.asc&limit=1000&offset=${off}`);
+    ids.push(...r);if(r.length<1000)break;
+  }
+  const rounds={},matches={};
+  for(const m of ids){(rounds[m.round_no]=rounds[m.round_no]||[]).push(m.id);matches[m.id]=await matchDetail(m.id);await yieldLoop();}
+  return {tournament:tid,rounds,matches};
+}
+/** Acceso por secreto compartido (para el workflow de vídeo), separado de las sesiones de jugador. Desactivado si no hay VIDEO_EXPORT_SECRET. */
+function exportSecretOk(req){
+  const want=process.env.VIDEO_EXPORT_SECRET||'';
+  const got=String(req.headers['x-export-secret']||'');
+  if(want.length<24||got.length!==want.length)return false;
+  return require('node:crypto').timingSafeEqual(Buffer.from(got),Buffer.from(want));
+}
+
 // ---------- Acciones del jugador ----------
 async function copyArt(fromPath,toPath){
   const src=await fetch(`${URL_ROOT}/storage/v1/object/fighter-private/${fromPath.split('/').map(encodeURIComponent).join('/')}`,{headers:headers(),signal:AbortSignal.timeout(20000)});
@@ -274,6 +298,13 @@ async function handleHttp(req,res,{corsOrigin}){
       if(limited('tick:'+ip,Number(process.env.TOURNAMENT_TICK_LIMIT||20),60000))return send(429,{ok:false,error:'Demasiadas llamadas.'}),true;
       const r=await tick();return send(200,r),true;
     }
+    if(url.pathname==='/tournament/export'&&req.method==='GET'){
+      if(!process.env.VIDEO_EXPORT_SECRET)return send(404,{error:'No encontrado.'}),true;
+      if(limited('export:'+ip,Number(process.env.TOURNAMENT_EXPORT_LIMIT||10),60000))return send(429,{error:'Demasiadas peticiones.'}),true;
+      if(!exportSecretOk(req))return send(401,{error:'No autorizado.'}),true;
+      if(!configured||!rankedApi.available())return send(503,{error:'Torneos no configurados en el servidor.'}),true;
+      return send(200,await exportTournament(url.searchParams.get('tournament')||'')),true;
+    }
     if(limited('api:'+ip,Number(process.env.TOURNAMENT_API_LIMIT||300),60000))return send(429,{error:'Demasiadas peticiones.'}),true;
     if(!configured||!rankedApi.available())return send(503,{error:'Torneos no configurados en el servidor.'}),true;
     const auth=String(req.headers.authorization||'');
@@ -299,4 +330,4 @@ async function handleHttp(req,res,{corsOrigin}){
   }
   return true;
 }
-module.exports={configured:()=>configured,handleHttp,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};
+module.exports={configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};

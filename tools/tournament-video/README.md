@@ -36,3 +36,7 @@ Publicar en redes exige además el consentimiento de los creadores de los luchad
 ### Exportar por id
 `export-tournament.cjs ID out.json` usa solo `/tournament/bracket` y `/tournament/match` (la API existente). Exige sesión: `PB_TOKEN` es el access token de una cuenta de la app (caduca; para automatizar hace falta una cuenta de servicio que renueve el token, o un endpoint de servidor, que sería despliegue). Se espacia a ~1,1 s por petición por el límite de 60/min por cuenta. Rechaza torneos no terminados (la última ronda destapada debe tener 1 combate).
 Permiso del token de GitHub para lanzar el workflow: fine-grained, solo este repo, permiso de repositorio "Actions: write" (la tabla oficial lo da para `POST .../workflows/{id}/dispatches`, sin permisos adicionales).
+
+### Endpoint de servidor (preparado, sin desplegar)
+`GET /tournament/export?tournament=ID` en `server/tournament/tournament.cjs`. Solo existe si el servidor tiene la variable `VIDEO_EXPORT_SECRET` (24+ caracteres); sin ella responde 404. Con ella exige la cabecera `X-Export-Secret` (comparación en tiempo constante, 429 por IP, 401 si falla) y solo exporta torneos con estado `finished`. Devuelve lo mismo que `/tournament/match` ya sirve a cualquier jugador con sesión (luchadores congelados, tácticas, semilla, resultado, `roundsToWin`). `export-tournament.cjs` lo usa si hay `PB_EXPORT_SECRET`.
+Migración `202611250004_v67_tournament_videos_bucket.sql` (sin aplicar): bucket privado `tournament-videos`, 20 MB, solo mp4.

@@ -1,7 +1,7 @@
 # EJEMPLO, NO ACTIVO (no esta en .github/workflows). Genera el video de un torneo bajo demanda.
 # Diseno seguro: el repo es publico, asi que NO se suben artefactos (los artefactos y logs de un repo publico
 # los puede leer cualquiera con sesion de GitHub). El mp4 se sube a un bucket PRIVADO de Supabase y se entrega con URL firmada.
-# Secretos (Settings > Secrets): SUPABASE_SERVICE_KEY, PB_API_BASE, PB_TOKEN (token de una cuenta de la app; caduca, ver README). Nunca llegan al navegador.
+# Secretos (Settings > Secrets): SUPABASE_SERVICE_KEY, PB_API_BASE, PB_EXPORT_SECRET (= VIDEO_EXPORT_SECRET del servidor de Render). Nunca llegan al navegador.
 name: tournament-video
 on:
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg python3-numpy
       - run: npm ci --prefix tools/tournament-video
       - name: Exportar, validar, renderizar (sin imprimir datos de torneo)
-        env: { PB_API_BASE: '${{ secrets.PB_API_BASE }}', PB_TOKEN: '${{ secrets.PB_TOKEN }}', TID: '${{ inputs.tournament_id }}', DAY: '${{ inputs.day }}' }
+        env: { PB_API_BASE: '${{ secrets.PB_API_BASE }}', PB_EXPORT_SECRET: '${{ secrets.PB_EXPORT_SECRET }}', TID: '${{ inputs.tournament_id }}', DAY: '${{ inputs.day }}' }
         run: |
           set +x
           node tools/tournament-video/export-tournament.cjs "$TID" /tmp/export.json
