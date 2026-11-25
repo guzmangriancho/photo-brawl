@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowLeft, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
+  ArrowLeft, Bot, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   CircleHelp, Crown, Gamepad2, KeyRound, Loader2, Settings2, UserRound,
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
   UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Coins, Upload, ClipboardPaste, UserPlus,
@@ -69,13 +69,17 @@ const PASSIVES: Record<string, string> = {
   LONG_REACH_LIMBS: 'MAYOR ALCANCE', VAMPIRIC_ON_SPECIAL: 'ROBO DE VIDA',
 };
 const STAGES = STAGE_IDS.map(id => ({ id, title: STAGE_ART[id].name, short: STAGE_ART[id].short }));
-const GAME_MODES: { id: GameMode; title: string; detail: string; icon: React.ReactNode }[] = [
+type ModeInfo = { id: GameMode; title: string; detail: string; icon: React.ReactNode };
+// Single player modes (second level of the main menu). Online has its own entry.
+const SINGLE_MODES: ModeInfo[] = [
   { id: '1P_VS_CPU', title: '1 VS 1', detail: 'CONTRA LA CPU', icon: <Swords size={22}/> },
   { id: '2V2', title: '2 VS 2', detail: 'EQUIPOS · 4 LUCHADORES', icon: <UsersRound size={22}/> },
   { id: 'FREE_FOR_ALL', title: 'FREE FOR ALL', detail: 'TODOS CONTRA TODOS', icon: <Swords size={22}/> },
   { id: 'TRAINING', title: 'TRAINING', detail: 'PRACTICA COMBOS', icon: <Target size={22}/> },
-  { id: 'ONLINE', title: 'VERSUS ONLINE', detail: 'DOS MÓVILES · CÓDIGO', icon: <Globe2 size={22}/> },
+  { id: 'CPU_VS_CPU', title: 'CPU VS CPU', detail: 'DOS LUCHADORES SE PELEAN SOLOS', icon: <Bot size={22}/> },
 ];
+const ONLINE_MODE: ModeInfo = { id: 'ONLINE', title: 'VERSUS ONLINE', detail: 'DOS MÓVILES · CÓDIGO', icon: <Globe2 size={22}/> };
+const GAME_MODES: ModeInfo[] = [...SINGLE_MODES, ONLINE_MODE];
 const STAT_FIELDS = [
   { key: 'hp' as const, label: 'HP', color: 'green' },
   { key: 'speed' as const, label: 'SPD', color: 'cyan' },
@@ -101,6 +105,8 @@ function PanelTitle({ label, children }: { label: string; children: React.ReactN
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFighterCreated, onFighterDeleted, onFighterRenamed, onStartMatch, onOnlineMatch, onStartTutorial }) => {
   const [page, setPage] = useState<MenuPage>('HOME');
+  // Main menu has two levels: SINGLE PLAYER / ONLINE, then the single player modes.
+  const [homeLevel,setHomeLevel]=useState<'ROOT'|'SINGLE'>('ROOT');
   const {user:accountUser}=usePlayerAccount();
   const {wallet,refresh:refreshWallet}=useWallet(accountUser?.id);
   const [showSlotShop,setShowSlotShop]=useState(false);
@@ -339,6 +345,15 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     if((id==='2V2'||id==='FREE_FOR_ALL')&&!LARGE_ARENA_IDS.includes(stage)){setStage(LARGE_ARENA_IDS[0]);setStagePage(0);}
     setMode(id);soundFX.selectBeep();
   };
+  // Choosing a mode always opens its settings; the match starts from there.
+  const chooseSingleMode=(id:GameMode)=>{
+    selectMode(id);
+    if(featured)go('PLAY');
+  };
+  const openOnline=()=>{
+    selectMode('ONLINE');
+    setShowOnlineLobby(true);
+  };
   const go = (next: MenuPage) => {
     // Never enter a fighter-dependent screen with an empty collection.
     if (!featured && (next === 'PLAY' || next === 'MOVES')) { setPage('HOME'); return; }
@@ -365,8 +380,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [confirmDelete, renamingId, renamingBusy, artBusy, editPasteFallback, showCreator, showUltimate,ultimateLoading, showApiKey, showTutorial, showAccount, transferring, showFriends, showSlotShop]);
-  const startFromHome = () => {
-    if (page !== 'HOME') return;
+  const startMatch = () => {
     if(mode==='ONLINE'){soundFX.confirmBeep();setShowOnlineLobby(true);return;}
     if (!featured) { openCreator(); return; }
     if (!rival) return;
@@ -515,15 +529,17 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
       </section>
       <section className="pb-home-controls">
         <div className="pb-home-brand"><span>PHOTO <b>BRAWL</b></span><small>ARCADE FIGHT CLUB · 16-BIT</small>{wallet&&<button type="button" className="pb-coin-chip" aria-label={`${wallet.coins} monedas, ${fighters.length} de ${wallet.slots} slots`} onClick={()=>setShowSlotShop(true)}><Coins size={14}/>{wallet.coins}<small>{fighters.length}/{wallet.slots}</small></button>}</div>
-        <div className="pb-mode-heading">{featured ? 'ELIGE UN MODO' : 'DESCUBRE LOS MODOS'}</div>
-        <div className="pb-home-modes" role="group" aria-label="Modo de juego">
-          {GAME_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'ONLINE' ? 'pb-mode-online' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => selectMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span>{mode === item.id && <Check className="pb-mode-check" size={16}/>}</button>)}
-        </div>
-        {(featured||mode==='ONLINE') ? <>
-          <button type="button" className="pb-match-option pb-frame" onClick={() => mode==='ONLINE' ? setShowOnlineLobby(true) : go('PLAY')}><Settings2 size={17}/><span><b>{mode==='ONLINE'?'SALA PRIVADA':'OPCIONES DE PARTIDA'}</b><small>{mode==='ONLINE'?(onlineRoom?`${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'CREAR O UNIRSE'):`${STAGES.find(s => s.id === stage)?.short} · ${mode === 'TRAINING' ? 'PRÁCTICA' : difficulty === 'EASY' ? 'CPU FÁCIL' : difficulty === 'HARD' ? 'CPU DIFÍCIL' : 'CPU NORMAL'}`}</small></span><ChevronRight size={17}/></button>
-          <button type="button" className="pb-arcade-button pb-gold pb-start" onClick={startFromHome}><Swords size={23}/><span>{mode==='ONLINE'?(onlineRoom?.status==='countdown'?'EMPEZANDO…':onlineRoom?'VER SALA ONLINE':'ABRIR SALA ONLINE'):mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR AHORA!'}</span><ChevronRight size={20}/></button>
-        </> : <div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
-        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button><button type="button" onClick={() => go('SETTINGS')}><Settings2 size={16}/> AJUSTES</button></div>
+        {homeLevel==='ROOT'||mode==='ONLINE'?<div className="pb-home-modes pb-modes-root" role="group" aria-label="Tipo de juego">
+          <button type="button" className="pb-mode-tile" onClick={()=>{soundFX.selectBeep();if(mode==='ONLINE')selectMode('1P_VS_CPU');setHomeLevel('SINGLE');}}><span className="pb-mode-icon"><Swords size={26}/></span><span><strong>SINGLE PLAYER</strong><small>CONTRA LA CPU · ENTRENAMIENTO</small></span><ChevronRight size={18}/></button>
+          <button type="button" className={`pb-mode-tile pb-mode-online ${mode==='ONLINE'?'is-selected':''}`} onClick={openOnline}><span className="pb-mode-icon"><Globe2 size={26}/></span><span><strong>ONLINE</strong><small>{onlineRoom?`SALA ${onlineRoom.code} · ${onlineRoom.guest?'2 JUGADORES':'ESPERANDO RIVAL'}`:'DOS MÓVILES · CÓDIGO'}</small></span><ChevronRight size={18}/></button>
+        </div>:<>
+          <button type="button" className="pb-mode-heading pb-mode-back" onClick={()=>{soundFX.selectBeep();setHomeLevel('ROOT');}}><ChevronLeft size={14}/> SINGLE PLAYER</button>
+          <div className="pb-home-modes pb-modes-single" role="group" aria-label="Modo de juego">
+            {SINGLE_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} className={`pb-mode-tile ${item.id === 'CPU_VS_CPU' ? 'pb-mode-wide' : ''} ${item.id === '2V2' ? 'pb-mode-teams' : ''} ${mode === item.id ? 'is-selected' : ''}`} onClick={() => chooseSingleMode(item.id)}><span className="pb-mode-icon">{item.icon}</span><span><strong>{item.title}</strong><small>{item.detail}</small></span></button>)}
+          </div>
+          {!featured&&<div className="pb-play-unavailable pb-frame" role="status" aria-live="polite"><ShieldCheck size={20}/><span><strong>{selectedMode.title}</strong><small>Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda.</small></span></div>}
+        </>}
+        <div className="pb-home-footer"><button type="button" onClick={() => setShowTutorial(true)}><BookOpen size={16}/> TUTORIAL</button><button type="button" onClick={() => go('COMMUNITY')}><UsersRound size={16}/> COMUNIDAD</button><button type="button" onClick={() => go('RANKING')}><Crown size={16}/> RANKING</button><button type="button" className="pb-friend-main-button" onClick={() => openFriends()}><UserPlus size={16}/> AMIGOS {(social.invitations.length+social.incoming.length)>0&&<small>· {social.invitations.length+social.incoming.length}</small>}</button><button type="button" onClick={() => setShowAccount(true)}><PlayerAvatar path={favorite.avatarPath} size="small"/> {giftCount?`CUENTA · ${giftCount} REGALO${giftCount===1?'':'S'}`:'CUENTA'}</button></div>
       </section>
     </div>}
 
@@ -539,7 +555,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
 
     {page === 'MOVES' && featured && <div className="pb-subpage pb-moves-layout pb-page-anim"><section className="pb-frame pb-moves-side"><PanelTitle label="FICHA TÉCNICA">{featured.fighterName}</PanelTitle><div className="pb-fighter-sheet-art"><FighterPortrait fighter={featured}/></div><span className="pb-passive-label">{PASSIVES[featured.passiveTrait] || featured.passiveTrait}</span><p>{featured.traitDescription}</p></section><section className="pb-frame pb-moves-main"><PanelTitle label="MOVIMIENTOS REALES · CONTROLES MÓVILES">LISTA DE MOVIMIENTOS</PanelTitle><div className="pb-moves-grid">{moveCards.map(m => <article className={`pb-move-tile pb-move-${m.tone}`} key={m.label}><div><span>{m.label}</span><b>{m.input}</b></div><h3>{m.name}</h3><small>{m.detail}</small></article>)}</div><div className="pb-combo-line"><span>COMBOS</span><strong>A → A → A → B</strong><strong>A → A → MANTENER A</strong></div></section></div>}
 
-    {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">{isGroupMode?"LOS 4 LUCHADORES":"RIVAL"}</PanelTitle>{!isGroupMode&&<div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>JUGADOR 1</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div>}
+    {page === 'PLAY' && featured && rival && <div className="pb-subpage pb-options-layout pb-page-anim"><section className="pb-frame pb-options-rival"><PanelTitle label="CONFIGURACIÓN DE PARTIDA">{isGroupMode?"LOS 4 LUCHADORES":"RIVAL"}</PanelTitle>{!isGroupMode&&<div className="pb-versus-preview"><div><FighterPortrait fighter={featured}/><small>{mode==='CPU_VS_CPU'?'CPU 1':'JUGADOR 1'}</small><strong>{featured.fighterName}</strong></div><b>VS</b><div><FighterPortrait fighter={rival}/><small>{mode === 'TRAINING' ? 'MUÑECO DE PRÁCTICA' : mode === 'CPU_VS_CPU' ? 'CPU 2' : 'RIVAL CPU'}</small><strong>{rival.fighterName}</strong></div></div>}
       {isGroupMode&&<div className="pb-group-roster-select" aria-label="Seleccionar los cuatro luchadores">
         <div className="pb-group-roster-help">1. ELIGE P1, P2, P3 O P4 · 2. TOCA UN LUCHADOR ABAJO</div>
         <div className="pb-group-roster-slots" role="group" aria-label="Elegir jugador a configurar">
@@ -551,9 +567,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
           </button>)}
         </div>
       </div>}
-      <div className="pb-mini-label">{isGroupMode?`ELIGE LUCHADOR PARA P${activeGroupSeat+1}`:'SELECCIONAR RIVAL'}</div>
+      <div className="pb-mini-label">{isGroupMode?`ELIGE LUCHADOR PARA P${activeGroupSeat+1}`:mode==='CPU_VS_CPU'?'ELIGE LA CPU 2':'SELECCIONAR RIVAL'}</div>
       <div className="pb-rival-grid" aria-label={isGroupMode?`Luchadores disponibles para P${activeGroupSeat+1}`:'Seleccionar rival'}>{fighters.slice(rivalPage * 6, rivalPage * 6 + 6).map(f => <button key={f.id} type="button" onClick={() => {if(isGroupMode)selectGroupFighter(f);else {setP2Id(f.id);soundFX.selectBeep();}}} className={(isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id)?'is-selected':''} aria-pressed={isGroupMode?groupSeats[activeGroupSeat]?.id===f.id:f.id===rival.id}><LeagueFrame trophies={ownCups[f.id]?.trophies??0} compact><FighterPortrait fighter={f}/></LeagueFrame><span>{f.fighterName}</span></button>)}</div><div className="pb-pagination pb-rival-pagination"><button type="button" disabled={rivalPage === 0} onClick={() => setRivalPage(rivalPage - 1)} aria-label="Rivales anteriores"><ChevronLeft size={16}/></button><span>{rivalPage + 1} / {rivalPages}</span><button type="button" disabled={rivalPage >= rivalPages - 1} onClick={() => setRivalPage(rivalPage + 1)} aria-label="Más rivales"><ChevronRight size={16}/></button></div></section>
-      <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><span>Todos los combates se inician desde Inicio.</span></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={() => go('HOME')}><Check size={17}/> GUARDAR Y VOLVER</button></section></div>}
+      <section className="pb-frame pb-options-stage"><PanelTitle label="PERSONALIZA SIN SALIR DEL MENÚ">ESCENARIO Y DIFICULTAD</PanelTitle><div className="pb-stage-grid">{STAGES.filter(s=>mode!=='2V2'&&mode!=='FREE_FOR_ALL'||LARGE_ARENA_IDS.includes(s.id)).slice(stagePage * stagePageSize,(stagePage + 1) * stagePageSize).map(s => <button type="button" key={s.id} aria-pressed={stage === s.id} onClick={() => { setStage(s.id); soundFX.selectBeep(); }} className={`pb-stage-choice pb-stage-${s.id.toLowerCase()} ${stage === s.id ? 'is-selected' : ''}`}><span className="pb-stage-art" style={{backgroundImage:`url(${STAGE_ART[s.id].image})`}}/><b>{s.short}</b><small>{s.title}</small></button>)}</div><div className="pb-stage-pagination" aria-label="Páginas de escenarios"><button type="button" disabled={stagePage===0} onClick={()=>setStagePage(p=>Math.max(0,p-1))} aria-label="Escenarios anteriores"><ChevronLeft size={16}/></button><span>{stagePage+1} / {stagePageCount}</span><button type="button" disabled={stagePage>=stagePageCount-1} onClick={()=>setStagePage(p=>Math.min(stagePageCount-1,p+1))} aria-label="Más escenarios"><ChevronRight size={16}/></button></div>{mode === '1P_VS_CPU' || mode === 'CPU_VS_CPU' || mode === '2V2' || mode === 'FREE_FOR_ALL' ? <><div className="pb-mini-label">DIFICULTAD DE LA CPU</div><div className="pb-difficulty">{(['EASY', 'NORMAL', 'HARD'] as CpuDifficulty[]).map(d => <button key={d} type="button" aria-pressed={difficulty === d} className={difficulty === d ? 'is-selected' : ''} onClick={() => setDifficulty(d)}>{d === 'EASY' ? 'FÁCIL' : d === 'HARD' ? 'DIFÍCIL' : 'NORMAL'}</button>)}</div></> : <div className="pb-mode-clarifier">{mode === 'TRAINING' ? 'Práctica libre: sin dificultad de CPU.' : 'Modo de juego seleccionado.'}</div>}<div className="pb-options-note">Modo: <b>{selectedMode.title}</b><button type="button" className="pb-options-app-settings" onClick={() => go('SETTINGS')}><Settings2 size={12}/> AJUSTES DE LA APP</button></div><button type="button" className="pb-arcade-button pb-gold pb-confirm-options" onClick={startMatch}><Swords size={17}/> {mode==='TRAINING'?'EMPEZAR TRAINING':'¡JUGAR!'}</button></section></div>}
 
     {(page === 'RANKING' || page === 'COMMUNITY') && <CommunityPage initialTab={page==='RANKING'?'ranking':'explore'} adminView={adminAllowed && showAllFighters} fighters={fighters} onAccount={()=>setShowAccount(true)} onAddFriend={async username=>{const result=await sendFriendRequest(username);void refreshSocial();return result;}}/> }
 

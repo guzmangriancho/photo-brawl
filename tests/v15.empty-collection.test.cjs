@@ -68,14 +68,20 @@ function css(node,cls){return find(node,n=>typeof n.props?.className==='string' 
 function text(node){if(Array.isArray(node))return node.map(text).join(' ');if(node==null)return '';if(typeof node==='string'||typeof node==='number')return String(node);if(typeof node==='object')return text(node.props?.children);return '';}
 function buttons(node,phrase){return find(node,n=>n.type==='button' && text(n).includes(phrase));}
 test('New player sees one create button and no unavailable match/options actions',()=>{
-  const h=harness([]),tree=h.render();
+  const h=harness([]);let tree=h.render();
   assert.equal(css(tree,'pb-screen-home').length,1);
   assert.equal(buttons(tree,'CREAR CON FOTO').length,1);
   assert.equal(css(tree,'pb-match-option').length,0);
   assert.equal(css(tree,'pb-start').length,0);
-  assert.equal(css(tree,'pb-play-unavailable').length,1);
   assert.equal(css(tree,'pb-options-layout').length,0);
   assert.equal(buttons(tree,'TUTORIAL').length,1);
+  // Main menu is two levels: single player modes appear after choosing SINGLE PLAYER.
+  assert.equal(buttons(tree,'SINGLE PLAYER').length,1);
+  assert.equal(buttons(tree,'ONLINE').length,1);
+  assert.equal(buttons(tree,'AJUSTES').length,0);
+  buttons(tree,'SINGLE PLAYER')[0].props.onClick();
+  tree=h.render();
+  assert.equal(css(tree,'pb-play-unavailable').length,1);
 });
 test('Create button opens photo creator without visiting the fighter-select page',()=>{
   const h=harness([]);
@@ -87,6 +93,7 @@ test('Create button opens photo creator without visiting the fighter-select page
 });
 test('Training and 1v1 selection never opens a blank options screen without a fighter',()=>{
   const h=harness([]);let tree=h.render();
+  buttons(tree,'SINGLE PLAYER')[0].props.onClick();tree=h.render();
   buttons(tree,'TRAINING')[0].props.onClick();tree=h.render();
   assert.match(text(css(tree,'pb-play-unavailable')[0]),/TRAINING/);
   assert.equal(css(tree,'pb-options-layout').length,0);
@@ -101,11 +108,14 @@ test('After creating a fighter, home shows play controls; game options is no lon
   creator.props.onCreated(prototype);
   let tree=h.render();
   assert.equal(css(tree,'pb-screen-home').length,1);
-  assert.equal(css(tree,'pb-start').length,1);
-  assert.equal(css(tree,'pb-play-unavailable').length,0);
+  assert.equal(css(tree,'pb-start').length,0);
   assert.match(text(css(tree,'pb-featured-name')[0]),/NOVA TEST/);
-  css(tree,'pb-match-option')[0].props.onClick();
+  buttons(tree,'SINGLE PLAYER')[0].props.onClick();tree=h.render();
+  assert.equal(css(tree,'pb-play-unavailable').length,0);
+  // Choosing a mode opens its settings directly; the match starts from there.
+  buttons(tree,'1 VS 1')[0].props.onClick();
   tree=h.render();
+  assert.equal(buttons(tree,'¡JUGAR!').length,1);
   assert.equal(css(tree,'pb-options-layout').length,1);
   assert.equal(css(tree,'pb-screen-play').length,1);
 });

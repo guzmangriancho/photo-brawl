@@ -39,12 +39,12 @@ test('V14 chroma: removes both enclosed background and strong green halo, not cl
 test('V35 menu preserves original play modes and reserves presets for tutorial only',()=>{
   const menu=fs.readFileSync(path.join(root,'src/components/CharacterSelect.tsx'),'utf8');
   const app=fs.readFileSync(path.join(root,'src/App.tsx'),'utf8');
-  const block=menu.match(/const GAME_MODES:[\s\S]+?const STAT_FIELDS/)[0];
+  const block=menu.match(/type ModeInfo[\s\S]+?const STAT_FIELDS/)[0];
   const modes=Array.from(block.matchAll(/id:\s*'([^']+)'/g),m=>m[1]);
-  assert.deepEqual(modes,['1P_VS_CPU','2V2','FREE_FOR_ALL','TRAINING','ONLINE']);
+  assert.deepEqual(modes,['1P_VS_CPU','2V2','FREE_FOR_ALL','TRAINING','CPU_VS_CPU','ONLINE']);
   assert.ok(menu.includes('const TUTORIAL_FIGHTERS = getPresetFighters()'));
   assert.ok(menu.includes('onStartTutorial(tutorialFighter.id)'));
-  assert.ok(menu.includes("if (page !== 'HOME') return;"));
+  assert.ok(menu.includes('const startMatch = () =>'));
   assert.ok(menu.includes("if (!featured) { openCreator(); return; }"));
   assert.ok(app.includes('setFighters(customs.filter'));
   assert.ok(app.includes('if (p1.isPreset || p2.isPreset) return'));

@@ -731,3 +731,20 @@
 .pb-league-plate-bar>span{display:block;height:100%;background:var(--league-mid)}
 @media (orientation:landscape) and (max-width:720px){.pb-featured-label{display:none}.pb-featured-kicker:has(.pb-league-plate){justify-content:center}}
 @media (orientation:portrait){.pb-featured:has(.pb-league-plate){grid-template-rows:26px minmax(0,1fr) auto auto}}
+
+/* Two-level main menu: SINGLE PLAYER / ONLINE, then the single player modes. */
+.pb-home-modes.pb-modes-root{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr)}
+.pb-home-modes.pb-modes-root > .pb-mode-tile,
+.pb-home-modes.pb-modes-root > .pb-mode-online{grid-column:auto;grid-row:auto;justify-content:center;gap:clamp(8px,1.4vw,16px)}
+.pb-home-modes.pb-modes-root .pb-mode-icon{flex-basis:clamp(30px,4vw,48px);height:clamp(30px,4vw,48px)}
+.pb-home-modes.pb-modes-root .pb-mode-icon svg{width:70%;height:70%}
+.pb-home-modes.pb-modes-root .pb-mode-tile strong{font-size:clamp(14px,2.4vw,28px)}
+.pb-home-modes.pb-modes-root .pb-mode-tile small{white-space:normal;text-align:center}
+.pb-home-modes.pb-modes-root > .pb-mode-tile > svg:last-child{flex-shrink:0;opacity:.8}
+@media (orientation:portrait){
+  .pb-home-modes.pb-modes-root{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr))}
+}
+.pb-home-modes.pb-modes-single{grid-template-rows:repeat(3,minmax(0,1fr))}
+.pb-home-modes.pb-modes-single > .pb-mode-wide{grid-column:1 / -1;grid-row:3;justify-content:center;min-height:0}
+.pb-mode-back{display:flex;align-items:center;gap:4px;align-self:flex-start;background:none;border:0;padding:2px 0;cursor:pointer}
+.pb-options-app-settings{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid #577fa5;border-radius:4px;color:#b0dafa;padding:2px 6px;font:800 clamp(9px,1vw,11px) Oxanium,system-ui}
