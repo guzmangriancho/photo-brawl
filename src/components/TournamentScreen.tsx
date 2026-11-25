@@ -59,6 +59,25 @@ function resultOf(m: TournamentMatchView, myEntry: string) {
   return { won, text: `${mine ?? 0}-${theirs ?? 0}` };
 }
 
+function roundName(r: number, total: number): string {
+  return r === total ? 'FINAL' : r === total - 1 ? 'SEMIFINAL' : r === total - 2 ? 'CUARTOS' : `RONDA ${r}`;
+}
+/** Cuadro de eliminatorias: una columna por ronda, una casilla por combate con retratos; el que cae se apaga en gris. */
+function BracketTree({ rounds, total, watching, onWatch }: { rounds: { total: number; matches: BracketMatch[] }[]; total: number; watching: string; onWatch: (id: string) => void }) {
+  return <div className="pb-trn-tree" role="group" aria-label="Cuadro de eliminatorias">
+    {rounds.map((r, ri) => <div className="pb-trn-col" key={ri}>
+      <h4>{roundName(ri + 1, total)}</h4>
+      <div className="pb-trn-col-body">{r.matches.map(m => {
+        const aw = m.winnerEntryId === m.entryA, bw = m.winnerEntryId === m.entryB;
+        const slot = (name: string | undefined, img: string | undefined, win: boolean, score: number | undefined) =>
+          <div className={`pb-trn-tslot ${win ? 'win' : m.revealed ? 'out' : ''}`}>{img ? <img src={img} alt="" draggable={false} /> : <u />}<em>{name}</em><b>{m.revealed ? score : ''}</b>{win && <Crown size={10} aria-label="pasa" />}</div>;
+        return <div className="pb-trn-tmatch" key={m.id}>{slot(m.a, m.aPortrait, aw, m.scoreA)}{slot(m.b, m.bPortrait, bw, m.scoreB)}
+          {m.revealed && <button type="button" className="pb-trn-tplay" disabled={!!watching} onClick={() => onWatch(m.id)} aria-label={`Ver combate ${m.a} contra ${m.b}`}>{watching === m.id ? <Loader2 className="pb-trn-spin" size={11} /> : <Play size={11} />}</button>}</div>;
+      })}</div>
+    </div>)}
+  </div>;
+}
+
 export function TournamentScreen({ fighters, onWatch }: Props) {
   const [state, setState] = useState<TournamentState | null>(null);
   const [error, setError] = useState('');
@@ -75,6 +94,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   const [bracketRound, setBracketRound] = useState(0);
   const [bracketOf, setBracketOf] = useState<'current' | 'previous'>('current');
   const [bracket, setBracket] = useState<{ total: number; matches: BracketMatch[]; offset: number } | null>(null);
+  const [tree, setTree] = useState<{ id: string; rounds: { total: number; matches: BracketMatch[] }[] } | null>(null);
   const dirty = useRef(false);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
@@ -168,6 +188,17 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     void loadBracket(round, 0, { id: target.id, of }).then(() => { if (saved.of) document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }); });
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cuadro completo (todas las rondas destapadas en columnas) cuando el torneo es pequeño; si no, queda la lista por rondas.
+  const treeKey = bt ? `${bt.id}:${bt.revealedRound}` : '';
+  useEffect(() => {
+    if (!bt || bt.revealedRound < 1) { setTree(null); return; }
+    let live = true; const id = bt.id;
+    void Promise.all(Array.from({ length: bt.revealedRound }, (_, i) => fetchTournamentBracket(id, i + 1, 0)))
+      .then(rs => { if (live) setTree(rs[0] && rs[0].total <= 32 ? { id, rounds: rs.map(r => ({ total: r.total, matches: r.matches })) } : null); })
+      .catch(() => { if (live) setTree(null); });
+    return () => { live = false; };
+  }, [treeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return <div className="pb-subpage pb-trn-page"><section className="pb-frame pb-trn-card pb-trn-center"><Loader2 className="pb-trn-spin" size={26} /><p>CARGANDO TORNEO…</p><small>Si el servidor estaba dormido puede tardar unos 30 s.</small></section></div>;
 
   const me = state?.me || null;
@@ -244,6 +275,8 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
         {prev && <div className="pb-trn-rounds pb-trn-tabs" role="group" aria-label="Torneo del cuadro">
           <button type="button" aria-pressed={bracketOf === 'current'} className={bracketOf === 'current' ? 'is-selected' : ''} onClick={() => pickBracket('current')}>ACTUAL</button>
           <button type="button" aria-pressed={bracketOf === 'previous'} className={bracketOf === 'previous' ? 'is-selected' : ''} onClick={() => pickBracket('previous')}>ANTERIOR</button></div>}
+        {tree && tree.id === bt.id && <BracketTree rounds={tree.rounds} total={bt.roundCount || tree.rounds.length} watching={watching} onWatch={id => void watch(id)} />}
+        {!(tree && tree.id === bt.id) && <>
         <div className="pb-trn-row"><Trophy size={15} /> CUADRO · RONDA
           <div className="pb-trn-rounds">{Array.from({ length: bt.revealedRound }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
         {bracket && <>
@@ -255,6 +288,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
           {bracket.total > 40 && <div className="pb-pagination"><button type="button" disabled={bracket.offset === 0} onClick={() => void loadBracket(bracketRound, Math.max(0, bracket.offset - 40))} aria-label="Anterior"><ChevronLeft size={16} /></button>
             <span>{bracket.offset + 1}-{Math.min(bracket.total, bracket.offset + 40)} / {bracket.total}</span>
             <button type="button" disabled={bracket.offset + 40 >= bracket.total} onClick={() => void loadBracket(bracketRound, bracket.offset + 40)} aria-label="Siguiente"><ChevronRight size={16} /></button></div>}
+        </>}
         </>}
       </section>}
     </div>
