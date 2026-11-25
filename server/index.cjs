@@ -3,6 +3,7 @@ const http=require('node:http');
 const {upgrade}=require('./transport.cjs');
 const {handle,closed}=require('./rooms.cjs');
 const rankedApi=require('./ranked.cjs');
+const tournaments=require('./tournament/tournament.cjs');
 // Render and similar platforms inject PORT; keep ONLINE_PORT for local development.
 const PORT=Number(process.env.PORT||process.env.ONLINE_PORT||8787);
 const ALLOWED=(process.env.ONLINE_ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -18,9 +19,14 @@ function safeOrigin(req){
   }catch{return false;}
 }
 const server=http.createServer((req,res)=>{
+  if(req.url&&req.url.startsWith('/tournament/')){
+    const origin=req.headers.origin;let corsOrigin='';
+    if(origin&&safeOrigin(req))corsOrigin=origin;
+    void tournaments.handleHttp(req,res,{corsOrigin});return;
+  }
   if(req.url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1,ranked:rankedApi.available()}));return;
+    res.end(JSON.stringify({ok:true,service:'photo-brawl-online',protocol:1,ranked:rankedApi.available(),tournaments:tournaments.configured()}));return;
   }
   res.writeHead(404);res.end('Not Found');
 });
@@ -34,6 +40,6 @@ server.on('upgrade',(req,socket,head)=>{
     peer.onClose(()=>closed(peer));
   });
 });
-server.listen(PORT,'0.0.0.0',()=>console.log(`[PHOTO BRAWL] Online listo: ws://localhost:${PORT}/ws · /health`));
+server.listen(PORT,'0.0.0.0',()=>{console.log(`[PHOTO BRAWL] Online listo: ws://localhost:${PORT}/ws · /health`);tournaments.startTimer();});
 function stop(){server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref();}
 process.on('SIGTERM',stop);process.on('SIGINT',stop);
