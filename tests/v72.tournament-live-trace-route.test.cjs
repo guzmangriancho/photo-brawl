@@ -62,13 +62,29 @@ test('la traza corresponde al mismo combate, luchadores y resultado que la simul
 });
 test('tercero, no inscrito o combate ajeno: sin traza', async () => {
   mockFetch();
-  assert.equal(await T.liveTraceFor('acctC', ID.m), null);
-  assert.equal(await T.liveTraceFor('acctZ', ID.m), null);
-  assert.equal(await T.liveTraceFor('acctA', ID.m2), null);
-  assert.equal(await T.liveTraceFor('acctA', 'no-es-uuid'), null);
+  assert.ok((await T.liveTraceFor('acctC', ID.m)) === null);
+  assert.ok((await T.liveTraceFor('acctZ', ID.m)) === null);
+  assert.ok((await T.liveTraceFor('acctA', ID.m2)) === null);
+  assert.ok((await T.liveTraceFor('acctA', 'no-es-uuid')) === null);
 });
 test('apagado: sin TOURNAMENT_LIVE=1 tampoco hay traza', async () => {
   mockFetch(); delete process.env.TOURNAMENT_LIVE;
-  assert.equal(await T.liveTraceFor('acctA', ID.m), null);
+  assert.ok((await T.liveTraceFor('acctA', ID.m)) === null);
   process.env.TOURNAMENT_LIVE = '1';
+});
+
+test('falla cerrado si el marcador o el ganador oficial guardados discrepan de la traza, aunque los frames coincidan', async () => {
+  mockFetch();
+  const keep = { ...match };
+  try {
+    match.score_a = match.score_a + 1;
+    assert.ok((await T.liveTraceFor('acctA', ID.m)) === null, 'marcador distinto');
+    Object.assign(match, keep);
+    if (keep.score_a !== keep.score_b) {
+      match.winner_entry = keep.winner_entry === 'eA' ? 'eB' : 'eA';
+      assert.ok((await T.liveTraceFor('acctA', ID.m)) === null, 'ganador distinto');
+    }
+    Object.assign(match, keep);
+    assert.ok(await T.liveTraceFor('acctA', ID.m), 'con los datos oficiales sí emite');
+  } finally { Object.assign(match, keep); }
 });

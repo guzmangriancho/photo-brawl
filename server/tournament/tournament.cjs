@@ -304,8 +304,11 @@ async function liveTraceFor(accountId,matchId){
   if(!uuid.test(matchId||''))return null;
   const info=await liveFor(accountId);
   if(!info.live||info.live.matchId!==matchId)return null;
-  if(traceCache.has(matchId))return traceCache.get(matchId);
   const [m]=await rest(`tournament_matches?select=*&id=eq.${matchId}&limit=1`);
+  if(!m)return null;
+  const cached=traceCache.get(matchId);
+  // La caché solo vale si el combate oficial guardado sigue siendo el mismo que se validó.
+  if(cached&&cached.frames===m.frames&&cached.sa===m.score_a&&cached.sb===m.score_b&&cached.w===m.winner_entry)return cached.body;
   const ents=await entriesByIds([m.entry_a,m.entry_b]);
   const a=ents.get(m.entry_a),b=ents.get(m.entry_b);
   const pa={...a.fighter_data,id:'a',spriteSheetDataUrl:'',portraitDataUrl:''},pb={...b.fighter_data,id:'b',spriteSheetDataUrl:'',portraitDataUrl:''};
@@ -314,8 +317,13 @@ async function liveTraceFor(accountId,matchId){
   const rec=require('./trace.cjs').record(m.engine_version,pa,pb,m.tactics_a,m.tactics_b,t.stage,t.difficulty,{roundsToWin:m.rounds_to_win||2});
   // Falla cerrado: si lo que se emitiría no dura lo mismo que el combate oficial guardado, no se emite nada.
   if(rec.frames!==m.frames)return null;
+  // Y también si el marcador o el ganador de la traza discrepan del oficial guardado (aunque duren lo mismo).
+  let last={};for(const d of rec.states)last={...last,...d};
+  const sn=last.snapshot||{};
+  if(sn.p1RoundWins!==m.score_a||sn.p2RoundWins!==m.score_b)return null;
+  if(m.score_a!==m.score_b&&m.winner_entry!==(m.score_a>m.score_b?m.entry_a:m.entry_b))return null;
   const body=require('./trace.cjs').encode(rec);
-  traceCache.set(matchId,body);
+  traceCache.set(matchId,{body,frames:m.frames,sa:m.score_a,sb:m.score_b,w:m.winner_entry});
   if(traceCache.size>20)traceCache.delete(traceCache.keys().next().value);
   return body;
 }
