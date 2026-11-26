@@ -1195,3 +1195,15 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
 .arena-cpu-result-card span{font-weight:900;color:#dbe9ff}
 .arena-cpu-result-card small{color:#80d9ff}
 .arena-cpu-result-buttons{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
+
+/* Velocidad / simular en combates CPU: fuera del escenario en vertical, discreto en horizontal. */
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) {
+  .arena-cpu-tools { position: static; transform: none; left: auto; bottom: auto; margin: 10px auto 0; width: max-content; max-width: calc(100% - 16px); }
+}
+@media (orientation: landscape) and (max-height: 700px), (orientation: landscape) and (pointer: coarse) {
+  .arena-cpu-tools { left: auto; right: max(8px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); transform: none; gap: 3px; padding: 3px 4px; opacity: .5; background: rgba(8,14,28,.55); box-shadow: none; border-width: 1px; transition: opacity .15s; }
+  .arena-cpu-tools:hover, .arena-cpu-tools:focus-within, .arena-cpu-tools:active { opacity: 1; }
+  .arena-cpu-tools button { min-height: 22px; padding: 1px 6px; font-size: 10px; border-width: 1px; }
+  .arena-cpu-tools .arena-cpu-skip { margin-left: 0; padding: 1px 5px; }
+  .arena-cpu-tools .arena-cpu-skip span { display: none; }
+}

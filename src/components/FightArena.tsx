@@ -671,11 +671,6 @@ export const FightArena: React.FC<FightArenaProps> = ({
                 </div>}/>
             </div>
           )}
-          {mode === 'CPU_VS_CPU' && !paused && !snapshot.roundOver && (
-            <div className="arena-cpu-tools" role="group" aria-label="Velocidad y simulación">
-              {[1, 2, 4].map(v => <button type="button" key={v} aria-pressed={speed === v} className={speed === v ? 'is-selected' : ''} onClick={() => changeSpeed(v)}>x{v}</button>)}
-              <button type="button" className="arena-cpu-skip" onClick={() => simulateRef.current()}><FastForward size={14} /> SIMULAR</button>
-            </div>)}
           {paused && (
             <div className="arena-pause-overlay">
               <section className="arena-pause-card" role="dialog" aria-modal="true" aria-label="Menú de pausa">
@@ -713,6 +708,11 @@ export const FightArena: React.FC<FightArenaProps> = ({
             </div>
           )}
         </section>
+        {mode === 'CPU_VS_CPU' && !paused && !snapshot.roundOver && (
+          <div className="arena-cpu-tools" role="group" aria-label="Velocidad y simulación">
+            {[1, 2, 4].map(v => <button type="button" key={v} aria-pressed={speed === v} className={speed === v ? 'is-selected' : ''} onClick={() => changeSpeed(v)}>x{v}</button>)}
+            <button type="button" className="arena-cpu-skip" onClick={() => simulateRef.current()} aria-label="Simular el resto del combate"><FastForward size={14} /><span>SIMULAR</span></button>
+          </div>)}
 
       </div>
 
