@@ -56,6 +56,21 @@ export const joinTournament = (fighterLocalId: string, instagram: string, videoC
   call<{ entryId: string }>('/tournament/join', { method: 'POST', body: { fighterLocalId, instagram, videoConsent } });
 export const saveTournamentTactics = (tactics: CpuTactics) =>
   call<{ tactics: CpuTactics }>('/tournament/tactics', { method: 'POST', body: { tactics } });
+/** Tu combate en directo: sin ganador ni marcador. Las tácticas de ambos viajan porque el motor las necesita, la interfaz no muestra las del rival. */
+export interface TournamentLive {
+  matchId: string; round: number; tournamentId: string; youAre: 'a' | 'b'; anchorMs: number; endsAtMs: number; frames: number;
+  stage: StageId; difficulty: CpuDifficulty; simVersion: number; engineVersion: string; roundsToWin: number;
+  a: TournamentFighter; b: TournamentFighter; tacticsA: CpuTactics; tacticsB: CpuTactics;
+}
+export const fetchTournamentLive = () => call<{ now: string; live: TournamentLive | null }>('/tournament/live');
+const LIVE_SEEN_KEY = 'pb_trn_live_seen';
+/** Combates en directo ya vistos (o con el resultado ya pedido) en este dispositivo: quitan el velo de spoilers. */
+export function liveSeen(matchId: string): boolean {
+  try { return (JSON.parse(localStorage.getItem(LIVE_SEEN_KEY) || '[]') as string[]).includes(matchId); } catch { return false; }
+}
+export function markLiveSeen(matchId: string): void {
+  try { const a = (JSON.parse(localStorage.getItem(LIVE_SEEN_KEY) || '[]') as string[]).filter(x => x !== matchId); a.push(matchId); localStorage.setItem(LIVE_SEEN_KEY, JSON.stringify(a.slice(-30))); } catch { /* sin almacenamiento: el velo cae solo al acabar la ventana */ }
+}
 export const fetchTournamentMatch = (id: string) => call<TournamentReplay>('/tournament/match?id=' + encodeURIComponent(id));
 export const fetchTournamentBracket = (tournament: string, round: number, offset = 0) =>
   call<{ round: number; total: number; matches: BracketMatch[] }>(`/tournament/bracket?tournament=${tournament}&round=${round}&offset=${offset}`);

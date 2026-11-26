@@ -42,6 +42,8 @@ interface FightArenaProps {
   tournamentReplay?: boolean;
   replaySimVersion?: number;
   roundsToWin?: number;
+  /** Tu combate de torneo en directo: el reloj manda (anchorMs en hora del servidor + offsetMs), sin pausa, velocidad ni saltar. */
+  live?: { anchorMs: number; offsetMs: number; frames: number; onFinished: () => void };
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   /** CPU vs CPU: play the whole fight instantly and show the result. */
@@ -112,12 +114,16 @@ const MECHANIC_LAB_CATALOG = {
 
 
 export const FightArena: React.FC<FightArenaProps> = ({
-  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, tournamentReplay = false, replaySimVersion, roundsToWin = 2, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
+  p1Profile, p2Profile, mode, stage, difficulty, tactics, online, rankTrophies, tutorial = false, tournamentReplay = false, replaySimVersion, roundsToWin = 2, live, onExit, roster, onRematch, simulate = false, onChangeTactics, onWatch,
 }) => {
   const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
   const changeSpeed = (value: number) => { speedRef.current = value; setSpeed(value); };
   const simulateRef = useRef<() => void>(() => {});
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  const liveStepsRef = useRef(0);
+  const [liveLeft, setLiveLeft] = useState<number | null>(live ? Math.max(0, live.anchorMs - (Date.now() + live.offsetMs)) : null);
   const onlineMode = mode === 'ONLINE' && !!online;
   const [tutorialStep,setTutorialStep]=useState(0);
   const [tutorialHelp,setTutorialHelp]=useState(false);
@@ -180,6 +186,15 @@ export const FightArena: React.FC<FightArenaProps> = ({
     roundNumber:1,p1RoundWins:0,p2RoundWins:0,roundBreakFrames:0,roundIntroFrames:0,
   });
   const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (!live) return undefined;
+    const tick = () => { const left = live.anchorMs - (Date.now() + live.offsetMs); setLiveLeft(left > 0 ? left : null); return left; };
+    if (tick() <= 0) return undefined;
+    const id = window.setInterval(() => { if (tick() <= 0) window.clearInterval(id); }, 250);
+    return () => window.clearInterval(id);
+  }, [live?.anchorMs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const liveDone = useRef(false);
+  useEffect(() => { if (live && snapshot.roundOver && !liveDone.current) { liveDone.current = true; live.onFinished(); } }, [snapshot.roundOver]); // eslint-disable-line react-hooks/exhaustive-deps
   const [fixedStick, setFixedStick] = useState(false);
   const [southpaw, setSouthpaw] = useState(false);
   const [haptics, setHaptics] = useState(true);
@@ -311,7 +326,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Escape') {
         event.preventDefault();
-        if (engine.versusIntroFrames > 0) return;
+        if (engine.versusIntroFrames > 0 || liveRef.current) return;
         if (event.repeat) return;
         if (labRef.current) setShowLab(false);
         else setPaused((wasPaused) => !wasPaused);
@@ -400,7 +415,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
     };
     releaseKeyboardRef.current = releaseInputs;
     const handleVisibility = () => {
-      if (document.hidden) {
+      if (document.hidden && !liveRef.current) {
         releaseInputs();
         if(onlineMode)online?.neutral();
         pausedRef.current = true;
@@ -421,6 +436,17 @@ export const FightArena: React.FC<FightArenaProps> = ({
     const loop = (now: number) => {
       accumulator += Math.min(100, now - lastTime) * speedRef.current;
       lastTime = now;
+      const liveCfg = liveRef.current;
+      if (liveCfg) {
+        // En directo manda el reloj del servidor: se avanza hasta el frame que toca (una pestaña dormida o una entrada tarde se ponen al día en silencio).
+        const target = Math.floor((Date.now() + liveCfg.offsetMs - liveCfg.anchorMs) / FIXED_TIMESTEP);
+        let behind = Math.min(target, liveCfg.frames + 1) - liveStepsRef.current;
+        const wasMuted = soundFX.muted;
+        if (behind > 12) soundFX.muted = true;
+        try { for (let g = 0; behind > 0 && g < 6000 && !engine.roundOver; g++, behind--) { engine.step(); liveStepsRef.current++; uiSyncCounter++; } }
+        finally { soundFX.muted = wasMuted; }
+        accumulator = 0;
+      }
       while (accumulator >= FIXED_TIMESTEP) {
         if (!pausedRef.current) {
           const touch = p1TouchRef.current;
@@ -596,7 +622,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
               <div className={`arena-time-number ${snapshot.timer <= 10 && mode !== 'TRAINING' ? 'is-urgent' : ''}`} aria-label={`Tiempo restante: ${snapshot.timer}`}>
                 {mode === 'TRAINING' ? '∞' : String(snapshot.timer).padStart(2, '0')}
               </div>
-              <button type="button" className="arena-pause-shortcut" onClick={() => setPaused(true)} aria-label="Abrir menú de pausa" title="Pausa / opciones (Esc)"><Pause size={15} fill="currentColor" /></button>
+              {!live && <button type="button" className="arena-pause-shortcut" onClick={() => setPaused(true)} aria-label="Abrir menú de pausa" title="Pausa / opciones (Esc)"><Pause size={15} fill="currentColor" /></button>}
             </div>
             <div className="arena-fighter-hud arena-player-two">
               <div className="arena-portrait-slot"><img src={p2Profile.portraitDataUrl} alt="" className="arena-portrait pixel-canvas" /></div>
@@ -616,6 +642,8 @@ export const FightArena: React.FC<FightArenaProps> = ({
 
           {snapshot.p1Combo >= 2 && <div className="arena-combo arena-combo-one"><strong>{snapshot.p1Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p1ComboDamage}</span></div>}
           {snapshot.p2Combo >= 2 && <div className="arena-combo arena-combo-two"><strong>{snapshot.p2Combo}<small> HITS</small></strong><b>COMBO!</b><span>DAÑO {snapshot.p2ComboDamage}</span></div>}
+          {live && <div className="arena-live-badge" role="status"><i aria-hidden="true" />EN DIRECTO</div>}
+          {live && liveLeft !== null && liveLeft > 0 && <div className="arena-live-wait" role="timer" aria-live="polite"><span>TU COMBATE EN DIRECTO</span><strong>{Math.ceil(liveLeft / 1000)}</strong><small>Empieza en {Math.ceil(liveLeft / 1000)} s · sin pausa ni velocidad</small></div>}
           {snapshot.announceText && !snapshot.versusIntroFrames && !snapshot.roundOver && !paused && <div className="arena-announcement"><span>{snapshot.announceText}</span></div>}
 
           {snapshot.roundOver && !paused && !resultVisible && !simulate &&
@@ -708,7 +736,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
             </div>
           )}
         </section>
-        {mode === 'CPU_VS_CPU' && !paused && !snapshot.roundOver && (
+        {mode === 'CPU_VS_CPU' && !live && !paused && !snapshot.roundOver && (
           <div className="arena-cpu-tools" role="group" aria-label="Velocidad y simulación">
             {[1, 2, 4].map(v => <button type="button" key={v} aria-pressed={speed === v} className={speed === v ? 'is-selected' : ''} onClick={() => changeSpeed(v)}>x{v}</button>)}
             <button type="button" className="arena-cpu-skip" onClick={() => simulateRef.current()} aria-label="Simular el resto del combate"><FastForward size={14} /><span>SIMULAR</span></button>

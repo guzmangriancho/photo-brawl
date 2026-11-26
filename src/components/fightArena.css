@@ -1207,3 +1207,13 @@ html.arena-touch-lock, html.arena-touch-lock body { overscroll-behavior: none; }
   .arena-cpu-tools .arena-cpu-skip { margin-left: 0; padding: 1px 5px; }
   .arena-cpu-tools .arena-cpu-skip span { display: none; }
 }
+
+/* Tu combate de torneo en directo */
+.arena-live-badge{position:absolute;z-index:13;top:calc(100% - 26px);right:8px;display:inline-flex;align-items:center;gap:5px;padding:2px 7px;font-weight:900;font-size:10px;letter-spacing:.08em;color:#fff;background:rgba(190,20,40,.88);border:1px solid #ff8a96}
+.arena-live-badge i{width:6px;height:6px;border-radius:50%;background:#fff;animation:arena-live-blink 1s steps(2,end) infinite}
+@keyframes arena-live-blink{50%{opacity:.2}}
+.arena-live-wait{position:absolute;inset:0;z-index:14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:rgba(4,10,22,.74);color:#ffe9a8;text-align:center;pointer-events:none}
+.arena-live-wait span{font-weight:900;letter-spacing:.12em;font-size:clamp(11px,3.2vw,16px)}
+.arena-live-wait strong{font-size:clamp(38px,12vw,72px);line-height:1;color:#fff}
+.arena-live-wait small{font-size:clamp(9px,2.6vw,12px);color:#b9cdf0}
+@media (orientation: portrait) and (max-width: 750px), (orientation: portrait) and (pointer: coarse) { .arena-live-badge{top:auto;bottom:6px} }

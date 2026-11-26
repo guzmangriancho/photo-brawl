@@ -21,6 +21,7 @@ import { GroupFightArena } from './components/GroupFightArena';
 import { LARGE_ARENA_IDS } from './data/stages';
 import type { CpuTactics } from './engine/cpuTactics';
 import type { TournamentReplayStart } from './components/TournamentScreen';
+import { markLiveSeen } from './services/tournamentService';
 import type { OnlineSession } from './network/OnlineSession';
 import type { OnlineStart } from './network/protocol';
 
@@ -71,6 +72,7 @@ export function App() {
     tournamentReplay?:boolean;
     replaySimVersion?:number;
     roundsToWin?:number;
+    live?:{anchorMs:number;offsetMs:number;frames:number;matchId:string};
   } | null>(null);
   const [backToTournament,setBackToTournament]=useState(false);
 
@@ -189,7 +191,7 @@ export function App() {
 
   // Ver un combate de torneo: mismos luchadores congelados, mismas tácticas congeladas, misma semilla = mismo combate.
   const handleWatchTournament=(start:TournamentReplayStart)=>{
-    setMatchConfig({p1:start.p1,p2:start.p2,mode:'CPU_VS_CPU',stage:start.stage,difficulty:start.difficulty,tactics:start.tactics,simulate:false,tournamentReplay:true,replaySimVersion:start.simVersion,roundsToWin:start.roundsToWin});
+    setMatchConfig({p1:start.p1,p2:start.p2,mode:'CPU_VS_CPU',stage:start.stage,difficulty:start.difficulty,tactics:start.tactics,simulate:false,tournamentReplay:true,replaySimVersion:start.simVersion,roundsToWin:start.roundsToWin,live:start.live});
     setCpuResume(null);setBackToTournament(true);
     setFightKey(value=>value+1);
     setScreen('FIGHT');
@@ -260,6 +262,7 @@ export function App() {
         difficulty={matchConfig.difficulty} tactics={matchConfig.tactics}
         online={matchConfig.online} rankTrophies={matchConfig.rankTrophies}
         tutorial={matchConfig.tutorial} tournamentReplay={matchConfig.tournamentReplay} replaySimVersion={matchConfig.replaySimVersion} roundsToWin={matchConfig.roundsToWin}
+        live={matchConfig.live?{...matchConfig.live,onFinished:()=>markLiveSeen(matchConfig.live!.matchId)}:undefined}
         onExit={handleExit}
       />
     );
