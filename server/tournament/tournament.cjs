@@ -267,7 +267,7 @@ async function saveTactics(accountId,tactics){
  *  contendientes que no depende de cuánto tarde la simulación. Dura lo que dura de verdad el combate (frames/60). */
 const LIVE_LEAD_MS=Number(process.env.TOURNAMENT_LIVE_LEAD_MS||30000);
 const LIVE_GRACE_MS=15000;
-/** Solo para un inscrito, solo SU combate resuelto más reciente, y solo mientras dura su ventana de emisión. Nunca devuelve ganador, marcador
+/** (Ya NO lleva tácticas: el cliente reproduce la traza de /tournament/live/trace.) Solo para un inscrito, solo SU combate resuelto más reciente, y solo mientras dura su ventana de emisión. Nunca devuelve ganador, marcador
  *  ni motivo de final. Las tácticas de ambos viajan porque el motor las necesita para recrear el combate; la interfaz no muestra las del rival. */
 /** APAGADO por defecto: mientras las tácticas del rival viajen en la respuesta, no se entrega nada. Solo se enciende con TOURNAMENT_LIVE=1
  *  (pruebas); en producción no se define, así que siempre devuelve live:null. */
@@ -291,10 +291,30 @@ async function liveFor(accountId){
     const ents=await entriesByIds([m.entry_a,m.entry_b]);
     out.live={matchId:m.id,round:m.round_no,tournamentId:t.id,youAre:m.entry_a===me.id?'a':'b',anchorMs:anchor,endsAtMs:endsAt,frames:m.frames,
       stage:t.stage,difficulty:t.difficulty,simVersion:m.sim_version,engineVersion:m.engine_version,roundsToWin:m.rounds_to_win||2,
-      a:publicEntry(ents.get(m.entry_a)),b:publicEntry(ents.get(m.entry_b)),tacticsA:normalizeCpuTactics(m.tactics_a),tacticsB:normalizeCpuTactics(m.tactics_b)};
+      a:publicEntry(ents.get(m.entry_a)),b:publicEntry(ents.get(m.entry_b)),hasTrace:true};
     break;
   }
   return out;
+}
+
+const traceCache=new Map();
+/** Traza de reproducción de SU combate en directo (gzip). Misma autorización que liveFor (solo un participante, solo su combate vigente);
+ *  las tácticas se leen aquí, en el servidor, y no salen. Se cachea en memoria para que los dos contendientes reciban los mismos bytes. */
+async function liveTraceFor(accountId,matchId){
+  if(!uuid.test(matchId||''))return null;
+  const info=await liveFor(accountId);
+  if(!info.live||info.live.matchId!==matchId)return null;
+  if(traceCache.has(matchId))return traceCache.get(matchId);
+  const [m]=await rest(`tournament_matches?select=*&id=eq.${matchId}&limit=1`);
+  const ents=await entriesByIds([m.entry_a,m.entry_b]);
+  const a=ents.get(m.entry_a),b=ents.get(m.entry_b);
+  const pa={...a.fighter_data,id:'a',spriteSheetDataUrl:'',portraitDataUrl:''},pb={...b.fighter_data,id:'b',spriteSheetDataUrl:'',portraitDataUrl:''};
+  const {tournamentId}=info.live;
+  const [t]=await rest(`tournaments?select=*&id=eq.${tournamentId}&limit=1`);
+  const body=require('./trace.cjs').encode(require('./trace.cjs').record(m.engine_version,pa,pb,normalizeCpuTactics(m.tactics_a),normalizeCpuTactics(m.tactics_b),t.stage,t.difficulty,{roundsToWin:m.rounds_to_win||2}));
+  traceCache.set(matchId,body);
+  if(traceCache.size>20)traceCache.delete(traceCache.keys().next().value);
+  return body;
 }
 
 // ---------- Programador ----------
@@ -421,6 +441,11 @@ async function handleHttp(req,res,{corsOrigin}){
     }
     if(url.pathname==='/tournament/tactics'&&req.method==='POST')return send(200,await saveTactics(accountId,(await readBody(req)).tactics)),true;
     if(url.pathname==='/tournament/live'&&req.method==='GET')return send(200,await liveFor(accountId)),true;
+    if(url.pathname==='/tournament/live/trace'&&req.method==='GET'){
+      const body=await liveTraceFor(accountId,url.searchParams.get('id')||'');
+      if(!body){res.writeHead(404,{'Content-Type':'application/json',...cors});res.end('{"error":"Sin directo."}');return true;}
+      res.writeHead(200,{'Content-Type':'application/json','Content-Encoding':'gzip',...cors});res.end(body);return true;
+    }
     if(url.pathname==='/tournament/match'&&req.method==='GET')return send(200,await matchDetail(url.searchParams.get('id')||'')),true;
     if(url.pathname==='/tournament/bracket'&&req.method==='GET'){
       const tid=url.searchParams.get('tournament')||'';if(!uuid.test(tid))throw new Error('Torneo no válido.');
@@ -435,4 +460,4 @@ async function handleHttp(req,res,{corsOrigin}){
   }
   return true;
 }
-module.exports={createExhibition,addPublicToOpen,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,liveFor,matchDetail,bracket,join,saveTactics};
+module.exports={createExhibition,addPublicToOpen,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,liveFor,liveTraceFor,matchDetail,bracket,join,saveTactics};

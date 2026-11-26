@@ -40,7 +40,7 @@ test('el contendiente recibe SU combate, con ancla a +30 s de resolved_at y dura
   assert.equal(r.live.anchorMs, new Date(match.resolved_at).getTime() + 30000);
   assert.equal(r.live.endsAtMs - r.live.anchorMs, 30000, '1800 frames a 60 fps = 30 s');
   const text = JSON.stringify(r.live);
-  for (const k of ['winner', 'scoreA', 'scoreB', 'decidedBy', 'winner_entry', 'score_a']) assert.ok(!text.includes(k), 'no debe filtrar ' + k);
+  for (const k of ['winner', 'scoreA', 'scoreB', 'decidedBy', 'winner_entry', 'score_a', 'tactics', 'seed']) assert.ok(!text.includes(k), 'no debe filtrar ' + k);
   assert.equal((await T.liveFor('acctB')).live.youAre, 'b');
 });
 test('un tercero inscrito (otro combate) o sin inscripción no recibe nada', async () => {
