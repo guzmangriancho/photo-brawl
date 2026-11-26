@@ -55,7 +55,7 @@ function harness(initialFighters){
     '../data/stages':{STAGE_IDS:stages,STAGE_ART:Object.fromEntries(stages.map(id=>[id,{name:id,short:id,image:'/backgrounds/snow.jpg'}]))},
     './LeagueEmblem':{LeagueFrame:stubComponent('LeagueFrame'),LeagueBadge:stubComponent('LeagueBadge')},
     '../services/progressionService':{ownFighterRanks:async()=>({}),leagueFor:()=>({key:'BRONCE'})},
-    './arcadeMenus.css':{},
+    './arcadeMenus.css':{},'../i18n':{getLang:()=>'es',setLang:()=>{}},
     '../engine/cpuTactics':require('./helpers/cpuTactics.cjs'),'./CpuTacticsPanel':{CpuTacticsPanel:stubComponent('CpuTacticsPanel')},'./TournamentScreen':{TournamentScreen:stubComponent('TournamentScreen')}
   };
   const ctx={exports:{},require:name=>{if(!(name in modules))throw Error(`Unexpected import: ${name}`);return modules[name];},URLSearchParams,location:{search:''},localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},console};
