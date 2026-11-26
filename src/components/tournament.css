@@ -64,8 +64,8 @@
 .pb-home-modes > .pb-trn-home-tile > svg:last-child{display:none}
 .pb-home-modes > .pb-mode-online{grid-column:2;grid-row:2}
 .pb-home-modes > .pb-trn-home-tile strong{white-space:nowrap}
-.pb-home-modes > .pb-mode-tile:not(.pb-mode-online):not(.pb-trn-home-tile){grid-column:1 / -1;grid-row:1}
-@media (orientation:portrait){.pb-home-modes > .pb-mode-tile:not(.pb-mode-online):not(.pb-trn-home-tile){grid-row:1}}
+.pb-home-modes:not(.pb-modes-single) > .pb-mode-tile:not(.pb-mode-online):not(.pb-trn-home-tile){grid-column:1 / -1;grid-row:1}
+@media (orientation:portrait){.pb-home-modes:not(.pb-modes-single) > .pb-mode-tile:not(.pb-mode-online):not(.pb-trn-home-tile){grid-row:1}}
 .pb-home-modes > .pb-trn-home-tile small,.pb-home-modes > .pb-mode-online small{font-size:clamp(7px,1.9vw,9px)}
 /* Tactics sliders must never be clipped or trapped in a nested scroller: the page scroll owns them. */
 .pb-trn-scroll .pb-tactics-panel{flex:none;height:auto;max-height:none;overflow:visible}
