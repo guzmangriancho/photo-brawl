@@ -122,3 +122,4 @@
   .pb-trn-live .pb-arcade-button,.pb-trn-live .pb-mini-button{width:100%;justify-content:center}
   .pb-trn-live .pb-trn-note{font-size:9.5px;line-height:1.2;color:#8fb0cc}
 }
+.pb-trn-exhibit-btn{align-self:flex-start;margin-top:5px}

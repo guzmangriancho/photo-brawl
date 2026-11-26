@@ -59,6 +59,13 @@ function resultOf(m: TournamentMatchView, myEntry: string) {
   return { won, text: `${mine ?? 0}-${theirs ?? 0}` };
 }
 
+/** Rondas que se pueden ver en el cuadro: las destapadas y, con el torneo en marcha, también los cruces de la ronda en juego (sin resultados). */
+function shownRounds(t: { status: string; revealedRound: number; roundNo: number; roundCount: number | null } | null | undefined): number {
+  if (!t || t.status === 'registration' || t.status === 'cancelled') return 0;
+  if (t.status === 'finished') return t.revealedRound;
+  return Math.min(Math.max(t.revealedRound, t.roundNo || 0), t.roundCount || 99);
+}
+type ByeInfo = { id: string; name?: string; img?: string };
 /** Luchadores que se saltan la ronda previa: aparecen en la ronda 2 sin haber jugado la 1. */
 function byesOf(r1: BracketMatch[], r2: BracketMatch[]): { id: string; name?: string; img?: string }[] {
   const played = new Set(r1.flatMap(m => [m.entryA, m.entryB]));
@@ -70,11 +77,11 @@ function byesOf(r1: BracketMatch[], r2: BracketMatch[]): { id: string; name?: st
   return out;
 }
 /** Ronda 1 en el orden del cruce al que alimenta cada casilla (combates y pases directos), para que cada una quede a la altura de su combate siguiente. */
-function r1Order(r1: BracketMatch[], r2: BracketMatch[]): { m?: BracketMatch; bye?: { id: string; name?: string; img?: string } }[] {
+function r1Order(r1: BracketMatch[], r2: BracketMatch[], extra: ByeInfo[] = []): { m?: BracketMatch; bye?: { id: string; name?: string; img?: string } }[] {
   const next = (id?: string) => { const i = id ? r2.findIndex(x => x.entryA === id || x.entryB === id) : -1; return i < 0 ? 1e6 : i; };
   const items = [
     ...r1.map((m, i) => ({ m, bye: undefined, k: next(m.winnerEntryId), i })),
-    ...byesOf(r1, r2).map((bye, i) => ({ m: undefined, bye, k: next(bye.id), i: 1000 + i })),
+    ...(r2.length ? byesOf(r1, r2) : extra).map((bye, i) => ({ m: undefined, bye, k: next(bye.id), i: 1000 + i })),
   ];
   return items.sort((x, y) => x.k - y.k || x.i - y.i);
 }
@@ -82,14 +89,14 @@ function roundName(r: number, total: number): string {
   return r === total ? 'FINAL' : r === total - 1 ? 'SEMIFINAL' : r === total - 2 ? 'CUARTOS' : `RONDA ${r}`;
 }
 /** Cuadro de eliminatorias: una columna por ronda, una casilla por combate con retratos; el que cae se apaga en gris. */
-function BracketTree({ rounds, total, watching, onWatch, veilId }: { rounds: { total: number; matches: BracketMatch[] }[]; total: number; watching: string; onWatch: (id: string) => void; veilId: string }) {
+function BracketTree({ rounds, total, watching, onWatch, veilId, byes }: { rounds: { total: number; matches: BracketMatch[] }[]; byes: ByeInfo[]; total: number; watching: string; onWatch: (id: string) => void; veilId: string }) {
   const box = useRef<HTMLDivElement>(null);
   // Al destaparse una ronda nueva, el cuadro se desplaza a la última columna.
   useEffect(() => { const el = box.current; if (el && rounds.length > 1) { const cols = el.querySelectorAll<HTMLElement>('.pb-trn-col'); const last = cols[cols.length - 1]; if (last) el.scrollTo({ left: Math.max(0, last.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft - 4), behavior: 'smooth' }); } }, [rounds.length]);
   return <div className="pb-trn-tree" ref={box} role="group" aria-label="Cuadro de eliminatorias">
     {rounds.map((r, ri) => <div className="pb-trn-col" key={ri}>
       <h4>{roundName(ri + 1, total)}</h4>
-      <div className="pb-trn-col-body">{(ri === 0 && rounds[1] ? r1Order(rounds[0].matches, rounds[1].matches) : r.matches.map(m => ({ m, bye: undefined as undefined | { id: string; name?: string; img?: string } }))).map(({ m, bye: b }) => {
+      <div className="pb-trn-col-body">{(ri === 0 && (rounds[1] || byes.length) ? r1Order(rounds[0].matches, rounds[1]?.matches || [], byes) : r.matches.map(m => ({ m, bye: undefined as undefined | { id: string; name?: string; img?: string } }))).map(({ m, bye: b }) => {
         if (b) return <div className="pb-trn-tmatch pb-trn-bye" key={'bye' + b.id}>
           <div className="pb-trn-tslot win">{b.img ? <img src={b.img} alt="" draggable={false} /> : <u />}<em>{b.name}</em><b /><Crown size={10} aria-label="pasa" /></div><small>PASA DIRECTO</small></div>;
         if (!m) return null;
@@ -120,7 +127,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   const [bracketRound, setBracketRound] = useState(0);
   const [bracketOf, setBracketOf] = useState<'current' | 'previous'>('current');
   const [bracket, setBracket] = useState<{ total: number; matches: BracketMatch[]; offset: number } | null>(null);
-  const [tree, setTree] = useState<{ id: string; rounds: { total: number; matches: BracketMatch[] }[] } | null>(null);
+  const [tree, setTree] = useState<{ id: string; byes: ByeInfo[]; rounds: { total: number; matches: BracketMatch[] }[] } | null>(null);
   const dirty = useRef(false);
   const alive = useRef(true);
   // Tu combate en directo (solo el tuyo). liveInfo.offset = hora del servidor menos la del dispositivo.
@@ -226,7 +233,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   const pickBracket = (which: 'current' | 'previous') => {
     setBracketOf(which); setBracket(null); setBracketRound(0);
     const target = which === 'previous' ? prev : t;
-    if (target && target.revealedRound > 0) void loadBracket(target.revealedRound, 0, { id: target.id, of: which });
+    if (target && shownRounds(target) > 0) void loadBracket(shownRounds(target), 0, { id: target.id, of: which });
   };
   const loadBracket = async (round: number, off = 0, forced?: { id: string; of: 'current' | 'previous' }) => {
     const target = forced || (bt ? { id: bt.id, of: bracketOf } : null);
@@ -245,22 +252,22 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     restored.current = true;
     let saved: { of?: string; round?: number } = {};
     try { saved = JSON.parse(sessionStorage.getItem(BRACKET_KEY) || '{}') as typeof saved; } catch { saved = {}; }
-    const wantPrev = saved.of === 'previous' && !!prev && prev.revealedRound > 0;
-    const target = wantPrev ? prev : (state.tournament && state.tournament.revealedRound > 0 && (state.tournament.status === 'finished' || saved.of === 'current') ? state.tournament : null);
+    const wantPrev = saved.of === 'previous' && !!prev && shownRounds(prev) > 0;
+    const target = wantPrev ? prev : (state.tournament && shownRounds(state.tournament) > 0 && (state.tournament.status === 'finished' || saved.of === 'current') ? state.tournament : null);
     if (!target) return;
-    const round = Math.min(Math.max(1, saved.round || target.revealedRound), target.revealedRound);
+    const round = Math.min(Math.max(1, saved.round || shownRounds(target)), shownRounds(target));
     const of = wantPrev ? 'previous' : 'current';
     setBracketOf(of);
     void loadBracket(round, 0, { id: target.id, of }).then(() => { if (saved.of) document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }); });
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cuadro completo (todas las rondas destapadas en columnas) cuando el torneo es pequeño; si no, queda la lista por rondas.
-  const treeKey = bt ? `${bt.id}:${bt.revealedRound}` : '';
+  const treeKey = bt ? `${bt.id}:${bt.revealedRound}:${shownRounds(bt)}` : '';
   useEffect(() => {
-    if (!bt || bt.revealedRound < 1) { setTree(null); return; }
+    if (!bt || shownRounds(bt) < 1) { setTree(null); return; }
     let live = true; const id = bt.id;
-    void Promise.all(Array.from({ length: bt.revealedRound }, (_, i) => fetchTournamentBracket(id, i + 1, 0)))
-      .then(rs => { if (live) setTree(rs[0] && rs[0].total <= 32 ? { id, rounds: rs.map(r => ({ total: r.total, matches: r.matches })) } : null); })
+    void Promise.all(Array.from({ length: shownRounds(bt) }, (_, i) => fetchTournamentBracket(id, i + 1, 0)))
+      .then(rs => { if (live) setTree(rs[0] && rs[0].total <= 32 ? { id, byes: (rs[0].byes || []).map(b => ({ id: b.id, name: b.name, img: b.portraitUrl })), rounds: rs.map(r => ({ total: r.total, matches: r.matches })) } : null); })
       .catch(() => { if (live) setTree(null); });
     return () => { live = false; };
   }, [treeKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -280,7 +287,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   return <div className="pb-subpage pb-trn-page">
     <div className="pb-trn-scroll">
       <div className="pb-panel-title"><span>TORNEO POR RONDAS</span><h2>{t ? `TORNEO #${t.id.slice(0, 4).toUpperCase()}` : 'TORNEO'}</h2></div>
-      {t && (status === 'round_open' || status === 'simulating') && <div className="pb-trn-exhibit" role="note"><b>TORNEO EN MARCHA</b><span>La inscripción ya cerró. Mira el cuadro; el siguiente torneo se abre al acabar la final.</span></div>}
+      {t && (status === 'round_open' || status === 'simulating') && <div className="pb-trn-exhibit" role="note"><b>TORNEO EN MARCHA</b><span>La inscripción ya cerró. Mira el cuadro; el siguiente torneo se abre al acabar la final.</span>{shownRounds(t) > 0 && <button type="button" className="pb-mini-button pb-trn-exhibit-btn" onClick={() => { pickBracket('current'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>VER CUADRO</button>}</div>}
       {lv && (liveClock <= lv.endsAtMs + 15000 || veilId) && (() => {
         const mine = lv.youAre === 'a' ? lv.a : lv.b, rival = lv.youAre === 'a' ? lv.b : lv.a;
         const toStart = lv.anchorMs - liveClock, running = toStart <= 0 && liveClock < lv.endsAtMs, over = liveClock >= lv.endsAtMs;
@@ -299,7 +306,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
       {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
 
       {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{veilId && lv?.tournamentId === state.previous.id ? '(TAPADO HASTA TU DIRECTO)' : state.previous.champion.name}</b>
-        {prev && prev.revealedRound > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>VER CUADRO</button>}</div>}
+        {prev && shownRounds(prev) > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>VER CUADRO</button>}</div>}
 
       {!t && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={30} /><p>NO HAY TORNEO ABIERTO</p><small>Cuando termine uno, el siguiente se abre solo. Vuelve más tarde.</small></section>}
 
@@ -353,14 +360,14 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
         {state.history.some(m => m.decidedBy === 'cap') && <small className="pb-trn-note">Un combate se cerró por el desempate del torneo (mucho tiempo sin KO). Su recreación puede variar al final.</small>}
       </section>}
 
-      {bt && bt.revealedRound > 0 && <section className="pb-frame pb-trn-card" id="pb-trn-bracket" aria-label="Cuadro">
+      {bt && shownRounds(bt) > 0 && <section className="pb-frame pb-trn-card" id="pb-trn-bracket" aria-label="Cuadro">
         {prev && <div className="pb-trn-rounds pb-trn-tabs" role="group" aria-label="Torneo del cuadro">
           <button type="button" aria-pressed={bracketOf === 'current'} className={bracketOf === 'current' ? 'is-selected' : ''} onClick={() => pickBracket('current')}>ACTUAL</button>
           <button type="button" aria-pressed={bracketOf === 'previous'} className={bracketOf === 'previous' ? 'is-selected' : ''} onClick={() => pickBracket('previous')}>ANTERIOR</button></div>}
-        {tree && tree.id === bt.id && <BracketTree rounds={tree.rounds} total={bt.roundCount || tree.rounds.length} watching={watching} onWatch={id => void watch(id)} veilId={veilId} />}
+        {tree && tree.id === bt.id && <BracketTree rounds={tree.rounds} byes={tree.byes} total={bt.roundCount || tree.rounds.length} watching={watching} onWatch={id => void watch(id)} veilId={veilId} />}
         {!(tree && tree.id === bt.id) && <>
         <div className="pb-trn-row"><Trophy size={15} /> CUADRO · RONDA
-          <div className="pb-trn-rounds">{Array.from({ length: bt.revealedRound }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
+          <div className="pb-trn-rounds">{Array.from({ length: shownRounds(bt) }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
         {bracket && <>
           <ul className="pb-trn-bracket">{bracket.matches.map(m => { const veiled = m.id === veilId; const aw = !veiled && m.winnerEntryId === m.entryA, bw = !veiled && m.winnerEntryId === m.entryB; return <li key={m.id}>
             <span className={`pb-trn-slot ${aw ? 'win' : m.revealed && !veiled ? 'out' : ''}`}>{m.aPortrait && <img src={m.aPortrait} alt="" draggable={false} />}<em>{m.a}</em>{aw && <Crown size={11} aria-label="pasa" />}</span>

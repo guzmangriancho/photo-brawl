@@ -113,10 +113,19 @@ async function stateFor(accountId){
 async function bracket(tid,round,offset){
   const [t]=await rest(`tournaments?select=*&id=eq.${tid}&limit=1`);
   if(!t)throw new Error('Torneo no encontrado.');
-  if(!(round>=1)||round>t.revealed_round)return {round,matches:[],total:0};
+  // Cuadro del torneo en marcha: se ven los cruces de la ronda en juego (sin resultados ni tacticas); los resultados solo al destaparse.
+  const visibleRound=t.status==='registration'||t.status==='cancelled'?0:t.status==='finished'?t.revealed_round:Math.max(t.revealed_round,t.round_no||0);
+  if(!(round>=1)||round>visibleRound)return {round,matches:[],total:0};
   const r=await rest(`tournament_matches?select=${MATCH_PUBLIC}&tournament_id=eq.${tid}&round_no=eq.${round}&order=slot.asc&limit=40&offset=${offset|0}`,{prefer:'count=exact'});
   const ents=await entriesByIds([...new Set(r.rows.flatMap(m=>[m.entry_a,m.entry_b]))]);
-  return {round,total:r.count,matches:r.rows.map(m=>({...matchResult(m,null,t.revealed_round),a:publicEntry(ents.get(m.entry_a))?.name,b:publicEntry(ents.get(m.entry_b))?.name,aPortrait:publicEntry(ents.get(m.entry_a))?.portraitUrl,bPortrait:publicEntry(ents.get(m.entry_b))?.portraitUrl}))};
+  // Quienes se saltan la ronda previa (aun no estan en ningun combate de la ronda 1): se listan para poder pintar su casilla "pasa directo".
+  let byes;
+  if(round===1&&t.prelim_count>0&&offset<=0){
+    const rows=await rest(`tournament_entries?select=id&tournament_id=eq.${tid}&slot=gte.${2*t.prelim_count}&limit=200`);
+    const be=await entriesByIds(rows.map(x=>x.id));
+    byes=rows.map(x=>{const e=publicEntry(be.get(x.id));return e&&{id:e.id,name:e.name,portraitUrl:e.portraitUrl};}).filter(Boolean);
+  }
+  return {round,total:r.count,...(byes?{byes}:{}),matches:r.rows.map(m=>({...matchResult(m,null,t.revealed_round),a:publicEntry(ents.get(m.entry_a))?.name,b:publicEntry(ents.get(m.entry_b))?.name,aPortrait:publicEntry(ents.get(m.entry_a))?.portraitUrl,bPortrait:publicEntry(ents.get(m.entry_b))?.portraitUrl}))};
 }
 
 /** Combate destapado con todo lo necesario para recrearlo (luchadores congelados + tácticas congeladas + semilla). */

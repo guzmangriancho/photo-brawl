@@ -81,7 +81,7 @@ export function markLiveSeen(matchId: string): void {
 }
 export const fetchTournamentMatch = (id: string) => call<TournamentReplay>('/tournament/match?id=' + encodeURIComponent(id));
 export const fetchTournamentBracket = (tournament: string, round: number, offset = 0) =>
-  call<{ round: number; total: number; matches: BracketMatch[] }>(`/tournament/bracket?tournament=${tournament}&round=${round}&offset=${offset}`);
+  call<{ round: number; total: number; byes?: { id: string; name?: string; portraitUrl?: string }[]; matches: BracketMatch[] }>(`/tournament/bracket?tournament=${tournament}&round=${round}&offset=${offset}`);
 
 export interface TournamentVideoState { enabled: boolean; status?: 'none' | 'queued' | 'ready' | 'failed'; dayNo?: number; requestedAt?: string; url?: string }
 /** Solo el propietario ve la función (enabled:false para el resto). La URL del vídeo es firmada y caduca en 5 min. */
