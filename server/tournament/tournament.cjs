@@ -269,8 +269,12 @@ const LIVE_LEAD_MS=Number(process.env.TOURNAMENT_LIVE_LEAD_MS||30000);
 const LIVE_GRACE_MS=15000;
 /** Solo para un inscrito, solo SU combate resuelto más reciente, y solo mientras dura su ventana de emisión. Nunca devuelve ganador, marcador
  *  ni motivo de final. Las tácticas de ambos viajan porque el motor las necesita para recrear el combate; la interfaz no muestra las del rival. */
+/** APAGADO por defecto: mientras las tácticas del rival viajen en la respuesta, no se entrega nada. Solo se enciende con TOURNAMENT_LIVE=1
+ *  (pruebas); en producción no se define, así que siempre devuelve live:null. */
+const LIVE_ENABLED=()=>process.env.TOURNAMENT_LIVE==='1';
 async function liveFor(accountId){
   const out={now:new Date().toISOString(),live:null};
+  if(!LIVE_ENABLED())return out;
   const cand=[];
   const [live]=await rest(`tournaments?select=*&status=${LIVE}&limit=1`);
   const [last]=await rest('tournaments?select=*&status=eq.finished&order=finished_at.desc&limit=1');

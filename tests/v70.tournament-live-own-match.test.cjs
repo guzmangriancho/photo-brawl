@@ -1,5 +1,6 @@
 process.env.SUPABASE_URL = 'https://db.example.test';
 process.env.SUPABASE_SECRET_KEY = 'sb_secret_test';
+process.env.TOURNAMENT_LIVE = '1';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../server/tournament/tournament.cjs');
@@ -61,4 +62,14 @@ test('el ancla se calcula desde resolved_at: una simulación tardía retrasa el 
   match = { ...base(), resolved_at: new Date(Date.now() - 20000).toISOString() };
   const r = await T.liveFor('acctA');
   assert.ok(r.live && r.live.anchorMs > Date.now(), 'aún por empezar (ancla futura)');
+});
+
+test('apagado por defecto: sin TOURNAMENT_LIVE=1 no entrega nada aunque haya combate resuelto (las tácticas del rival no salen)', async () => {
+  mockFetch(); match = base();
+  assert.ok((await T.liveFor('acctA')).live, 'encendido en pruebas');
+  delete process.env.TOURNAMENT_LIVE;
+  const r = await T.liveFor('acctA');
+  assert.equal(r.live, null);
+  assert.ok(!JSON.stringify(r).includes('tactics'));
+  process.env.TOURNAMENT_LIVE = '1';
 });
