@@ -219,6 +219,35 @@ async function createExhibition(accountId,{expected,windowMinutes,label}){
   }
   return {tournament:tid,entrants:added,windowMinutes:w};
 }
+
+/** Solo admin: añade al torneo en inscripción copias de los luchadores públicos que aún no están (relleno automático, sin cuenta ni dueño atribuido). */
+async function addPublicToOpen(accountId,{expected}={}){
+  if(!(await rpc('pb_tournament_is_admin',{p_user:accountId})))throw new Error('No autorizado.');
+  const [t]=await rest('tournaments?select=id,status&status=eq.registration&order=created_at.desc&limit=1');
+  if(!t)throw new Error('No hay torneo en inscripción.');
+  const rows=await rest('fighters?select=id,local_id,fighter_name,fighter_data,private_portrait_path,private_sheet_path&is_public=eq.true&order=created_at.asc&limit=100');
+  const have=new Set((await rest(`tournament_entries?select=fighter_local_id&tournament_id=eq.${t.id}`)).map(e=>e.fighter_local_id));
+  const todo=rows.filter(r=>!have.has(r.local_id));
+  if(Number.isInteger(expected)&&todo.length!==expected)throw new Error(`no válido: faltan ${todo.length} luchadores públicos, no ${expected}.`);
+  const prepared=[];
+  for(const row of todo){
+    const valid=validateProfile({...row.fighter_data,id:row.local_id,fighterName:row.fighter_name,spriteSheetDataUrl:FAKE_ART,portraitDataUrl:FAKE_ART,isPreset:false,ultimateForm:false});
+    if(!valid)throw new Error('no válido: un luchador público no supera la validación.');
+    prepared.push({row,valid});
+  }
+  let added=0;
+  for(const {row,valid} of prepared){
+    const {spriteSheetDataUrl:_s,portraitDataUrl:_p,...frozen}=valid;
+    if(row.fighter_data.spriteSheetKeyVersion===3)frozen.spriteSheetKeyVersion=3;
+    const folder=`${t.id}/${randomUUID()}`;
+    await copyArt(row.private_portrait_path,`${folder}/portrait.png`);
+    await copyArt(row.private_sheet_path,`${folder}/sheet.png`);
+    await rpc('pb_tournament_add_exhibition_entry',{p_tournament:t.id,p_local:row.local_id,p_data:frozen,p_portrait:`${folder}/portrait.png`,p_sheet:`${folder}/sheet.png`,
+      p_name:String(row.fighter_name).slice(0,40),p_tactics:normalizeCpuTactics({})});
+    added++;
+  }
+  return {tournament:t.id,added,alreadyIn:rows.length-todo.length,publicTotal:rows.length};
+}
 async function saveTactics(accountId,tactics){
   if(!tactics||typeof tactics!=='object'||Array.isArray(tactics))throw new Error('Tácticas no válidas.');
   const clean=normalizeCpuTactics(tactics);
@@ -351,6 +380,10 @@ async function handleHttp(req,res,{corsOrigin}){
       if(limited('exh:'+accountId,3,60000))throw new Error('Demasiado rápido. Espera un segundo.');
       return send(200,await createExhibition(accountId,await readBody(req))),true;
     }
+    if(url.pathname==='/tournament/add-public'&&req.method==='POST'){
+      if(limited('pub:'+accountId,3,60000))throw new Error('Demasiado rápido. Espera un segundo.');
+      return send(200,await addPublicToOpen(accountId,await readBody(req))),true;
+    }
     if(url.pathname==='/tournament/tactics'&&req.method==='POST')return send(200,await saveTactics(accountId,(await readBody(req)).tactics)),true;
     if(url.pathname==='/tournament/match'&&req.method==='GET')return send(200,await matchDetail(url.searchParams.get('id')||'')),true;
     if(url.pathname==='/tournament/bracket'&&req.method==='GET'){
@@ -366,4 +399,4 @@ async function handleHttp(req,res,{corsOrigin}){
   }
   return true;
 }
-module.exports={createExhibition,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};
+module.exports={createExhibition,addPublicToOpen,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};
