@@ -13,7 +13,7 @@ Medido con 4368 combates CPU contra CPU (14 luchadores publicados, todos contra 
 - **Agarre (COMMAND_GRAB_SLAM)**: dano 132 a 105, arranque 7 a 9, recuperacion +6, ya no lleva la armadura de HEAVY_ARMOR_STARTUP.
 - **Omega Suplex**: dano 265 a 215.
 - **Teletransporte (TELEPORT_BEHIND)**: arranque 6 a 12, recuperacion +6, dano 90 a 74.
-- **Meteoro (METEOR_SCREEN_DROP)**: dano 265 a 170, arranque 4 a 11, recuperacion 16 a 28, caja de golpe 260 a 210 de ancho.
+- **Meteoro (METEOR_SCREEN_DROP)**: dano 265 a 190 (primero 170, subido a 190 el 26 nov a las 09:50 tras medir +5 puntos a Florbombin y +1,5 a Rex; resto de luchadores dentro de +-1), arranque 4 a 11, recuperacion 16 a 28, caja de golpe 260 a 210 de ancho.
 - **Subida invencible (INVINCIBLE_UPPERCUT)**: invencible 15 a 9 fotogramas, recuperacion +4, dano 98 a 90.
 - **Embestida blindada (ARMORED_SHOULDER_DASH)**: dano 90 a 78, recuperacion +4. La armadura absorbe el golpe con 85% del dano (antes 65%).
 
@@ -38,3 +38,7 @@ Es una simulacion CPU contra CPU, no una prueba con jugadores humanos. 4368 comb
 Cambiando solo el avance especial de un luchador neutro (Gotita), el giratorio daba 27% frente a 50% de base, 59% del deslizamiento y 50% del teletransporte. La causa era un fallo: cada golpe del giro hace 1/5 del dano, pero el primer golpe derribaba al rival y los demas no podian conectar, asi que hacia solo un 20% del dano nominal. En v3 solo el ultimo golpe derriba. Efecto medido: Rayo pasa de 25% a 42% (Don Diamante sin cambio relevante). El tornado vertical tiene el mismo patron, pero corregirlo hace que los magos dominen (Madurito 84%, magos 94% contra agarradores), asi que NO se toca y queda documentado.
 
 La pasivas no explican a Rex: dar a Rex la pasiva FAST_METER_GAIN en lugar de DASH AEREO lo sube de 67% a 75%. Tampoco la estadistica de tecnica: subir su efecto no cambio los porcentajes.
+
+## Ajuste del meteoro (26 nov, antes de generar combates en e3)
+
+Daño del meteoro 170 a 190, arranque (11) y recuperacion (28) sin cambios. Medido contra el motor anterior: en 4368 combates, Florbombin 49,0 a 54,0 y Rex 66,8 a 68,3; en otra bateria (10 tacticas, 4 arenas grandes, 14560 combates por motor) Florbombin 51,2 a 56,2 y Rex 71,1 a 72,7, el resto dentro de +-1,1. Se edita e3 en su sitio porque ningun torneo ha generado combates con e3 (el torneo abierto sigue en inscripcion). Una simulacion CPU contra CPU no es una prueba con jugadores humanos.

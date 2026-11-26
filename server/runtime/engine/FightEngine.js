@@ -1385,7 +1385,7 @@ class FightEngine {
                 startup: this.simVersion >= 3 && mech === 'METEOR_SCREEN_DROP' ? 11 : 4,
                 active: 32,
                 recovery: this.simVersion >= 3 && mech === 'METEOR_SCREEN_DROP' ? 28 : 16,
-                damage: Math.round((this.simVersion >= 3 && mech === 'OMEGA_SUPLEX' ? 215 : this.simVersion >= 3 && mech === 'METEOR_SCREEN_DROP' ? 170 : 265) * pwr),
+                damage: Math.round((this.simVersion >= 3 && mech === 'OMEGA_SUPLEX' ? 215 : this.simVersion >= 3 && mech === 'METEOR_SCREEN_DROP' ? 190 : 265) * pwr),
                 hitstun: 32,
                 blockstun: 22,
                 pushback: 15,
