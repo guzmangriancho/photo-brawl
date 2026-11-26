@@ -37,12 +37,12 @@ function matchCase(src: string, out: string) {
 }
 
 function lookup(core: string): string | null {
-  if (EN[core] !== undefined) return EN[core];
+  if (EN[core] !== undefined) return matchCase(core, EN[core]);
   const l = lower.get(core.toLowerCase());
   if (l !== undefined) return matchCase(core, l);
   for (const [re, fn] of EN_RULES) {
     const m = core.match(re);
-    if (m) return fn(...(m.slice(1) as string[]));
+    if (m) return matchCase(core, fn(...(m.slice(1) as string[])));
   }
   return null;
 }
