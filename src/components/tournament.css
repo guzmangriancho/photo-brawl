@@ -99,3 +99,26 @@
 .pb-trn-live strong em{font-style:normal;color:#ffc750;margin:0 4px}
 .pb-trn-livedot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff3b4e;margin-right:6px;animation:pb-trn-blink 1s steps(2,end) infinite}
 @keyframes pb-trn-blink{50%{opacity:.25}}
+
+/* Móvil en vertical: la parte superior del torneo (título, aviso, directo, campeón, cuenta atrás) ocupa menos y no se desordena. */
+@media (orientation:portrait) and (max-width:620px){
+  .pb-trn-page{padding-top:44px}
+  .pb-trn-scroll{gap:8px}
+  .pb-trn-scroll>.pb-panel-title{margin-bottom:0;gap:1px;padding-right:2px}
+  .pb-trn-scroll>.pb-panel-title h2{font-size:20px}
+  .pb-trn-exhibit{margin:0;padding:6px 9px;gap:1px;font-size:10.5px;line-height:1.25;border-width:1px}
+  .pb-trn-champ-strip{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"icon label btn" ". name btn";align-items:center;column-gap:6px;row-gap:1px;font-size:10px;line-height:1.2;padding:5px 8px;background:#0f2144;border:1px solid #3f5f86;border-radius:4px}
+  .pb-trn-champ-strip>svg{grid-area:icon}
+  .pb-trn-champ-strip>b{grid-area:name;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pb-trn-champ-strip>button{grid-area:btn;align-self:center;white-space:nowrap}
+  .pb-trn-count{gap:2px 7px}
+  .pb-trn-count small{flex:1 1 100%;order:0}
+  .pb-trn-count>svg{display:none}
+  .pb-trn-count b{font-size:24px}
+  .pb-trn-count i{margin-left:auto;font-size:10px}
+  .pb-trn-live{padding:8px 10px;gap:5px}
+  .pb-trn-live p{font-size:13px}
+  .pb-trn-live strong{font-size:13px;overflow-wrap:anywhere}
+  .pb-trn-live .pb-arcade-button,.pb-trn-live .pb-mini-button{width:100%;justify-content:center}
+  .pb-trn-live .pb-trn-note{font-size:9.5px;line-height:1.2;color:#8fb0cc}
+}
