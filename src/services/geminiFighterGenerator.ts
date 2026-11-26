@@ -1,14 +1,16 @@
+import { getLang } from '../i18n';
 import { FighterDesignSchema, FighterProfile } from '../types/fighter';
 import { processPortrait, processSpriteSheet, resizePhotoForGemini } from '../engine/SpriteProcessor';
 import { buildAnalysisPrompt, buildPortraitPrompt, buildSpritePrompt, needsProjectileSprite } from './fighterPrompts';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const FIGHTER_RESPONSE_SCHEMA = {
+const L = () => (getLang() === 'en' ? 'English' : 'Spanish');
+const fighterResponseSchema = () => ({
   type: 'OBJECT',
   properties: {
     fighterName: { type: 'STRING', description: 'Short uppercase arcade name, max 16 chars' },
-    subtitle: { type: 'STRING', description: 'Catchy Spanish arcade title, max 24 chars' },
+    subtitle: { type: 'STRING', description: `Catchy ${L()} arcade title, max 24 chars` },
     archetype: {
       type: 'STRING',
       enum: ['RUSHDOWN', 'GRAPPLER_TANK', 'ZONER_MAGE', 'TRICKSTER', 'SHOTO_BALANCED'],
@@ -36,7 +38,7 @@ const FIGHTER_RESPONSE_SCHEMA = {
     },
     traitDescription: {
       type: 'STRING',
-      description: 'Short explanation in Spanish of how the passive trait works in battle.',
+      description: `Short explanation in ${L()} of how the passive trait works in battle.`,
     },
     moveset: {
       type: 'OBJECT',
@@ -178,7 +180,7 @@ const FIGHTER_RESPONSE_SCHEMA = {
     'visualDescriptionForSprite',
     'animationDirection',
   ],
-};
+});
 
 
 const TEXT_MODEL = 'gemini-2.5-flash';
@@ -283,7 +285,7 @@ async function requestGemini(apiKey: string, model: string, body: unknown): Prom
 export async function analyzeCreatorPhoto(apiKey: string, photo: CreatorPhoto, nameHint?: string): Promise<FighterDesignSchema> {
   const result = await requestGemini(apiKey, TEXT_MODEL, {
     contents: [{ role: 'user', parts: [{ text: buildAnalysisPrompt(nameHint) }, { inlineData: { mimeType: photo.mimeType, data: photo.base64 } }] }],
-    generationConfig: { temperature: 0.8, responseMimeType: 'application/json', responseSchema: FIGHTER_RESPONSE_SCHEMA },
+    generationConfig: { temperature: 0.8, responseMimeType: 'application/json', responseSchema: fighterResponseSchema() },
   });
   const text = result?.candidates?.[0]?.content?.parts?.map((p: {text?:string}) => p.text || '').join('');
   if (!text) throw new Error('Gemini no devolvió el JSON de diseño. Puedes pegarlo manualmente.');

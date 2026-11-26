@@ -34,7 +34,7 @@ const design={
 const base={...design,fighterName:'RUINA REX',stats:{hp:25,speed:25,power:25,technique:25},
  id:'custom_123',isPreset:false,createdAt:1700000000000,
  portraitDataUrl:'data:image/png;base64,YWJj',spriteSheetDataUrl:'data:image/png;base64,YWJj'};
-const prompt=loadService('src/services/ultimatePrompts.ts',{'./geminiFighterGenerator':{parseFighterDesignJson:d=>d}});
+const prompt=loadService('src/services/ultimatePrompts.ts',{'../i18n':{getLang:()=>'es'},'./geminiFighterGenerator':{parseFighterDesignJson:d=>d}});
 test('Unlocked when 1000 historical cups or 15 wins; no drops after losing trophies',()=>{
   assert.equal(prompt.ultimateUnlocked(null),false);
   assert.equal(prompt.ultimateUnlocked({best_trophies:999,wins:14}),false);

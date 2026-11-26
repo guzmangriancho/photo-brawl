@@ -8,10 +8,24 @@ export function getLang(): Lang {
   try { return localStorage.getItem(KEY) === 'en' ? 'en' : 'es'; } catch { return 'es'; }
 }
 
-/** Saves the choice and reloads so every screen (and the canvas) starts in that language. */
+const listeners = new Set<() => void>();
+export function subscribeLang(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; }
+
+/** Saves the choice and applies it live (no reload, so an open room, match or draft is never lost). */
 export function setLang(lang: Lang) {
   try { localStorage.setItem(KEY, lang); } catch { /* storage blocked: the choice cannot persist */ }
-  location.reload();
+  applyLang();
+  listeners.forEach(fn => fn());
+}
+
+/** Names typed or generated for fighters (and their moves) must never be translated. */
+const protectedNames = new Set<string>();
+export function protectNames(names: Iterable<string | undefined | null>) {
+  for (const n of names) {
+    const v = typeof n === 'string' ? n.trim().toLowerCase() : '';
+    if (v) protectedNames.add(v);
+  }
+  cache.clear();
 }
 
 const lower = new Map<string, string>();
@@ -39,6 +53,7 @@ const cache = new Map<string, string>();
 /** Translates a Spanish UI string to English. Unknown text (fighter names, user text) is returned unchanged. */
 export function translate(text: string): string {
   if (!text || !/[A-Za-zÁÉÍÓÚáéíóúñÑ]{2}/.test(text)) return text;
+  if (protectedNames.has(text.trim().toLowerCase())) return text;
   const hit = cache.get(text);
   if (hit !== undefined) return hit;
   const lead = text.match(/^\s*/)![0];
@@ -126,37 +141,64 @@ function walk(root: Node) {
   }
 }
 
-/** Call once at startup. Does nothing in Spanish. */
-export function installI18n() {
-  if (getLang() !== 'en') return;
-  document.documentElement.lang = 'en';
-  document.title = translate(document.title);
+function restore(root: Node) {
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  let n: Node | null = tw.currentNode;
+  while (n) {
+    if (n.nodeType === Node.TEXT_NODE) {
+      const orig = textOrig.get(n);
+      if (orig !== undefined && translate(orig) === (n as Text).data) (n as Text).data = orig;
+    } else if (n.nodeType === Node.ELEMENT_NODE) {
+      const rec = attrOrig.get(n as Element);
+      if (rec) for (const a of Object.keys(rec)) {
+        if (translate(rec[a]) === (n as Element).getAttribute(a)) (n as Element).setAttribute(a, rec[a]);
+      }
+    }
+    n = tw.nextNode();
+  }
+}
 
-  // Native dialogs.
+let observer: MutationObserver | null = null;
+function applyLang() {
+  const en = getLang() === 'en';
+  document.documentElement.lang = en ? 'en' : 'es';
+  if (!document.body) return;
+  if (en && !observer) {
+    walk(document.body);
+    observer = new MutationObserver(muts => {
+      for (const m of muts) {
+        if (m.type === 'characterData') doText(m.target as Text);
+        else if (m.type === 'attributes') doAttrs(m.target as Element);
+        else m.addedNodes.forEach(walk);
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  } else if (!en && observer) {
+    observer.disconnect(); observer = null;
+    restore(document.body);
+  }
+  document.title = en ? translate(ES_TITLE) : ES_TITLE;
+}
+
+const ES_TITLE = typeof document !== 'undefined' ? document.title : '';
+
+/** Call once at startup. Spanish stays untouched until English is chosen. */
+export function installI18n() {
+  // Native dialogs: translated only while English is selected.
   const w = window as any;
   const alert0 = w.alert.bind(w), confirm0 = w.confirm.bind(w), prompt0 = w.prompt.bind(w);
-  w.alert = (m?: any) => alert0(translate(String(m ?? '')));
-  w.confirm = (m?: any) => confirm0(translate(String(m ?? '')));
-  w.prompt = (m?: any, d?: any) => prompt0(translate(String(m ?? '')), d);
+  w.alert = (m?: any) => alert0(t(String(m ?? '')));
+  w.confirm = (m?: any) => confirm0(t(String(m ?? '')));
+  w.prompt = (m?: any, d?: any) => prompt0(t(String(m ?? '')), d);
 
   // Canvas banners and floating combat text are drawn with fillText/strokeText.
   const proto = CanvasRenderingContext2D.prototype as any;
   for (const fn of ['fillText', 'strokeText']) {
     const orig = proto[fn];
     proto[fn] = function (this: CanvasRenderingContext2D, text: string, ...rest: any[]) {
-      return orig.call(this, typeof text === 'string' ? translate(text) : text, ...rest);
+      return orig.call(this, typeof text === 'string' ? t(text) : text, ...rest);
     };
   }
 
-  const start = () => {
-    walk(document.body);
-    new MutationObserver(muts => {
-      for (const m of muts) {
-        if (m.type === 'characterData') doText(m.target as Text);
-        else if (m.type === 'attributes') doAttrs(m.target as Element);
-        else m.addedNodes.forEach(walk);
-      }
-    }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
-  };
-  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  if (document.body) applyLang(); else document.addEventListener('DOMContentLoaded', applyLang);
 }

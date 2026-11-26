@@ -1,3 +1,4 @@
+import { getLang } from '../i18n';
 import type { FighterDesignSchema, SpecialNeutralMechanic, AttackAnimationDirection } from '../types/fighter';
 
 const PROJECTILE_MECHANICS: SpecialNeutralMechanic[] = [
@@ -8,21 +9,22 @@ export function needsProjectileSprite(mechanic: SpecialNeutralMechanic): boolean
 }
 
 export function buildAnalysisPrompt(name?: string): string {
+  const LANG = getLang() === 'en' ? 'ENGLISH' : 'SPANISH';
   return `PHOTO BRAWL — DESIGN BRIEF (attach the ORIGINAL PHOTO to this prompt).
 You are a professional fighting-game character designer, animator, and balance designer. Build a distinctive, playable 2D 16-bit arcade fighter inspired by visible details in the attached photo, not a generic character. Describe ONLY visible facial features, hairstyle, clothing, colors and accessories; do not infer sensitive characteristics, identity or personality from the photo. Turn motifs of the outfit or visible objects into a fun fictional combat theme.
 Return ONLY a complete JSON object, no Markdown, satisfying the following EXACT CURRENT GAME DATA FORMAT (not the legacy 4-move format):
 {
- "fighterName":"MAX 16 CHARS", "subtitle":"SHORT SPANISH SUBTITLE", "archetype":"RUSHDOWN|GRAPPLER_TANK|ZONER_MAGE|TRICKSTER|SHOTO_BALANCED",
+ "fighterName":"MAX 16 CHARS", "subtitle":"SHORT ${LANG} SUBTITLE", "archetype":"RUSHDOWN|GRAPPLER_TANK|ZONER_MAGE|TRICKSTER|SHOTO_BALANCED",
  "stats":{"hp":25,"speed":25,"power":25,"technique":25},
  "passiveTrait":"DOUBLE_JUMP|AIR_DASH|HEAVY_ARMOR_STARTUP|FAST_METER_GAIN|LONG_REACH_LIMBS|VAMPIRIC_ON_SPECIAL",
- "traitDescription":"Spanish explanation of chosen passive gameplay effect",
+ "traitDescription":"${LANG} explanation of chosen passive gameplay effect",
  "moveset":{
-   "lightNormal":{"name":"SPANISH NAME","style":"FAST_JAB|LOW_KICK|QUICK_PALM"},
-   "heavyNormal":{"name":"SPANISH NAME","style":"OVERHEAD_SMASH|SWEEP_TRIP|LONG_ROUNDHOUSE|LAUNCHER_UPPER"},
-   "specialNeutral":{"name":"SPANISH NAME","mechanic":"STRAIGHT_FIREBALL|ARCING_LOB_OBJECT|GROUND_SHOCKWAVE|BOOMERANG_RETURN|TRAP_MINE_DROP|SHORT_SHOTGUN_BLAST","visualAction":"ENGLISH VISUAL DESCRIPTION","primaryHex":"#55EEFF"},
-   "specialForward":{"name":"SPANISH NAME","mechanic":"ARMORED_SHOULDER_DASH|TELEPORT_BEHIND|COMMAND_GRAB_SLAM|SLIDE_LOW_KICK|SPINNING_ADVANCE","visualAction":"ENGLISH VISUAL DESCRIPTION"},
-   "specialUp":{"name":"SPANISH NAME","mechanic":"INVINCIBLE_UPPERCUT|DIVE_KICK_FROM_AIR|VERTICAL_TORNADO|HIGH_LEAP_STOMP","visualAction":"ENGLISH VISUAL DESCRIPTION"},
-   "ultimateSuper":{"name":"SPANISH NAME","mechanic":"GIANT_BEAM_LASER|MULTI_HIT_RUSH_COMBO|METEOR_SCREEN_DROP|OMEGA_SUPLEX","visualAction":"ENGLISH VISUAL DESCRIPTION"}
+   "lightNormal":{"name":"${LANG} NAME","style":"FAST_JAB|LOW_KICK|QUICK_PALM"},
+   "heavyNormal":{"name":"${LANG} NAME","style":"OVERHEAD_SMASH|SWEEP_TRIP|LONG_ROUNDHOUSE|LAUNCHER_UPPER"},
+   "specialNeutral":{"name":"${LANG} NAME","mechanic":"STRAIGHT_FIREBALL|ARCING_LOB_OBJECT|GROUND_SHOCKWAVE|BOOMERANG_RETURN|TRAP_MINE_DROP|SHORT_SHOTGUN_BLAST","visualAction":"ENGLISH VISUAL DESCRIPTION","primaryHex":"#55EEFF"},
+   "specialForward":{"name":"${LANG} NAME","mechanic":"ARMORED_SHOULDER_DASH|TELEPORT_BEHIND|COMMAND_GRAB_SLAM|SLIDE_LOW_KICK|SPINNING_ADVANCE","visualAction":"ENGLISH VISUAL DESCRIPTION"},
+   "specialUp":{"name":"${LANG} NAME","mechanic":"INVINCIBLE_UPPERCUT|DIVE_KICK_FROM_AIR|VERTICAL_TORNADO|HIGH_LEAP_STOMP","visualAction":"ENGLISH VISUAL DESCRIPTION"},
+   "ultimateSuper":{"name":"${LANG} NAME","mechanic":"GIANT_BEAM_LASER|MULTI_HIT_RUSH_COMBO|METEOR_SCREEN_DROP|OMEGA_SUPLEX","visualAction":"ENGLISH VISUAL DESCRIPTION"}
  },
  "visualDescriptionForSprite":"DETAILED ENGLISH visual description of photo's actual visible outfit, face and accessories",
  "animationDirection":{

@@ -1,6 +1,7 @@
 import type { FighterDesignSchema, FighterProfile } from '../types/fighter';
 
 /** Visual prestige only: identical ruleset and a competitive budget of 100 points. */
+import { getLang } from '../i18n';
 export const ULTIMATE_CUPS = 1000;
 export const ULTIMATE_WINS = 15;
 
@@ -15,7 +16,7 @@ export function buildUltimateBrief(base:FighterProfile):string {
   return `PHOTO BRAWL — ULTIMATE / DESPERTAR, EVOLUCIÓN 16-BIT.
 Adjunta el RETRATO BASE. Conserva el rostro, pelo, silueta, paleta emblemática y tipo de combate del personaje.
 Devuelve SOLO JSON sin Markdown, con EXACTAMENTE las mismas claves y estructura que BASE FIGHTER JSON.
-Crea una evolución visual memorable con ojos brillantes, aura de píxeles opacos, vestimenta evolucionada y ataques con estética de jefe arcade. Nombres y subtítulos en español, descripciones visuales en inglés.
+Crea una evolución visual memorable con ojos brillantes, aura de píxeles opacos, vestimenta evolucionada y ataques con estética de jefe arcade. ${getLang()==='en'?'Names and subtitles in English':'Nombres y subtítulos en español'}, descripciones visuales en inglés.
 REGLAS COMPETITIVAS OBLIGATORIAS: exactamente 100 puntos (NO 105); cada stat entero 15..35. Puedes redistribuirlos. Conserva EXACTAMENTE archetype y passiveTrait, los seis valores mecánicos (lightNormal.style, heavyNormal.style, specialNeutral.mechanic, specialForward.mechanic, specialUp.mechanic, ultimateSuper.mechanic) y la strikingLimb de light y heavy cuando esté definida. Puedes evolucionar fighterName (máximo 16 caracteres), subtitle, nombres de técnicas, color del proyectil, visualAction, traitDescription y animationDirection visual. No inventes efectos jugables: cambia la apariencia, no el daño ni las ventanas de invulnerabilidad. Mantén el sprite mirando a la derecha.
 BASE FIGHTER JSON:
 ${JSON.stringify(ultimateBaseJson(base),null,2)}`;

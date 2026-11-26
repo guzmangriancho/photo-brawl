@@ -5,7 +5,7 @@ import {
   ShieldCheck, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Pencil,
   FastForward, Trophy, UsersRound, Volume2, VolumeX, X, Zap, Globe2, Wifi, Gift, Coins, Upload, ClipboardPaste, UserPlus,
 } from 'lucide-react';
-import { getLang, setLang } from '../i18n';
+import { getLang, setLang, subscribeLang } from '../i18n';
 import type { CpuDifficulty, FighterProfile, GameMode, StageId } from '../types/fighter';
 import { getPresetFighters } from '../data/presetFighters';
 import { FighterCreator } from './FighterCreator';
@@ -196,6 +196,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({ fighters, onFi
   const [editPasteFallback,setEditPasteFallback]=useState<'PORTRAIT'|'SPRITE'|null>(null);
   const [editPasteTarget,setEditPasteTarget]=useState<HTMLDivElement|null>(null);
   const [renameNotice,setRenameNotice]=useState('');
+  const [, setLangTick] = useState(0);
+  useEffect(() => subscribeLang(() => setLangTick(n => n + 1)), []);
   const [muted, setMuted] = useState(() => { try { const saved = localStorage.getItem('pb-sound-muted'); if (saved !== null) soundFX.muted = saved === 'true'; } catch {} return soundFX.muted; });
   const [controlOpacity, setControlOpacity] = useState(() => { try { return Math.max(35, Math.min(100, Number(localStorage.getItem('pb-control-opacity')) || 80)); } catch { return 80; } });
   const [stickFixed, setStickFixed] = useState(() => { try { return localStorage.getItem('pb-stick-fixed') === 'true'; } catch { return false; } });
