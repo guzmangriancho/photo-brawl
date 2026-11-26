@@ -40,7 +40,7 @@ function harness(initialFighters){
     '../services/publishedFighters':{ensureRankedOwnFighter:async()=>{}},
     './FighterCreator':{FighterCreator},'./UltimateWorkshop':{UltimateWorkshop:stubComponent('UltimateWorkshop')},
     '../services/ultimateForms':{applyUltimate:(base)=>base,loadUltimate:async()=>null,ultimateProgress:async()=>({unlocked:false})},
-    './OnlineLobby':{OnlineLobby},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./FighterTransfers':{FighterTransfers},'./PwaInstallPrompt':{PwaInstallPrompt},
+    './OnlineLobby':{OnlineLobby},'./PublishedFighterPicker':{PublishedFighterPicker:()=>null},'./CommunityPage':{CommunityPage},'./AccountPanel':{AccountPanel},'./FighterTransfers':{FighterTransfers},'./PwaInstallPrompt':{PwaInstallPrompt},
     '../network/OnlineSession':{OnlineSession:{restore:async()=>null}},
     '../services/creatorDraftService':{markCreatorOpen:()=>{},wasCreatorOpen:()=>false},
     '../services/storageService':{deleteCustomFighter:async()=>{},renameCustomFighter:async()=>{},getGeminiApiKey:()=>'',setGeminiApiKey:()=>{}},
