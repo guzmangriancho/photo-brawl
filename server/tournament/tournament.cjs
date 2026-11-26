@@ -262,6 +262,37 @@ async function saveTactics(accountId,tactics){
   return {tactics:clean};
 }
 
+// ---------- Directo del propio combate ----------
+/** El directo arranca LIVE_LEAD_MS después de que el servidor dejara resuelto el combate (resolved_at): es un ancla común a los dos
+ *  contendientes que no depende de cuánto tarde la simulación. Dura lo que dura de verdad el combate (frames/60). */
+const LIVE_LEAD_MS=Number(process.env.TOURNAMENT_LIVE_LEAD_MS||30000);
+const LIVE_GRACE_MS=15000;
+/** Solo para un inscrito, solo SU combate resuelto más reciente, y solo mientras dura su ventana de emisión. Nunca devuelve ganador, marcador
+ *  ni motivo de final. Las tácticas de ambos viajan porque el motor las necesita para recrear el combate; la interfaz no muestra las del rival. */
+async function liveFor(accountId){
+  const out={now:new Date().toISOString(),live:null};
+  const cand=[];
+  const [live]=await rest(`tournaments?select=*&status=${LIVE}&limit=1`);
+  const [last]=await rest('tournaments?select=*&status=eq.finished&order=finished_at.desc&limit=1');
+  if(live)cand.push(live);
+  if(last)cand.push(last);
+  for(const t of cand){
+    const [me]=await rest(`tournament_entries?select=id&tournament_id=eq.${t.id}&account_id=eq.${accountId}&limit=1`);
+    if(!me)continue;
+    const [m]=await rest(`tournament_matches?select=*&tournament_id=eq.${t.id}&status=eq.resolved&or=(entry_a.eq.${me.id},entry_b.eq.${me.id})&order=round_no.desc&limit=1`);
+    if(!m||!m.resolved_at||!m.entry_a||!m.entry_b||!(m.frames>0))continue;
+    const anchor=new Date(m.resolved_at).getTime()+LIVE_LEAD_MS;
+    const endsAt=anchor+Math.ceil(m.frames*1000/60);
+    if(Date.now()>endsAt+LIVE_GRACE_MS)continue;
+    const ents=await entriesByIds([m.entry_a,m.entry_b]);
+    out.live={matchId:m.id,round:m.round_no,tournamentId:t.id,youAre:m.entry_a===me.id?'a':'b',anchorMs:anchor,endsAtMs:endsAt,frames:m.frames,
+      stage:t.stage,difficulty:t.difficulty,simVersion:m.sim_version,engineVersion:m.engine_version,roundsToWin:m.rounds_to_win||2,
+      a:publicEntry(ents.get(m.entry_a)),b:publicEntry(ents.get(m.entry_b)),tacticsA:normalizeCpuTactics(m.tactics_a),tacticsB:normalizeCpuTactics(m.tactics_b)};
+    break;
+  }
+  return out;
+}
+
 // ---------- Programador ----------
 let ticking=false,lastRun=0,lastResult={ok:true,idle:true};
 const MIN_GAP_MS=Number(process.env.TOURNAMENT_MIN_GAP_MS||5000);
@@ -385,6 +416,7 @@ async function handleHttp(req,res,{corsOrigin}){
       return send(200,await addPublicToOpen(accountId,await readBody(req))),true;
     }
     if(url.pathname==='/tournament/tactics'&&req.method==='POST')return send(200,await saveTactics(accountId,(await readBody(req)).tactics)),true;
+    if(url.pathname==='/tournament/live'&&req.method==='GET')return send(200,await liveFor(accountId)),true;
     if(url.pathname==='/tournament/match'&&req.method==='GET')return send(200,await matchDetail(url.searchParams.get('id')||'')),true;
     if(url.pathname==='/tournament/bracket'&&req.method==='GET'){
       const tid=url.searchParams.get('tournament')||'';if(!uuid.test(tid))throw new Error('Torneo no válido.');
@@ -399,4 +431,4 @@ async function handleHttp(req,res,{corsOrigin}){
   }
   return true;
 }
-module.exports={createExhibition,addPublicToOpen,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,matchDetail,bracket,join,saveTactics};
+module.exports={createExhibition,addPublicToOpen,configured:()=>configured,handleHttp,exportTournament,exportSecretOk,tick,startTimer,stateFor,liveFor,matchDetail,bracket,join,saveTactics};
