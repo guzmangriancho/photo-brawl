@@ -306,7 +306,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
       {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
 
       {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{veilId && lv?.tournamentId === state.previous.id ? '(TAPADO HASTA TU DIRECTO)' : state.previous.champion.name}</b>
-        {prev && shownRounds(prev) > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>VER CUADRO</button>}</div>}
+        {prev && shownRounds(prev) > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>CUADRO ANTERIOR</button>}</div>}
 
       {!t && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={30} /><p>NO HAY TORNEO ABIERTO</p><small>Cuando termine uno, el siguiente se abre solo. Vuelve más tarde.</small></section>}
 

@@ -529,6 +529,7 @@ EMPIEZA EN => Starts in
 VER RESULTADO => See result
 SALTAR Y VER RESULTADO => Skip and see result
 VER CUADRO => View bracket
+CUADRO ANTERIOR => Previous bracket
 NO HAY TORNEO ABIERTO => No tournament open
 INSCRITOS · SIN LÍMITE DE PLAZAS => Entrants · No limit on spots
 CAMBIAR DE LUCHADOR => Change fighter
