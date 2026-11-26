@@ -2,7 +2,11 @@
 type Rule = [RegExp, (...g: string[]) => string];
 const team = (s: string) => (s.toUpperCase() === 'ROJO' ? 'RED' : 'BLUE');
 
+const DAYS: Record<string, string> = { LUN: 'MON', MAR: 'TUE', 'MIÉ': 'WED', JUE: 'THU', VIE: 'FRI', 'SÁB': 'SAT', DOM: 'SUN' };
+
 export const EN_RULES: Rule[] = [
+  [/^TORNEO #(\w+)$/, a => `TOURNAMENT #${a}`],
+  [/^(LUN|MAR|MIÉ|JUE|VIE|SÁB|DOM)\.?, (\d\d:\d\d)$/, (d, h) => `${DAYS[d]}, ${h}`],
   [/^(\d+) monedas, (\d+) de (\d+) slots$/, (a, b, c) => `${a} coins, ${b} of ${c} slots`],
   [/^(\d+) milisegundos de ping$/, a => `${a} ms ping`],
   [/^(.+) · ¡VICTORIA!$/, a => `${a} · VICTORY!`],
