@@ -5,6 +5,12 @@ const team = (s: string) => (s.toUpperCase() === 'ROJO' ? 'RED' : 'BLUE');
 const DAYS: Record<string, string> = { LUN: 'MON', MAR: 'TUE', 'MIÉ': 'WED', JUE: 'THU', VIE: 'FRI', 'SÁB': 'SAT', DOM: 'SUN' };
 
 export const EN_RULES: Rule[] = [
+  [/^(\s*)LIBRES$/, a => `${a}Free`],
+  [/^CREAR LUCHADOR \($/, () => 'CREATE FIGHTER ('],
+  [/^CREAR LUCHADOR \((\d+) LIBRES?\)$/, a => `CREATE FIGHTER (${a} FREE)`],
+  [/^VICTORIA (.+)$/, a => `VICTORY ${a}`],
+  [/^DERROTA (.+)$/, a => `DEFEAT ${a}`],
+  [/^(\d)\/(\d) · (COMPROBANDO SINCRONIZACIÓN|RECUPERANDO LA NUBE)\.*…?$/, (a, b, c) => `${a}/${b} · ${c.startsWith('COMPR') ? 'CHECKING SYNC' : 'RESTORING FROM THE CLOUD'}`],
   [/^Colección protegida: (\d+) copiados y (\d+) ya presentes en tu nube privada\.$/, (a, b) => `Collection protected: ${a} copied and ${b} already in your private cloud.`],
   [/^Copia preparada \((\d+) luchadores, con sprites y retratos\)\. Guarda el archivo en un lugar seguro\.$/, a => `Backup ready (${a} fighters, with sprites and portraits). Keep the file somewhere safe.`],
   [/^Copiando (\d+)\/(\d+) luchadores a tu nube privada…$/, (a, b) => `Copying ${a}/${b} fighters to your private cloud…`],
