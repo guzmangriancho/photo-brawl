@@ -373,3 +373,8 @@
 
 /* V56 · Añadir amigos desde el perfil del rival */
 .pb-community-friend-cta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:5px 0}.pb-community-friend-cta button{display:inline-flex;align-items:center;gap:6px;background:#234d53;border:2px solid #71dfb5;color:#edfff6;padding:6px 9px;border-radius:0;font:800 13px Pixelify Sans,sans-serif}.pb-community-friend-cta small{color:#ffe29d;font:800 12px Oxanium,sans-serif}
+
+/* i18n: tab labels (FIGHTERS / LUCHADORES) must never split mid-word on narrow phones. */
+@media(max-width:620px){
+  .pb-community-page .pb-rank-modes button{font-size:7px;padding:3px 2px;overflow-wrap:normal;word-break:normal;hyphens:none}
+}
