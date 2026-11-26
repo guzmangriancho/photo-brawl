@@ -840,4 +840,5 @@ Buscando luchadores antiguos => Looking for old fighters
 Comprobando los luchadores guardados => Checking saved fighters
 Para configurar y jugar, primero crea tu luchador desde la tarjeta de la izquierda => To set up and play, first create your fighter from the card on the left
 MIS AMIGOS => My friends
+(opcional) => (optional)
 `;
