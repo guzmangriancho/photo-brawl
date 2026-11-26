@@ -62,3 +62,7 @@
   background: #eab308;
   border: 2px solid #09090b;
 }
+
+.pb-lang-switch{display:flex;gap:4px}
+.pb-lang-switch button{font:inherit;font-size:11px;padding:6px 10px;border:2px solid #3a3f66;background:#14162b;color:#c9cdf2;cursor:pointer;letter-spacing:.04em}
+.pb-lang-switch button.is-active{background:#ffd23f;color:#14162b;border-color:#ffd23f}
