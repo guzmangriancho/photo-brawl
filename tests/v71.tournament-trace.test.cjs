@@ -36,3 +36,26 @@ test('es determinista en física y sonidos (solo las partículas decorativas usa
   assert.deepEqual(strip(x), strip(y));
   assert.deepEqual(x.sounds, y.sounds);
 });
+
+test('reproducir la traza con applyNetworkState deja el mismo estado visible que el combate real (vida, barras, posiciones, efectos)', () => {
+  const { FightEngine } = sim.engine('e3');
+  const norm = tactics.normalizeCpuTactics;
+  const t = trace.record('e3', A, B, TA, TB, 'SKI_RESORT', 'NORMAL', { roundsToWin: 1 });
+  const e = new FightEngine(A, B, 'CPU_VS_CPU', 'SKI_RESORT', 'NORMAL', { p1: norm({}), p2: norm({}) }, 1);
+  let cur = {};
+  const full = t.states.map(d => (cur = { ...cur, ...JSON.parse(JSON.stringify(d)) }));
+  const ref = new FightEngine(A, B, 'CPU_VS_CPU', 'SKI_RESORT', 'NORMAL', { p1: norm(TA), p2: norm(TB) }, sim.fightSeed(3, A, B, 'SKI_RESORT', 'NORMAL', TA, TB, norm, 1));
+  ref.roundsToWin = 1; ref.beginVersusIntro();
+  let maxP = 0;
+  for (let i = 1; i <= t.frames; i++) {
+    ref.step();
+    if (i % 97 && i !== t.frames) continue; // muestreo: cada 97 frames y el último
+    e.applyNetworkState({ ...full[i - 1], frame: i });
+    const x = ref.getSnapshot(), y = e.getSnapshot();
+    assert.deepEqual(y, x, 'snapshot frame ' + i);
+    assert.equal(e.p1.x, ref.p1.x); assert.equal(e.p2.y, ref.p2.y);
+    maxP = Math.max(maxP, e.particles.length);
+  }
+  assert.equal(e.roundOver, true);
+  assert.ok(maxP > 0, 'los efectos (partículas) llegan en la reproducción');
+});

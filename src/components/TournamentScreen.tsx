@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Clock3, Crown, Loader2, Play, Swords, Trophy, Users } from 'lucide-react';
 import type { CpuDifficulty, FighterProfile, StageId } from '../types/fighter';
-import type { CpuTactics } from '../engine/cpuTactics';
+import { DEFAULT_CPU_TACTICS, type CpuTactics } from '../engine/cpuTactics';
 import { REPLAYABLE_SIM_VERSIONS } from '../engine/fightSeed';
 import { CpuTacticsPanel } from './CpuTacticsPanel';
 import { TournamentVideoPanel } from './TournamentVideoPanel';
 import {
-  fetchTournamentBracket, fetchTournamentLive, fetchTournamentMatch, fetchTournamentState, joinTournament, liveSeen, markLiveSeen, saveTournamentTactics, toFighterProfile,
-  type BracketMatch, type TournamentFighter, type TournamentLive, type TournamentMatchView, type TournamentState,
+  fetchTournamentBracket, fetchLiveTrace, fetchTournamentLive, fetchTournamentMatch, fetchTournamentState, joinTournament, liveSeen, markLiveSeen, saveTournamentTactics, toFighterProfile,
+  type BracketMatch, type TournamentFighter, type LiveTrace, type TournamentLive, type TournamentMatchView, type TournamentState,
 } from '../services/tournamentService';
 import './tournament.css';
 
-export interface TournamentReplayStart { p1: FighterProfile; p2: FighterProfile; stage: StageId; difficulty: CpuDifficulty; tactics: { p1: CpuTactics; p2: CpuTactics }; simVersion: number; roundsToWin: number; live?: { anchorMs: number; offsetMs: number; frames: number; matchId: string } }
+export interface TournamentReplayStart { p1: FighterProfile; p2: FighterProfile; stage: StageId; difficulty: CpuDifficulty; tactics: { p1: CpuTactics; p2: CpuTactics }; simVersion: number; roundsToWin: number; live?: { anchorMs: number; offsetMs: number; frames: number; matchId: string; trace?: LiveTrace } }
 interface Props { fighters: FighterProfile[]; onWatch: (start: TournamentReplayStart) => void }
 
 const BRACKET_KEY = 'pb-tournament-bracket';
@@ -172,9 +172,9 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     if (liveBusy) return;
     setLiveBusy(true);
     try {
-      const [p1, p2] = await Promise.all([toFighterProfile(l.a), toFighterProfile(l.b)]);
+      const [p1, p2, trace] = await Promise.all([toFighterProfile(l.a), toFighterProfile(l.b), fetchLiveTrace(l.matchId)]);
       const offsetMs = liveInfo?.offset || 0;
-      onWatch({ p1, p2, stage: l.stage, difficulty: l.difficulty, tactics: { p1: l.tacticsA, p2: l.tacticsB }, simVersion: l.simVersion, roundsToWin: l.roundsToWin, live: { anchorMs: l.anchorMs, offsetMs, frames: l.frames, matchId: l.matchId } });
+      onWatch({ p1, p2, stage: l.stage, difficulty: l.difficulty, tactics: { p1: DEFAULT_CPU_TACTICS, p2: DEFAULT_CPU_TACTICS }, simVersion: l.simVersion, roundsToWin: l.roundsToWin, live: { anchorMs: l.anchorMs, offsetMs, frames: l.frames, matchId: l.matchId, trace } });
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : 'No se pudo abrir el directo.'); }
     finally { if (alive.current) setLiveBusy(false); }
   }, [liveBusy, liveInfo, onWatch]);

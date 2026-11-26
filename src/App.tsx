@@ -72,7 +72,7 @@ export function App() {
     tournamentReplay?:boolean;
     replaySimVersion?:number;
     roundsToWin?:number;
-    live?:{anchorMs:number;offsetMs:number;frames:number;matchId:string};
+    live?:{anchorMs:number;offsetMs:number;frames:number;matchId:string;trace?:import('./services/tournamentService').LiveTrace};
   } | null>(null);
   const [backToTournament,setBackToTournament]=useState(false);
 

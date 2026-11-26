@@ -18,6 +18,7 @@ import { cpuFightSeed } from '../engine/fightSeed';
 import { STAGE_ART } from '../data/stages';
 import type { OnlineSession } from '../network/OnlineSession';
 import type { NetworkState } from '../network/protocol';
+import type { LiveTrace } from '../services/tournamentService';
 import { MobileControls } from './MobileControls';
 import { RematchRoster } from './RematchRoster';
 import { VersusIntro } from './VersusIntro';
@@ -43,7 +44,7 @@ interface FightArenaProps {
   replaySimVersion?: number;
   roundsToWin?: number;
   /** Tu combate de torneo en directo: el reloj manda (anchorMs en hora del servidor + offsetMs), sin pausa, velocidad ni saltar. */
-  live?: { anchorMs: number; offsetMs: number; frames: number; onFinished: () => void };
+  live?: { anchorMs: number; offsetMs: number; frames: number; trace?: LiveTrace; onFinished: () => void };
   roster: FighterProfile[];
   onRematch:(profiles:FighterProfile[],stage?:StageId)=>void;
   /** CPU vs CPU: play the whole fight instantly and show the result. */
@@ -441,10 +442,23 @@ export const FightArena: React.FC<FightArenaProps> = ({
         // En directo manda el reloj del servidor: se avanza hasta el frame que toca (una pestaña dormida o una entrada tarde se ponen al día en silencio).
         const target = Math.floor((Date.now() + liveCfg.offsetMs - liveCfg.anchorMs) / FIXED_TIMESTEP);
         let behind = Math.min(target, liveCfg.frames + 1) - liveStepsRef.current;
-        const wasMuted = soundFX.muted;
-        if (behind > 12) soundFX.muted = true;
-        try { for (let g = 0; behind > 0 && g < 6000 && !engine.roundOver; g++, behind--) { engine.step(); liveStepsRef.current++; uiSyncCounter++; } }
-        finally { soundFX.muted = wasMuted; }
+        const tr = liveCfg.trace;
+        if (tr) {
+          // Traza del servidor: se pinta el estado del frame que toca y se lanzan los sonidos grabados (sin sonar en una puesta al día larga).
+          const to = Math.min(target, tr.states.length);
+          if (to > liveStepsRef.current) {
+            const quiet = to - liveStepsRef.current > 12;
+            const fx = soundFX as unknown as Record<string, unknown>;
+            if (!quiet) for (const [fr, name, args] of tr.sounds) if (fr > liveStepsRef.current && fr <= to && typeof fx[name] === 'function') { try { (fx[name] as (...a: unknown[]) => void)(...args); } catch { /* sonido opcional */ } }
+            engine.applyNetworkState({ ...(tr.states[to - 1] as unknown as NetworkState), frame: to });
+            liveStepsRef.current = to; uiSyncCounter += 2;
+          }
+        } else {
+          const wasMuted = soundFX.muted;
+          if (behind > 12) soundFX.muted = true;
+          try { for (let g = 0; behind > 0 && g < 6000 && !engine.roundOver; g++, behind--) { engine.step(); liveStepsRef.current++; uiSyncCounter++; } }
+          finally { soundFX.muted = wasMuted; }
+        }
         accumulator = 0;
       }
       while (accumulator >= FIXED_TIMESTEP) {

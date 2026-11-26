@@ -56,11 +56,19 @@ export const joinTournament = (fighterLocalId: string, instagram: string, videoC
   call<{ entryId: string }>('/tournament/join', { method: 'POST', body: { fighterLocalId, instagram, videoConsent } });
 export const saveTournamentTactics = (tactics: CpuTactics) =>
   call<{ tactics: CpuTactics }>('/tournament/tactics', { method: 'POST', body: { tactics } });
-/** Tu combate en directo: sin ganador ni marcador. Las tácticas de ambos viajan porque el motor las necesita, la interfaz no muestra las del rival. */
+/** Tu combate en directo: sin ganador ni marcador y SIN tácticas: el combate se pinta desde la traza de /tournament/live/trace. */
 export interface TournamentLive {
   matchId: string; round: number; tournamentId: string; youAre: 'a' | 'b'; anchorMs: number; endsAtMs: number; frames: number;
   stage: StageId; difficulty: CpuDifficulty; simVersion: number; engineVersion: string; roundsToWin: number;
-  a: TournamentFighter; b: TournamentFighter; tacticsA: CpuTactics; tacticsB: CpuTactics;
+  a: TournamentFighter; b: TournamentFighter; hasTrace?: boolean;
+}
+/** Traza de reproducción: s = deltas de estado por fotograma, x = sonidos [frame, método, argumentos]. */
+export interface LiveTrace { frames: number; states: Record<string, unknown>[]; sounds: [number, string, (number | string | boolean)[]][] }
+export async function fetchLiveTrace(matchId: string): Promise<LiveTrace> {
+  const r = await call<{ v: number; frames: number; s: Record<string, unknown>[]; x: LiveTrace['sounds'] }>('/tournament/live/trace?id=' + encodeURIComponent(matchId));
+  const states: Record<string, unknown>[] = []; let cur: Record<string, unknown> = {};
+  for (const d of r.s) { cur = { ...cur, ...d }; states.push(cur); }
+  return { frames: r.frames, states, sounds: r.x };
 }
 export const fetchTournamentLive = () => call<{ now: string; live: TournamentLive | null }>('/tournament/live');
 const LIVE_SEEN_KEY = 'pb_trn_live_seen';
