@@ -311,7 +311,10 @@ async function liveTraceFor(accountId,matchId){
   const pa={...a.fighter_data,id:'a',spriteSheetDataUrl:'',portraitDataUrl:''},pb={...b.fighter_data,id:'b',spriteSheetDataUrl:'',portraitDataUrl:''};
   const {tournamentId}=info.live;
   const [t]=await rest(`tournaments?select=*&id=eq.${tournamentId}&limit=1`);
-  const body=require('./trace.cjs').encode(require('./trace.cjs').record(m.engine_version,pa,pb,normalizeCpuTactics(m.tactics_a),normalizeCpuTactics(m.tactics_b),t.stage,t.difficulty,{roundsToWin:m.rounds_to_win||2}));
+  const rec=require('./trace.cjs').record(m.engine_version,pa,pb,m.tactics_a,m.tactics_b,t.stage,t.difficulty,{roundsToWin:m.rounds_to_win||2});
+  // Falla cerrado: si lo que se emitiría no dura lo mismo que el combate oficial guardado, no se emite nada.
+  if(rec.frames!==m.frames)return null;
+  const body=require('./trace.cjs').encode(rec);
   traceCache.set(matchId,body);
   if(traceCache.size>20)traceCache.delete(traceCache.keys().next().value);
   return body;

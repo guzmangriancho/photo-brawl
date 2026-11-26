@@ -671,7 +671,7 @@ export const FightArena: React.FC<FightArenaProps> = ({
               <section className="pb-frame arena-cpu-result-card" role="dialog" aria-label="Resultado CPU vs CPU">
                 <h2>{snapshot.winnerName ? `¡GANA ${snapshot.winnerName}!` : '¡EMPATE!'}</h2>
                 <span>RONDA {snapshot.roundNumber} · {snapshot.p1RoundWins} - {snapshot.p2RoundWins} · {stageLabel}</span>
-                <small>Mismas tácticas, mismo combate.</small>
+                {!live && <small>Mismas tácticas, mismo combate.</small>}
                 <div className="arena-cpu-result-buttons">
                   {simulate && onWatch && <button type="button" className="arena-primary-button" onClick={onWatch}><Play size={17} fill="currentColor" /> VER COMBATE</button>}
                   {!tournamentReplay && <button type="button" className="arena-primary-button" onClick={() => onRematch([p1Profile, p2Profile])}><Repeat2 size={17} /> REPETIR</button>}
