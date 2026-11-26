@@ -16,21 +16,21 @@
 @media (max-height:410px){.pb-published-picker{gap:3px}.pb-published-picker>input{height:26px;min-height:26px}}
 
 /* Single Player: elegir luchador de la comunidad como rival o como tu luchador (solo esa partida). */
-.pb-rival-source{display:flex;gap:4px;margin:4px 0;flex-shrink:0}
-.pb-rival-source button{flex:1;min-width:0;padding:4px 6px;background:#0e2545;border:2px solid #54739d;color:#e4f1ff;font:800 clamp(9px,1.1vw,12px) 'Oxanium',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pb-rival-source button.is-active{border-color:#ffe078;color:#ffe078}
-.pb-rival-community{display:flex;flex-direction:column;min-height:0;overflow:auto;flex:1}
-.pb-rival-community .pb-mini-label{margin:2px 0 4px}
-.pb-rival-community-note{font:700 10px 'Oxanium',sans-serif;color:#a2bad2;margin-top:3px}
-.pb-rival-community .pb-published-picker .pb-published-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;overflow:visible;padding:0}
-.pb-rival-community .pb-published-grid button{flex:none;min-height:0;width:100%}
+.pb-options-rival .pb-rival-source{display:flex;gap:4px;margin:4px 0;flex-shrink:0}
+.pb-options-rival .pb-rival-source button{flex:1;min-width:0;padding:4px 6px;background:#0e2545;border:2px solid #54739d;color:#e4f1ff;font:800 clamp(9px,1.1vw,12px) 'Oxanium',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-options-rival .pb-rival-source button.is-active{border-color:#ffe078;color:#ffe078}
+.pb-options-rival .pb-rival-community{display:flex;flex-direction:column;min-height:0;overflow:auto;flex:1}
+.pb-options-rival .pb-rival-community .pb-mini-label{margin:2px 0 4px}
+.pb-options-rival .pb-rival-community-note{font:700 10px 'Oxanium',sans-serif;color:#a2bad2;margin-top:3px}
+.pb-options-rival .pb-rival-community .pb-published-picker .pb-published-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;overflow:visible;padding:0}
+.pb-options-rival .pb-rival-community .pb-published-grid button{flex:none;min-height:0;width:100%}
 @media (orientation:landscape) and (max-height:530px){
-.pb-rival-source{margin:2px 0;gap:3px}
-.pb-rival-source button{padding:2px 3px;font-size:9px;line-height:1.1}
-.pb-rival-community-note,.pb-rival-community .pb-mini-label{display:none}
-.pb-rival-community .pb-published-grid button{padding:2px;gap:2px;min-height:0}
-.pb-rival-community .pb-published-grid button img{width:100%;max-width:34px;height:auto;aspect-ratio:1;object-fit:cover}
-.pb-rival-community .pb-published-grid button span{font-size:8px}
-.pb-rival-community .pb-published-picker,.pb-rival-community{gap:3px}
+.pb-options-rival .pb-rival-source{margin:2px 0;gap:3px}
+.pb-options-rival .pb-rival-source button{padding:2px 3px;font-size:9px;line-height:1.1}
+.pb-options-rival .pb-rival-community-note,.pb-options-rival .pb-rival-community .pb-mini-label{display:none}
+.pb-options-rival .pb-rival-community .pb-published-grid button{padding:2px;gap:2px;min-height:0}
+.pb-options-rival .pb-rival-community .pb-published-grid button img{width:100%;max-width:34px;height:auto;aspect-ratio:1;object-fit:cover}
+.pb-options-rival .pb-rival-community .pb-published-grid button span{font-size:8px}
+.pb-options-rival .pb-rival-community .pb-published-picker,.pb-options-rival .pb-rival-community{gap:3px}
 }
-@media (max-width:520px) and (orientation:portrait){.pb-rival-community .pb-published-picker .pb-published-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pb-options-rival{overflow-y:auto}.pb-options-rival .pb-versus-preview{flex:none;min-height:118px}.pb-rival-community{overflow:visible;flex:none}.pb-rival-community .pb-published-grid button{padding:3px}.pb-rival-community .pb-published-grid button span{font-size:9px}.pb-rival-source button{padding:3px 4px;font-size:10px}}
+@media (max-width:520px) and (orientation:portrait){.pb-options-rival .pb-rival-community .pb-published-picker .pb-published-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pb-options-rival{overflow-y:auto}.pb-options-rival .pb-versus-preview{flex:none;min-height:118px}.pb-options-rival .pb-rival-community{overflow:visible;flex:none}.pb-options-rival .pb-rival-community .pb-published-grid button{padding:3px}.pb-options-rival .pb-rival-community .pb-published-grid button span{font-size:9px}.pb-options-rival .pb-rival-source button{padding:3px 4px;font-size:10px}}
