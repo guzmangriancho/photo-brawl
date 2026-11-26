@@ -107,4 +107,5 @@ export const EN_RULES: Rule[] = [
   [/^TÚ$/, () => 'YOU'],
   [/^(\d+) HITS$/, a => `${a} HITS`],
   [/^(\d+)px$/, a => `${a}px`],
+  [/^16 celdas adaptadas a sus ataques\. Última celda: (proyectil|ko extra)\.$/, a => `16 cells adapted to its attacks. Last cell: ${a === 'proyectil' ? 'projectile' : 'extra KO'}.`],
 ];
