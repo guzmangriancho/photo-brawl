@@ -69,6 +69,15 @@ function byesOf(r1: BracketMatch[], r2: BracketMatch[]): { id: string; name?: st
   }
   return out;
 }
+/** Ronda 1 en el orden del cruce al que alimenta cada casilla (combates y pases directos), para que cada una quede a la altura de su combate siguiente. */
+function r1Order(r1: BracketMatch[], r2: BracketMatch[]): { m?: BracketMatch; bye?: { id: string; name?: string; img?: string } }[] {
+  const next = (id?: string) => { const i = id ? r2.findIndex(x => x.entryA === id || x.entryB === id) : -1; return i < 0 ? 1e6 : i; };
+  const items = [
+    ...r1.map((m, i) => ({ m, bye: undefined, k: next(m.winnerEntryId), i })),
+    ...byesOf(r1, r2).map((bye, i) => ({ m: undefined, bye, k: next(bye.id), i: 1000 + i })),
+  ];
+  return items.sort((x, y) => x.k - y.k || x.i - y.i);
+}
 function roundName(r: number, total: number): string {
   return r === total ? 'FINAL' : r === total - 1 ? 'SEMIFINAL' : r === total - 2 ? 'CUARTOS' : `RONDA ${r}`;
 }
@@ -80,8 +89,10 @@ function BracketTree({ rounds, total, watching, onWatch, veilId }: { rounds: { t
   return <div className="pb-trn-tree" ref={box} role="group" aria-label="Cuadro de eliminatorias">
     {rounds.map((r, ri) => <div className="pb-trn-col" key={ri}>
       <h4>{roundName(ri + 1, total)}</h4>
-      <div className="pb-trn-col-body">{ri === 0 && rounds[1] ? byesOf(rounds[0].matches, rounds[1].matches).map(b => <div className="pb-trn-tmatch pb-trn-bye" key={'bye' + b.id}>
-        <div className="pb-trn-tslot win">{b.img ? <img src={b.img} alt="" draggable={false} /> : <u />}<em>{b.name}</em><b /><Crown size={10} aria-label="pasa" /></div><small>PASA DIRECTO</small></div>) : null}{r.matches.map(m => {
+      <div className="pb-trn-col-body">{(ri === 0 && rounds[1] ? r1Order(rounds[0].matches, rounds[1].matches) : r.matches.map(m => ({ m, bye: undefined as undefined | { id: string; name?: string; img?: string } }))).map(({ m, bye: b }) => {
+        if (b) return <div className="pb-trn-tmatch pb-trn-bye" key={'bye' + b.id}>
+          <div className="pb-trn-tslot win">{b.img ? <img src={b.img} alt="" draggable={false} /> : <u />}<em>{b.name}</em><b /><Crown size={10} aria-label="pasa" /></div><small>PASA DIRECTO</small></div>;
+        if (!m) return null;
         const veiled = m.id === veilId;
         const aw = !veiled && m.winnerEntryId === m.entryA, bw = !veiled && m.winnerEntryId === m.entryB;
         const slot = (name: string | undefined, img: string | undefined, win: boolean, score: number | undefined) =>
