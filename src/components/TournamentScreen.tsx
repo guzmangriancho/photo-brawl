@@ -5,6 +5,7 @@ import { DEFAULT_CPU_TACTICS, type CpuTactics } from '../engine/cpuTactics';
 import { REPLAYABLE_SIM_VERSIONS } from '../engine/fightSeed';
 import { CpuTacticsPanel } from './CpuTacticsPanel';
 import { TournamentVideoPanel } from './TournamentVideoPanel';
+import { liveGate, liveRetryDelayMs } from '../services/liveVeil';
 import {
   fetchTournamentBracket, fetchLiveTrace, fetchTournamentLive, fetchTournamentMatch, fetchTournamentState, joinTournament, liveSeen, markLiveSeen, saveTournamentTactics, toFighterProfile,
   type BracketMatch, type TournamentFighter, type LiveTrace, type TournamentLive, type TournamentMatchView, type TournamentState,
@@ -89,7 +90,7 @@ function roundName(r: number, total: number): string {
   return r === total ? 'FINAL' : r === total - 1 ? 'SEMIFINAL' : r === total - 2 ? 'CUARTOS' : `RONDA ${r}`;
 }
 /** Cuadro de eliminatorias: una columna por ronda, una casilla por combate con retratos; el que cae se apaga en gris. */
-function BracketTree({ rounds, total, watching, onWatch, veilId, byes }: { rounds: { total: number; matches: BracketMatch[] }[]; byes: ByeInfo[]; total: number; watching: string; onWatch: (id: string) => void; veilId: string }) {
+function BracketTree({ rounds, total, watching, onWatch, veilId, veilAll, byes }: { rounds: { total: number; matches: BracketMatch[] }[]; byes: ByeInfo[]; total: number; watching: string; onWatch: (id: string) => void; veilId: string; veilAll: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   // Al destaparse una ronda nueva, el cuadro se desplaza a la última columna.
   useEffect(() => { const el = box.current; if (el && rounds.length > 1) { const cols = el.querySelectorAll<HTMLElement>('.pb-trn-col'); const last = cols[cols.length - 1]; if (last) el.scrollTo({ left: Math.max(0, last.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft - 4), behavior: 'smooth' }); } }, [rounds.length]);
@@ -100,7 +101,7 @@ function BracketTree({ rounds, total, watching, onWatch, veilId, byes }: { round
         if (b) return <div className="pb-trn-tmatch pb-trn-bye" key={'bye' + b.id}>
           <div className="pb-trn-tslot win">{b.img ? <img src={b.img} alt="" draggable={false} /> : <u />}<em>{b.name}</em><b /><Crown size={10} aria-label="pasa" /></div><small>PASA DIRECTO</small></div>;
         if (!m) return null;
-        const veiled = m.id === veilId;
+        const veiled = veilAll || m.id === veilId;
         const aw = !veiled && m.winnerEntryId === m.entryA, bw = !veiled && m.winnerEntryId === m.entryB;
         const slot = (name: string | undefined, img: string | undefined, win: boolean, score: number | undefined) =>
           <div className={`pb-trn-tslot ${win ? 'win' : m.revealed && !veiled ? 'out' : ''}`}>{img ? <img src={img} alt="" draggable={false} /> : <u />}<em>{name}</em><b>{m.revealed && !veiled ? score : ''}</b>{win && <Crown size={10} aria-label="pasa" />}</div>;
@@ -157,12 +158,26 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     return !!target && new Date(target).getTime() - (Date.now() + offset) < 60_000;
   }, [t, offset, state]);
   useEffect(() => { void refresh(); }, [refresh]);
+  const [liveFailed, setLiveFailed] = useState(false);
+  const liveHave = useRef(false);
+  const liveFails = useRef(0);
+  const liveRetry = useRef(0);
   const refreshLive = useCallback(async () => {
     try {
       const r = await fetchTournamentLive();
-      if (alive.current) setLiveInfo({ live: r.live, offset: new Date(r.now).getTime() - Date.now() });
-    } catch { if (alive.current) setLiveInfo(old => old || { live: null, offset: 0 }); }
+      liveHave.current = true; liveFails.current = 0;
+      if (alive.current) { setLiveInfo({ live: r.live, offset: new Date(r.now).getTime() - Date.now() }); setLiveFailed(false); }
+    } catch {
+      if (!alive.current || liveHave.current) return; // con una respuesta anterior válida se conserva (el velo no se pierde por un fallo puntual)
+      // Sin respuesta previa no sabemos si hay velo: pantalla usable pero con todo tapado, y reintento con espera creciente (ver liveVeil.ts).
+      liveFails.current += 1; setLiveFailed(true);
+      window.clearTimeout(liveRetry.current);
+      liveRetry.current = window.setTimeout(() => { if (alive.current) void refreshLiveRef.current(); }, liveRetryDelayMs(liveFails.current));
+    }
   }, []);
+  const refreshLiveRef = useRef(refreshLive);
+  refreshLiveRef.current = refreshLive;
+  useEffect(() => () => window.clearTimeout(liveRetry.current), []);
   useEffect(() => {
     void refreshLive();
     const id = window.setInterval(() => { if (!document.hidden) void refreshLive(); }, 6000);
@@ -173,6 +188,8 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
   const liveOffset = liveInfo?.offset || 0;
   const liveClock = liveNow + liveOffset;
   // Velo contra spoilers: mientras dura la ventana de TU directo y no lo hayas visto (o pedido el resultado), se tapa el resultado de ese combate.
+  const gate = liveGate(!!liveInfo, liveFailed);
+  const veilAll = gate === 'unknown';
   const veilId = lv && !liveSeen(lv.matchId) && liveClock <= lv.endsAtMs + 15000 ? lv.matchId : '';
   void seenTick;
   const enterLive = useCallback(async (l: TournamentLive) => {
@@ -272,10 +289,10 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
     return () => { live = false; };
   }, [treeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !liveInfo) return <div className="pb-subpage pb-trn-page"><section className="pb-frame pb-trn-card pb-trn-center"><Loader2 className="pb-trn-spin" size={26} /><p>CARGANDO TORNEO…</p><small>Si el servidor estaba dormido puede tardar unos 30 s.</small></section></div>;
+  if (loading || gate === 'loading') return <div className="pb-subpage pb-trn-page"><section className="pb-frame pb-trn-card pb-trn-center"><Loader2 className="pb-trn-spin" size={26} /><p>CARGANDO TORNEO…</p><small>Si el servidor estaba dormido puede tardar unos 30 s.</small></section></div>;
 
   const me = state?.me || null;
-  const alivePlayer = me && me.entry.status !== 'eliminated' && !veilId;
+  const alivePlayer = me && me.entry.status !== 'eliminated' && !veilId && !veilAll;
   const status = t?.status;
   const registered = !!me;
   const picking = status === 'registration' && (!registered || changing);
@@ -303,9 +320,10 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
           <small className="pb-trn-note">El combate ya está decidido en el servidor; el directo lo emite a la vez para los dos contendientes. Solo se emite tu combate. Hasta que lo veas, tu resultado y tu estado en el torneo salen tapados aquí; si miras el cuadro o a otro jugador desde otro sitio, puede verse.</small>
         </section>;
       })()}
+      {veilAll && <div className="pb-trn-error" role="status">No se pudo comprobar si tienes un directo en curso. Hasta saberlo, el campeón, los resultados y el cuadro están tapados.<button type="button" onClick={() => void refreshLive()}>REINTENTAR</button></div>}
       {error && <div className="pb-trn-error" role="alert">{error}<button type="button" onClick={() => { setError(''); void refresh(); }}>REINTENTAR</button></div>}
 
-      {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{veilId && lv?.tournamentId === state.previous.id ? '(TAPADO HASTA TU DIRECTO)' : state.previous.champion.name}</b>
+      {state?.previous?.champion && <div className="pb-trn-champ-strip"><Crown size={15} /> {state.previous.kind === 'exhibition' ? 'CAMPEÓN DE LA EXHIBICIÓN' : 'CAMPEÓN ANTERIOR'}: <b>{veilAll || (veilId && lv?.tournamentId === state.previous.id) ? '(TAPADO HASTA TU DIRECTO)' : state.previous.champion.name}</b>
         {prev && shownRounds(prev) > 0 && <button type="button" className="pb-mini-button" onClick={() => { pickBracket('previous'); window.setTimeout(() => document.getElementById('pb-trn-bracket')?.scrollIntoView({ block: 'start' }), 400); }}>CUADRO ANTERIOR</button>}</div>}
 
       {!t && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={30} /><p>NO HAY TORNEO ABIERTO</p><small>Cuando termine uno, el siguiente se abre solo. Vuelve más tarde.</small></section>}
@@ -338,38 +356,39 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
 
       {t && (status === 'round_open' || status === 'simulating') && <>
         <section className="pb-frame pb-trn-card">
-          <div className="pb-trn-round">RONDA <b>{t.roundNo}</b> / {t.roundCount} · {veilId ? '?' : state?.progress?.alive ?? '?'} VIVOS</div>
+          <div className="pb-trn-round">RONDA <b>{t.roundNo}</b> / {t.roundCount} · {veilId || veilAll ? '?' : state?.progress?.alive ?? '?'} VIVOS</div>
           {status === 'round_open' ? <Countdown to={t.roundCutoff} offset={offset} label="CORTE DE LA RONDA EN" />
             : <div className="pb-trn-count"><Loader2 className="pb-trn-spin" size={15} /><small>RESOLVIENDO LA RONDA</small><b>{state?.progress ? `${state.progress.resolved}/${state.progress.total}` : ''}</b></div>}
           {alivePlayer && state?.myMatch && <small className="pb-trn-note">{status === 'round_open' ? 'Las tácticas se congelan al llegar a cero. Lo que cambies después cuenta para la siguiente ronda.' : 'Tus tácticas de esta ronda ya están congeladas. Lo que cambies ahora cuenta para la siguiente.'}</small>}
         </section>
         {alivePlayer && state?.myMatch?.opponent && <FighterCard f={state.myMatch.opponent} title="TU RIVAL" hint="Sus tácticas se ven al terminar la pelea." />}
         {alivePlayer && !state?.myMatch && <section className="pb-frame pb-trn-card pb-trn-center"><Check size={24} /><p>{t.roundNo === 1 ? 'PASAS DIRECTO LA RONDA PREVIA' : 'ESPERANDO A TU RIVAL'}</p><small>Sigue en el torneo. Cuando se resuelva la ronda verás con quién te toca.</small></section>}
-        {me && me.entry.status === 'eliminated' && !veilId && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={24} /><p>ELIMINADO EN LA RONDA {me.entry.eliminatedRound}</p><small>Puedes seguir viendo tus combates y el cuadro. El siguiente torneo se abre al terminar la final.</small></section>}
+        {me && me.entry.status === 'eliminated' && !veilId && !veilAll && <section className="pb-frame pb-trn-card pb-trn-center"><Trophy size={24} /><p>ELIMINADO EN LA RONDA {me.entry.eliminatedRound}</p><small>Puedes seguir viendo tus combates y el cuadro. El siguiente torneo se abre al terminar la final.</small></section>}
         {tacticsBlock}
       </>}
 
-      {t && status === 'finished' && <section className="pb-frame pb-trn-card pb-trn-center"><Crown size={30} /><p>CAMPEÓN: {veilId ? '(TAPADO HASTA TU DIRECTO)' : state?.champion?.name}</p><small>El torneo ha terminado. Abre el cuadro y pulsa ▶ en cualquier combate para volver a verlo.</small></section>}
+      {t && status === 'finished' && <section className="pb-frame pb-trn-card pb-trn-center"><Crown size={30} /><p>CAMPEÓN: {veilId || veilAll ? '(TAPADO HASTA TU DIRECTO)' : state?.champion?.name}</p><small>El torneo ha terminado. Abre el cuadro y pulsa ▶ en cualquier combate para volver a verlo.</small></section>}
       {bt && bt.status === 'finished' && <TournamentVideoPanel tournamentId={bt.id} />}
 
-      {state && state.history.length > 0 && me && <section className="pb-frame pb-trn-card" aria-label="Tus combates">
+      {state && !veilAll && state.history.length > 0 && me && <section className="pb-frame pb-trn-card" aria-label="Tus combates">
         <div className="pb-trn-row"><Play size={15} /> TUS COMBATES</div>
-        <ul className="pb-trn-history">{state.history.map(m => { const r = resultOf(m, me.entry.id); const veiled = m.id === veilId; return <li key={m.id} className={veiled ? '' : r.won ? 'is-win' : 'is-loss'}>
+        <ul className="pb-trn-history">{state.history.map(m => { const r = resultOf(m, me.entry.id); const veiled = veilAll || m.id === veilId; return <li key={m.id} className={veiled ? '' : r.won ? 'is-win' : 'is-loss'}>
           <span>R{m.round}</span><b>{veiled ? 'RESULTADO TAPADO' : `${r.won ? 'VICTORIA' : 'DERROTA'} ${r.text}`}</b><em>VS {m.opponent?.name || '?'}</em>
           <button type="button" className="pb-mini-button" disabled={!!watching || veiled} onClick={() => void watch(m.id)}>{watching === m.id ? <Loader2 className="pb-trn-spin" size={13} /> : <Play size={13} />} VER</button></li>; })}</ul>
         {state.history.some(m => m.decidedBy === 'cap') && <small className="pb-trn-note">Un combate se cerró por el desempate del torneo (mucho tiempo sin KO). Su recreación puede variar al final.</small>}
       </section>}
 
       {bt && shownRounds(bt) > 0 && <section className="pb-frame pb-trn-card" id="pb-trn-bracket" aria-label="Cuadro">
+        {veilAll ? <small className="pb-trn-note" role="note">CUADRO TAPADO: hasta comprobar tu directo no se muestran participantes ni rondas.</small> : <>
         {prev && <div className="pb-trn-rounds pb-trn-tabs" role="group" aria-label="Torneo del cuadro">
           <button type="button" aria-pressed={bracketOf === 'current'} className={bracketOf === 'current' ? 'is-selected' : ''} onClick={() => pickBracket('current')}>ACTUAL</button>
           <button type="button" aria-pressed={bracketOf === 'previous'} className={bracketOf === 'previous' ? 'is-selected' : ''} onClick={() => pickBracket('previous')}>ANTERIOR</button></div>}
-        {tree && tree.id === bt.id && <BracketTree rounds={tree.rounds} byes={tree.byes} total={bt.roundCount || tree.rounds.length} watching={watching} onWatch={id => void watch(id)} veilId={veilId} />}
+        {tree && tree.id === bt.id && <BracketTree rounds={tree.rounds} byes={tree.byes} total={bt.roundCount || tree.rounds.length} watching={watching} onWatch={id => void watch(id)} veilId={veilId} veilAll={veilAll} />}
         {!(tree && tree.id === bt.id) && <>
         <div className="pb-trn-row"><Trophy size={15} /> CUADRO · RONDA
           <div className="pb-trn-rounds">{Array.from({ length: shownRounds(bt) }, (_, i) => i + 1).map(r => <button type="button" key={r} aria-pressed={bracketRound === r} className={bracketRound === r ? 'is-selected' : ''} onClick={() => void loadBracket(r)}>{r}</button>)}</div></div>
         {bracket && <>
-          <ul className="pb-trn-bracket">{bracket.matches.map(m => { const veiled = m.id === veilId; const aw = !veiled && m.winnerEntryId === m.entryA, bw = !veiled && m.winnerEntryId === m.entryB; return <li key={m.id}>
+          <ul className="pb-trn-bracket">{bracket.matches.map(m => { const veiled = veilAll || m.id === veilId; const aw = !veiled && m.winnerEntryId === m.entryA, bw = !veiled && m.winnerEntryId === m.entryB; return <li key={m.id}>
             <span className={`pb-trn-slot ${aw ? 'win' : m.revealed && !veiled ? 'out' : ''}`}>{m.aPortrait && <img src={m.aPortrait} alt="" draggable={false} />}<em>{m.a}</em>{aw && <Crown size={11} aria-label="pasa" />}</span>
             <i>{veiled ? '·' : `${m.scoreA}-${m.scoreB}`}</i>
             <span className={`pb-trn-slot ${bw ? 'win' : m.revealed && !veiled ? 'out' : ''}`}>{m.bPortrait && <img src={m.bPortrait} alt="" draggable={false} />}<em>{m.b}</em>{bw && <Crown size={11} aria-label="pasa" />}</span>
@@ -377,6 +396,7 @@ export function TournamentScreen({ fighters, onWatch }: Props) {
           {bracket.total > 40 && <div className="pb-pagination"><button type="button" disabled={bracket.offset === 0} onClick={() => void loadBracket(bracketRound, Math.max(0, bracket.offset - 40))} aria-label="Anterior"><ChevronLeft size={16} /></button>
             <span>{bracket.offset + 1}-{Math.min(bracket.total, bracket.offset + 40)} / {bracket.total}</span>
             <button type="button" disabled={bracket.offset + 40 >= bracket.total} onClick={() => void loadBracket(bracketRound, bracket.offset + 40)} aria-label="Siguiente"><ChevronRight size={16} /></button></div>}
+        </>}
         </>}
         </>}
       </section>}
