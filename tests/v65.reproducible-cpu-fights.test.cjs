@@ -72,7 +72,7 @@ test('without a seed fights still vary (1 vs CPU keeps its randomness)', () => {
 // Golden guard: if this fails, the engine or the AI changed how a fight plays out.
 // Bump SIM_VERSION in src/engine/fightSeed.ts and update GOLDEN, so old saved recipes are known to be outdated.
 test('golden fight and SIM_VERSION', () => {
-  const GOLDEN = { version: 3, frames: 2933, digest: 3557321601 };
+  const GOLDEN = { version: 4, frames: 2933, digest: 3557321601 };
   const r = fight(A, B, TAC, 12345);
   if (process.env.PRINT_GOLDEN) console.log(JSON.stringify({ version: seedMod.SIM_VERSION, frames: r.frames, digest: r.digest, winner: r.winner, score: r.score }));
   assert.equal(seedMod.SIM_VERSION, GOLDEN.version);

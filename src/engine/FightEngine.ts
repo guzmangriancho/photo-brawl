@@ -13,7 +13,7 @@ import type { NetworkState, NetworkFighter } from '../network/protocol';
 import { CpuTactics, DEFAULT_CPU_TACTICS, distanceScale, keepRange, normalizeCpuTactics } from './cpuTactics';
 
 /** Current rules version (same number as SIM_VERSION in fightSeed.ts; tests keep them equal). */
-export const ENGINE_SIM_VERSION = 3;
+export const ENGINE_SIM_VERSION = 4;
 
 // Visual assets are loaded only in browsers. The authoritative Node combat server
 // never needs Image/DOM APIs. Frames render the old procedural background until ready.
@@ -1969,7 +1969,10 @@ export class FightEngine {
     }
 
     // 4. Clean Hit Connects! (Apply +25% Counter Hit bonus if applicable)
-    const rawDamage = atk.multiHitInterval ? Math.round(atk.damage / 5) : atk.damage;
+    // v4: the vertical tornado is a real multi-hit move (see below); its total damage is 70% of the nominal one.
+    const rawDamage = atk.multiHitInterval
+      ? Math.round(atk.damage / 5 * (this.simVersion >= 4 && atk.mechanic === 'VERTICAL_TORNADO' ? 0.7 : 1))
+      : atk.damage;
     const counterMult = isCounterHit ? 1.25 : 1.0;
     const scaledDamage = Math.max(8, Math.round(rawDamage * counterMult * attacker.damageScaling));
     defender.hp = Math.max(0, defender.hp - scaledDamage);
@@ -2053,9 +2056,10 @@ export class FightEngine {
         attacker.vy = -15.5;
         attacker.y -= 6;
       }
-    } else if (atk.knockdown && !(this.simVersion >= 3 && atk.multiHitInterval && atk.mechanic === 'SPINNING_ADVANCE' &&
+    } else if (atk.knockdown && !(this.simVersion >= 3 && atk.multiHitInterval &&
+      (atk.mechanic === 'SPINNING_ADVANCE' || (this.simVersion >= 4 && atk.mechanic === 'VERTICAL_TORNADO')) &&
       attacker.stateFrame + atk.multiHitInterval < atk.startup + atk.active)) {
-      // v3: the spinning advance is a multi-hit move (each hit is 1/5 of the move's damage). Before, the first hit knocked
+      // v3 (spinning advance) and v4 (vertical tornado): a multi-hit move (each hit is 1/5 of the move's damage). Before, the first hit knocked
       // the rival down and the other hits could never land, so they only dealt a fifth of their damage. Now only the last hit knocks down.
       defender.state = 'KNOCKDOWN';
       defender.stateFrame = 0;
